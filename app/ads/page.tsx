@@ -126,8 +126,8 @@ export default function AdsOverviewPage() {
               key={value}
               onClick={() => setMonth(value)}
               style={{
-                background: month === value ? '#6366f1' : '#13161e',
-                border: `1px solid ${month === value ? '#6366f1' : '#222636'}`,
+                background: month === value ? '#6366f1' : 'var(--bg-card)',
+                border: `1px solid ${month === value ? '#6366f1' : 'var(--border-color)'}`,
                 borderRadius: 8, padding: '7px 14px', fontSize: 12.5,
                 color: month === value ? 'white' : '#6b7280', cursor: 'pointer',
               }}
@@ -145,13 +145,13 @@ export default function AdsOverviewPage() {
           {cards.map((card, i) => (
             <Link key={card.href} href={card.href} style={{ textDecoration: 'none', color: 'inherit' }}>
               <div style={{
-                background: '#13161e', border: '1px solid #222636', borderRadius: 16, padding: 24,
+                background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 16, padding: 24,
                 position: 'relative', overflow: 'hidden', cursor: 'pointer',
                 transition: 'border-color 0.2s, transform 0.2s',
                 opacity: 0, animation: `fadeInUp 0.6s ease-out ${i * 0.12}s forwards`,
               }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = card.color; e.currentTarget.style.transform = 'translateY(-2px)' }}
-                onMouseLeave={e => { e.currentTarget.style.borderColor = '#222636'; e.currentTarget.style.transform = 'translateY(0)' }}
+                onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.transform = 'translateY(0)' }}
               >
                 <div style={{ position: 'absolute', top: 0, right: 0, width: 90, height: 90, borderRadius: '0 16px 0 90px', background: card.color, opacity: 0.07 }} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>

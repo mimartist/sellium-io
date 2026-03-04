@@ -121,8 +121,8 @@ export default function ProductsPage() {
   const handleSort = (key: SortKey) => { if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('desc') } }
   const sortIcon = (key: SortKey) => sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''
 
-  const thStyle: React.CSSProperties = { padding: '10px 12px', fontSize: 10.5, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', cursor: 'pointer', whiteSpace: 'nowrap', borderBottom: '1px solid #222636', userSelect: 'none' }
-  const tdStyle: React.CSSProperties = { padding: '10px 12px', fontSize: 13, borderBottom: '1px solid #1a1e29', whiteSpace: 'nowrap' }
+  const thStyle: React.CSSProperties = { padding: '10px 12px', fontSize: 10.5, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', cursor: 'pointer', whiteSpace: 'nowrap', borderBottom: '1px solid var(--border-color)', userSelect: 'none' }
+  const tdStyle: React.CSSProperties = { padding: '10px 12px', fontSize: 13, borderBottom: '1px solid var(--bg-elevated)', whiteSpace: 'nowrap' }
 
   const worst3 = useMemo(() => [...insightSkus].filter(s => Number(s.calc_acos) > 0).sort((a, b) => Number(b.calc_acos) - Number(a.calc_acos)).slice(0, 3), [insightSkus])
   const best3 = useMemo(() => [...insightSkus].filter(s => Number(s.calc_acos) > 0 && Number(s.total_sales) > 0).sort((a, b) => Number(a.calc_acos) - Number(b.calc_acos)).slice(0, 3), [insightSkus])
@@ -136,7 +136,7 @@ export default function ProductsPage() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {Object.entries(monthLabels).map(([value, label]) => (
-            <button key={value} onClick={() => setMonth(value)} style={{ background: month === value ? '#6366f1' : '#13161e', border: `1px solid ${month === value ? '#6366f1' : '#222636'}`, borderRadius: 8, padding: '7px 14px', fontSize: 12.5, color: month === value ? 'white' : '#6b7280', cursor: 'pointer' }}>{label}</button>
+            <button key={value} onClick={() => setMonth(value)} style={{ background: month === value ? '#6366f1' : 'var(--bg-card)', border: `1px solid ${month === value ? '#6366f1' : 'var(--border-color)'}`, borderRadius: 8, padding: '7px 14px', fontSize: 12.5, color: month === value ? 'white' : '#6b7280', cursor: 'pointer' }}>{label}</button>
           ))}
         </div>
       </div>
@@ -153,7 +153,7 @@ export default function ProductsPage() {
               { label: 'ORT. ACOS', value: `%${kpis.acos.toFixed(1)}`, color: acosColor(kpis.acos) },
               { label: 'ORT. ROAS', value: `${kpis.roas.toFixed(2)}x`, color: '#6366f1' },
             ].map((kpi, i) => (
-              <div key={i} style={{ background: '#13161e', border: '1px solid #222636', borderRadius: 14, padding: '18px 20px', position: 'relative', overflow: 'hidden', opacity: 0, animation: `fadeInUp 0.6s ease-out ${i * 0.1}s forwards` }}>
+              <div key={i} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: '18px 20px', position: 'relative', overflow: 'hidden', opacity: 0, animation: `fadeInUp 0.6s ease-out ${i * 0.1}s forwards` }}>
                 <div style={{ position: 'absolute', top: 0, right: 0, width: 70, height: 70, borderRadius: '0 14px 0 70px', background: kpi.color, opacity: 0.07 }} />
                 <div style={{ fontSize: 10.5, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>{kpi.label}</div>
                 <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-1px', animation: `numberCount 0.5s ease-out ${0.3 + i * 0.1}s both` }}>{kpi.value}</div>
@@ -164,14 +164,14 @@ export default function ProductsPage() {
           {/* INSIGHT CARDS */}
           {insightSkus.length > 0 && (
             <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
-              <div style={{ background: '#13161e', border: '1px solid #222636', borderLeft: '3px solid #f43f5e', borderRadius: 14, padding: '16px 20px', opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.45s forwards' }}>
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderLeft: '3px solid #f43f5e', borderRadius: 14, padding: '16px 20px', opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.45s forwards' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                   <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(244,63,94,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: '#f43f5e' }}>↓</div>
                   <div style={{ fontSize: 13, fontWeight: 600 }}>En Kötü Performans</div>
                   <div style={{ fontSize: 10, color: '#f43f5e', marginLeft: 'auto', fontWeight: 600 }}>YÜKSEK ACOS</div>
                 </div>
                 {worst3.map((s, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: i < 2 ? '1px solid #1a1e29' : 'none' }}>
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: i < 2 ? '1px solid var(--bg-elevated)' : 'none' }}>
                     <div style={{ fontSize: 12, color: '#9ca3af', fontWeight: 600 }}>{s.sku}</div>
                     <div style={{ display: 'flex', gap: 12, fontSize: 11 }}>
                       <span style={{ color: '#f43f5e', fontWeight: 600 }}>ACOS %{Number(s.calc_acos).toFixed(1)}</span>
@@ -180,14 +180,14 @@ export default function ProductsPage() {
                   </div>
                 ))}
               </div>
-              <div style={{ background: '#13161e', border: '1px solid #222636', borderLeft: '3px solid #10b981', borderRadius: 14, padding: '16px 20px', opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.5s forwards' }}>
+              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderLeft: '3px solid #10b981', borderRadius: 14, padding: '16px 20px', opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.5s forwards' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                   <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(16,185,129,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: '#10b981' }}>↑</div>
                   <div style={{ fontSize: 13, fontWeight: 600 }}>En İyi Performans</div>
                   <div style={{ fontSize: 10, color: '#10b981', marginLeft: 'auto', fontWeight: 600 }}>DÜŞÜK ACOS</div>
                 </div>
                 {best3.map((s, i) => (
-                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: i < 2 ? '1px solid #1a1e29' : 'none' }}>
+                  <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: i < 2 ? '1px solid var(--bg-elevated)' : 'none' }}>
                     <div style={{ fontSize: 12, color: '#9ca3af', fontWeight: 600 }}>{s.sku}</div>
                     <div style={{ display: 'flex', gap: 12, fontSize: 11 }}>
                       <span style={{ color: '#10b981', fontWeight: 600 }}>ACOS %{Number(s.calc_acos).toFixed(1)}</span>
@@ -201,14 +201,14 @@ export default function ProductsPage() {
 
           {/* AI INSIGHTS */}
           {aiInsights.length > 0 && (
-            <div style={{ background: '#13161e', border: '1px solid #222636', borderRadius: 14, padding: '16px 20px', marginBottom: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.55s forwards' }}>
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: '16px 20px', marginBottom: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.55s forwards' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                 <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(99,102,241,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#6366f1', fontWeight: 700 }}>AI</div>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>AI Önerileri</div>
                 <div style={{ fontSize: 10, color: '#6366f1', marginLeft: 'auto', fontWeight: 600 }}>{aiInsights.length} ÖNERİ</div>
               </div>
               {aiInsights.map((ins, i) => (
-                <div key={ins.id} style={{ padding: '10px 0', borderBottom: i < aiInsights.length - 1 ? '1px solid #1a1e29' : 'none' }}>
+                <div key={ins.id} style={{ padding: '10px 0', borderBottom: i < aiInsights.length - 1 ? '1px solid var(--bg-elevated)' : 'none' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                     <span style={{ fontSize: 9, fontWeight: 700, color: priorityColor(ins.priority), background: priorityBg(ins.priority), padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase' }}>{ins.priority}</span>
                     <span style={{ fontSize: 12.5, fontWeight: 600 }}>{ins.title}</span>
@@ -224,13 +224,13 @@ export default function ProductsPage() {
           )}
 
           {/* TABLE */}
-          <div className="table-container" style={{ background: '#13161e', border: '1px solid #222636', borderRadius: 14, padding: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.6s forwards' }}>
+          <div className="table-container" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.6s forwards' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>SKU Bazlı Performans</div>
                 <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{filtered.length} ürün</div>
               </div>
-              <input type="text" placeholder="SKU veya ASIN ara..." value={search} onChange={e => setSearch(e.target.value)} style={{ background: '#0d0f14', border: '1px solid #222636', borderRadius: 8, padding: '7px 14px', fontSize: 12.5, color: '#e8eaf0', outline: 'none', width: 220 }} />
+              <input type="text" placeholder="SKU veya ASIN ara..." value={search} onChange={e => setSearch(e.target.value)} style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '7px 14px', fontSize: 12.5, color: '#e8eaf0', outline: 'none', width: 220 }} />
             </div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>

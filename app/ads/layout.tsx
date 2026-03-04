@@ -40,7 +40,7 @@ export default function AdsLayout({ children }: { children: React.ReactNode }) {
 
   const sidebarContent = (
     <>
-      <div style={{ padding: '0 18px 20px', borderBottom: '1px solid #222636', marginBottom: 16 }}>
+      <div style={{ padding: '0 18px 20px', borderBottom: '1px solid var(--border-color)', marginBottom: 16 }}>
         <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
           <div style={{ fontSize: 18, fontWeight: 700 }}>Sellium<span style={{ color: '#6366f1' }}>.io</span></div>
         </Link>
@@ -58,13 +58,13 @@ export default function AdsLayout({ children }: { children: React.ReactNode }) {
           </div>
         </Link>
       ))}
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 12, borderTop: '1px solid #222636' }}>
-        <div style={{ background: '#1a1e29', border: '1px solid #222636', borderRadius: 10, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 12, borderTop: '1px solid var(--border-color)' }}>
+        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-color)', borderRadius: 10, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <div style={{ width: 28, height: 28, background: 'linear-gradient(135deg,#6366f1,#a78bfa)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: 'white', fontSize: 11 }}>M</div>
           <div><div style={{ fontSize: 12.5, fontWeight: 600 }}>Mimosso</div><div style={{ fontSize: 10, color: '#6b7280' }}>amazon.de</div></div>
         </div>
         <button onClick={handleLogout} style={{
-          width: '100%', padding: '7px 0', background: 'transparent', border: '1px solid #333',
+          width: '100%', padding: '7px 0', background: 'transparent', border: '1px solid var(--border-color)',
           borderRadius: 8, color: '#6b7280', fontSize: 12, cursor: 'pointer', transition: 'color 0.2s',
         }}
           onMouseEnter={(e) => e.currentTarget.style.color = '#f43f5e'}
@@ -80,7 +80,7 @@ export default function AdsLayout({ children }: { children: React.ReactNode }) {
     <DashboardShell sidebar={sidebarContent}>
 
       {/* TAB NAV */}
-      <div className="tab-nav" style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '1px solid #222636', paddingBottom: 0 }}>
+      <div className="tab-nav" style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '1px solid var(--border-color)', paddingBottom: 0 }}>
         {tabs.map(tab => {
           const active = isActiveTab(tab.href)
           return (

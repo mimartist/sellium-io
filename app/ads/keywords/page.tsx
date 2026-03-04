@@ -131,8 +131,8 @@ export default function KeywordsPage() {
   const sortIcon = (key: SortKey) => sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''
   const isNegativeCandidate = (t: TermAgg) => t.cvr === 0 && t.spend > 0
 
-  const thStyle: React.CSSProperties = { padding: '10px 12px', fontSize: 10.5, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', cursor: 'pointer', whiteSpace: 'nowrap', borderBottom: '1px solid #222636', userSelect: 'none' }
-  const tdStyle: React.CSSProperties = { padding: '10px 12px', fontSize: 13, borderBottom: '1px solid #1a1e29', whiteSpace: 'nowrap' }
+  const thStyle: React.CSSProperties = { padding: '10px 12px', fontSize: 10.5, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', cursor: 'pointer', whiteSpace: 'nowrap', borderBottom: '1px solid var(--border-color)', userSelect: 'none' }
+  const tdStyle: React.CSSProperties = { padding: '10px 12px', fontSize: 13, borderBottom: '1px solid var(--bg-elevated)', whiteSpace: 'nowrap' }
 
   return (
     <div>
@@ -143,7 +143,7 @@ export default function KeywordsPage() {
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {Object.entries(monthLabels).map(([value, label]) => (
-            <button key={value} onClick={() => setMonth(value)} style={{ background: month === value ? '#6366f1' : '#13161e', border: `1px solid ${month === value ? '#6366f1' : '#222636'}`, borderRadius: 8, padding: '7px 14px', fontSize: 12.5, color: month === value ? 'white' : '#6b7280', cursor: 'pointer' }}>{label}</button>
+            <button key={value} onClick={() => setMonth(value)} style={{ background: month === value ? '#6366f1' : 'var(--bg-card)', border: `1px solid ${month === value ? '#6366f1' : 'var(--border-color)'}`, borderRadius: 8, padding: '7px 14px', fontSize: 12.5, color: month === value ? 'white' : '#6b7280', cursor: 'pointer' }}>{label}</button>
           ))}
         </div>
       </div>
@@ -160,7 +160,7 @@ export default function KeywordsPage() {
               { label: 'ORT. CVR', value: `%${kpis.avgCvr.toFixed(1)}`, color: '#10b981' },
               { label: 'TOPLAM TIKLAMA', value: kpis.totalClicks.toLocaleString('de-DE'), color: '#a78bfa' },
             ].map((kpi, i) => (
-              <div key={i} style={{ background: '#13161e', border: '1px solid #222636', borderRadius: 14, padding: '18px 20px', position: 'relative', overflow: 'hidden', opacity: 0, animation: `fadeInUp 0.6s ease-out ${i * 0.1}s forwards` }}>
+              <div key={i} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: '18px 20px', position: 'relative', overflow: 'hidden', opacity: 0, animation: `fadeInUp 0.6s ease-out ${i * 0.1}s forwards` }}>
                 <div style={{ position: 'absolute', top: 0, right: 0, width: 70, height: 70, borderRadius: '0 14px 0 70px', background: kpi.color, opacity: 0.07 }} />
                 <div style={{ fontSize: 10.5, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>{kpi.label}</div>
                 <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-1px', animation: `numberCount 0.5s ease-out ${0.3 + i * 0.1}s both` }}>{kpi.value}</div>
@@ -172,7 +172,7 @@ export default function KeywordsPage() {
           {(insightNeg.length > 0 || insightWasted.length > 0) && (
             <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
               {insightNeg.length > 0 && (
-                <div style={{ background: '#13161e', border: '1px solid #222636', borderLeft: '3px solid #f43f5e', borderRadius: 14, padding: '16px 20px', opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.45s forwards' }}>
+                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderLeft: '3px solid #f43f5e', borderRadius: 14, padding: '16px 20px', opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.45s forwards' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                     <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(244,63,94,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#f43f5e' }}>✕</div>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>Negatif Keyword Adayları</div>
@@ -180,7 +180,7 @@ export default function KeywordsPage() {
                   </div>
                   <div style={{ fontSize: 11, color: '#6b7280', marginBottom: 8 }}>Tıklama ≥ 3, sipariş = 0, spend &gt; €2</div>
                   {insightNeg.slice(0, 4).map((n, i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: i < 3 ? '1px solid #1a1e29' : 'none' }}>
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: i < 3 ? '1px solid var(--bg-elevated)' : 'none' }}>
                       <div style={{ fontSize: 12, color: '#e8eaf0', maxWidth: '55%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{n.search_term}</div>
                       <div style={{ display: 'flex', gap: 10, fontSize: 11 }}>
                         <span style={{ color: '#f43f5e', fontWeight: 600 }}>€{Number(n.total_spend).toFixed(2)}</span>
@@ -191,14 +191,14 @@ export default function KeywordsPage() {
                 </div>
               )}
               {insightWasted.length > 0 && (
-                <div style={{ background: '#13161e', border: '1px solid #222636', borderLeft: '3px solid #f59e0b', borderRadius: 14, padding: '16px 20px', opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.5s forwards' }}>
+                <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderLeft: '3px solid #f59e0b', borderRadius: 14, padding: '16px 20px', opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.5s forwards' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                     <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(245,158,11,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#f59e0b' }}>$</div>
                     <div style={{ fontSize: 13, fontWeight: 600 }}>En Çok Para Yakan</div>
                     <div style={{ fontSize: 10, color: '#f59e0b', marginLeft: 'auto', fontWeight: 600 }}>€{insightWasted.reduce((s, w) => s + Number(w.total_spend), 0).toFixed(0)} BOŞA HARCAMA</div>
                   </div>
                   {insightWasted.slice(0, 3).map((w, i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: i < 2 ? '1px solid #1a1e29' : 'none' }}>
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: i < 2 ? '1px solid var(--bg-elevated)' : 'none' }}>
                       <div style={{ fontSize: 12, color: '#e8eaf0', maxWidth: '55%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{w.search_term}</div>
                       <div style={{ display: 'flex', gap: 10, fontSize: 11 }}>
                         <span style={{ color: '#f59e0b', fontWeight: 600 }}>€{Number(w.total_spend).toFixed(2)}</span>
@@ -213,14 +213,14 @@ export default function KeywordsPage() {
 
           {/* AI INSIGHTS */}
           {aiInsights.length > 0 && (
-            <div style={{ background: '#13161e', border: '1px solid #222636', borderRadius: 14, padding: '16px 20px', marginBottom: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.55s forwards' }}>
+            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: '16px 20px', marginBottom: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.55s forwards' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                 <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(99,102,241,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#6366f1', fontWeight: 700 }}>AI</div>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>AI Önerileri</div>
                 <div style={{ fontSize: 10, color: '#6366f1', marginLeft: 'auto', fontWeight: 600 }}>{aiInsights.length} ÖNERİ</div>
               </div>
               {aiInsights.map((ins, i) => (
-                <div key={ins.id} style={{ padding: '10px 0', borderBottom: i < aiInsights.length - 1 ? '1px solid #1a1e29' : 'none' }}>
+                <div key={ins.id} style={{ padding: '10px 0', borderBottom: i < aiInsights.length - 1 ? '1px solid var(--bg-elevated)' : 'none' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                     <span style={{ fontSize: 9, fontWeight: 700, color: priorityColor(ins.priority), background: priorityBg(ins.priority), padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase' }}>{ins.priority}</span>
                     <span style={{ fontSize: 12.5, fontWeight: 600 }}>{ins.title}</span>
@@ -236,13 +236,13 @@ export default function KeywordsPage() {
           )}
 
           {/* TABLE */}
-          <div className="table-container" style={{ background: '#13161e', border: '1px solid #222636', borderRadius: 14, padding: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.6s forwards' }}>
+          <div className="table-container" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.6s forwards' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>Arama Terimleri</div>
                 <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{filtered.length} terim · <span style={{ color: '#f43f5e' }}>{filtered.filter(isNegativeCandidate).length} negatif aday</span></div>
               </div>
-              <input type="text" placeholder="Terim ara..." value={search} onChange={e => setSearch(e.target.value)} style={{ background: '#0d0f14', border: '1px solid #222636', borderRadius: 8, padding: '7px 14px', fontSize: 12.5, color: '#e8eaf0', outline: 'none', width: 220 }} />
+              <input type="text" placeholder="Terim ara..." value={search} onChange={e => setSearch(e.target.value)} style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '7px 14px', fontSize: 12.5, color: '#e8eaf0', outline: 'none', width: 220 }} />
             </div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
