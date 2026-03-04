@@ -30,7 +30,7 @@ export default function DashboardShell({ sidebar, children }: DashboardShellProp
   }, [sidebarOpen])
 
   return (
-    <div className="dashboard-root" style={{ display: 'flex', minHeight: '100vh', background: '#0d0f14', color: '#e8eaf0', fontFamily: 'system-ui, sans-serif', fontSize: 14 }}>
+    <div className="dashboard-root" style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontFamily: 'system-ui, sans-serif', fontSize: 14 }}>
 
       {/* MOBILE HAMBURGER */}
       <button
@@ -42,13 +42,13 @@ export default function DashboardShell({ sidebar, children }: DashboardShellProp
           top: 14,
           left: 14,
           zIndex: 200,
-          width: 40,
-          height: 40,
+          width: 48,
+          height: 48,
           borderRadius: 10,
-          background: '#13161e',
-          border: '1px solid #222636',
-          color: '#e8eaf0',
-          fontSize: 20,
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-color)',
+          color: 'var(--text-primary)',
+          fontSize: 24,
           cursor: 'pointer',
           alignItems: 'center',
           justifyContent: 'center',
@@ -77,8 +77,8 @@ export default function DashboardShell({ sidebar, children }: DashboardShellProp
         className={`dashboard-sidebar ${sidebarOpen ? 'sidebar-open' : ''}`}
         style={{
           width: 210,
-          background: '#13161e',
-          borderRight: '1px solid #222636',
+          background: 'var(--bg-card)',
+          borderRight: '1px solid var(--border-color)',
           padding: '20px 0',
           position: 'fixed',
           top: 0,

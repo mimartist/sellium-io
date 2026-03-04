@@ -2,6 +2,8 @@ import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import LogoutButton from './components/LogoutButton'
 import DashboardShell from './components/DashboardShell'
+import InsightsList from './components/InsightsList'
+import ThemeToggle from './components/ThemeToggle'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -149,17 +151,15 @@ export default async function Dashboard() {
 
   const sidebarContent = (
     <>
-      <div style={{ padding: '0 18px 20px', borderBottom: '1px solid #222636', marginBottom: 16 }}>
+      <div style={{ padding: '0 18px 20px', borderBottom: '1px solid var(--border-color)', marginBottom: 16 }}>
         <div style={{ fontSize: 18, fontWeight: 700 }}>Sellium<span style={{ color: '#6366f1' }}>.io</span></div>
-        <div style={{ fontSize: 10, color: '#6b7280', letterSpacing: '1.5px', textTransform: 'uppercase', marginTop: 2 }}>AI Commerce OS</div>
+        <div style={{ fontSize: 10, color: 'var(--text-secondary)', letterSpacing: '1.5px', textTransform: 'uppercase', marginTop: 2 }}>AI Commerce OS</div>
       </div>
       {[
         { icon: '⬡', label: 'Dashboard', href: '/', active: true },
         { icon: '◈', label: 'Karlılık', href: '#' },
         { icon: '◫', label: 'Stok', href: '#' },
-        { icon: '◬', label: 'Reklam', href: '/ads/campaigns', children: [
-          { label: 'Kampanya Özeti', href: '/ads/campaigns' },
-        ]},
+        { icon: '◬', label: 'Reklam', href: '/ads' },
         { icon: '◉', label: 'Rakip Analizi', href: '#' },
         { icon: '◌', label: 'İçerik', href: '#' },
         { icon: '◎', label: 'AI Öneriler', href: '#', badge: data.insights.length },
@@ -172,21 +172,14 @@ export default async function Dashboard() {
               {item.badge ? <span style={{ marginLeft: 'auto', background: '#f43f5e', color: 'white', fontSize: 10, fontWeight: 700, padding: '2px 6px', borderRadius: 10 }}>{item.badge}</span> : null}
             </div>
           </Link>
-          {item.children?.map((child, j) => (
-            <Link key={j} href={child.href} style={{ textDecoration: 'none' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '6px 18px 6px 44px', fontSize: 12, color: '#6b7280', cursor: 'pointer', marginBottom: 2 }}>
-                <span style={{ width: 4, height: 4, borderRadius: '50%', background: '#6b7280' }}></span>
-                <span>{child.label}</span>
-              </div>
-            </Link>
-          ))}
         </div>
       ))}
-      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 12, borderTop: '1px solid #222636' }}>
-        <div style={{ background: '#1a1e29', border: '1px solid #222636', borderRadius: 10, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+      <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 12, borderTop: '1px solid var(--border-color)' }}>
+        <div style={{ background: 'var(--bg-elevated)', border: '1px solid var(--border-color)', borderRadius: 10, padding: '10px 12px', display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
           <div style={{ width: 28, height: 28, background: 'linear-gradient(135deg,#6366f1,#a78bfa)', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700, color: 'white', fontSize: 11 }}>M</div>
-          <div><div style={{ fontSize: 12.5, fontWeight: 600 }}>Mimosso</div><div style={{ fontSize: 10, color: '#6b7280' }}>amazon.de</div></div>
+          <div><div style={{ fontSize: 12.5, fontWeight: 600 }}>Mimosso</div><div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>amazon.de</div></div>
         </div>
+        <ThemeToggle />
         <LogoutButton />
       </div>
     </>
@@ -199,9 +192,9 @@ export default async function Dashboard() {
         <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
           <div>
             <h1 style={{ fontSize: 20, fontWeight: 700 }}>Genel Bakış</h1>
-            <p style={{ fontSize: 12, color: '#6b7280', marginTop: 3 }}>amazon.de + Shopify · Şubat 2026</p>
+            <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 3 }}>amazon.de + Shopify · Şubat 2026</p>
           </div>
-          <div style={{ background: '#13161e', border: '1px solid #222636', borderRadius: 8, padding: '7px 14px', fontSize: 12.5 }}>🇩🇪 amazon.de ⌄</div>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '7px 14px', fontSize: 12.5 }}>🇩🇪 amazon.de ⌄</div>
         </div>
 
         {/* KPI CARDS */}
@@ -212,9 +205,9 @@ export default async function Dashboard() {
             { label: 'ORT. ACOS', value: `%${data.kpis.avgAcos}`, color: '#f59e0b', change: '↓ -2.1pp geçen ay' },
             { label: 'STOK UYARISI', value: `${data.kpis.lowStockCount} SKU`, color: data.kpis.lowStockCount > 0 ? '#f43f5e' : '#10b981', change: data.kpis.lowStockCount > 0 ? '⚠ Kritik seviye' : '✓ Sağlıklı' },
           ].map((kpi, i) => (
-            <div key={i} style={{ background: '#13161e', border: '1px solid #222636', borderRadius: 14, padding: '18px 20px', position: 'relative', overflow: 'hidden', opacity: 0, animation: `fadeInUp 0.6s ease-out ${i * 0.12}s forwards` }}>
+            <div key={i} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: '18px 20px', position: 'relative', overflow: 'hidden', opacity: 0, animation: `fadeInUp 0.6s ease-out ${i * 0.12}s forwards` }}>
               <div style={{ position: 'absolute', top: 0, right: 0, width: 70, height: 70, borderRadius: '0 14px 0 70px', background: kpi.color, opacity: 0.07 }}></div>
-              <div style={{ fontSize: 10.5, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>{kpi.label}</div>
+              <div style={{ fontSize: 10.5, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>{kpi.label}</div>
               <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-1px', marginBottom: 6, animation: `numberCount 0.5s ease-out ${0.3 + i * 0.12}s both` }}>{kpi.value}</div>
               <div style={{ fontSize: 12, color: kpi.color }}>{kpi.change}</div>
             </div>
@@ -225,11 +218,11 @@ export default async function Dashboard() {
         <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 14, marginBottom: 20 }}>
 
           {/* Gelir Grafiği */}
-          <div style={{ background: '#13161e', border: '1px solid #222636', borderRadius: 14, padding: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.5s forwards' }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.5s forwards' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>Gelir & Karlılık Trendi</div>
-                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Şubat 2026 · Amazon DE</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Şubat 2026 · Amazon DE</div>
               </div>
             </div>
             <svg viewBox={`0 0 ${chartW} ${chartH}`} style={{ width: '100%', height: 160 }} preserveAspectRatio="none">
@@ -244,7 +237,7 @@ export default async function Dashboard() {
                 </linearGradient>
               </defs>
               {[0.25, 0.5, 0.75].map((y, i) => (
-                <line key={y} x1="0" y1={chartH * y} x2={chartW} y2={chartH * y} stroke="#222636" strokeWidth="1" style={{ opacity: 0, animation: `areaFadeIn 0.5s ease-out ${i * 0.15}s forwards` }}/>
+                <line key={y} x1="0" y1={chartH * y} x2={chartW} y2={chartH * y} stroke="var(--border-color)" strokeWidth="1" style={{ opacity: 0, animation: `areaFadeIn 0.5s ease-out ${i * 0.15}s forwards` }}/>
               ))}
               <path d={revArea} fill="url(#rg)" style={{ opacity: 0, animation: 'areaFadeIn 1s ease-out 0.8s forwards' }}/>
               <path d={revPath} fill="none" stroke="#6366f1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ strokeDasharray: 1500, strokeDashoffset: 1500, animation: 'lineDrawIn 1.5s ease-out 0.2s forwards' }}/>
@@ -256,7 +249,7 @@ export default async function Dashboard() {
             </svg>
             <div style={{ display: 'flex', gap: 20, marginTop: 8 }}>
               {[{ color: '#6366f1', label: 'Gelir' }, { color: '#10b981', label: 'Brüt Kar' }].map(l => (
-                <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: '#6b7280' }}>
+                <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
                   <div style={{ width: 10, height: 3, background: l.color, borderRadius: 2 }}></div>{l.label}
                 </div>
               ))}
@@ -264,14 +257,14 @@ export default async function Dashboard() {
           </div>
 
           {/* Platform + AI Skor */}
-          <div style={{ background: '#13161e', border: '1px solid #222636', borderRadius: 14, padding: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.65s forwards' }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.65s forwards' }}>
             <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>Platform Karşılaştırma</div>
 
             {/* AI Skor */}
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'rgba(99,102,241,0.06)', border: '1px solid rgba(99,102,241,0.15)', borderRadius: 10, padding: 12, marginBottom: 14 }}>
               <div style={{ position: 'relative', width: 52, height: 52, flexShrink: 0 }}>
                 <svg width="52" height="52" viewBox="0 0 52 52" style={{ transform: 'rotate(-90deg)' }}>
-                  <circle cx="26" cy="26" r="20" fill="none" stroke="#1a1e29" strokeWidth="4"/>
+                  <circle cx="26" cy="26" r="20" fill="none" stroke="var(--bg-elevated)" strokeWidth="4"/>
                   <circle cx="26" cy="26" r="20" fill="none" stroke="#6366f1" strokeWidth="4"
                     strokeDasharray={circumference} strokeDashoffset={scoreOffset} strokeLinecap="round"/>
                 </svg>
@@ -279,18 +272,18 @@ export default async function Dashboard() {
               </div>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600 }}>AI Sağlık Skoru</div>
-                <div style={{ fontSize: 11, color: '#6b7280', marginTop: 2 }}>Geçen haftadan +5 ↑</div>
+                <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>Geçen haftadan +5 ↑</div>
               </div>
             </div>
 
             {/* Amazon */}
-            <div style={{ padding: '10px 0', borderBottom: '1px solid #222636' }}>
+            <div style={{ padding: '10px 0', borderBottom: '1px solid var(--border-color)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
                 <div style={{ width: 26, height: 26, borderRadius: 6, background: 'rgba(99,102,241,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>🛒</div>
                 <span style={{ fontSize: 13 }}>Amazon DE</span>
                 <span style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 600 }}>€{data.kpis.aRevenue.toLocaleString('de-DE', { maximumFractionDigits: 0 })}</span>
               </div>
-              <div style={{ height: 4, background: '#1a1e29', borderRadius: 2 }}>
+              <div style={{ height: 4, background: 'var(--bg-elevated)', borderRadius: 2 }}>
                 <div style={{ width: `${(data.kpis.aRevenue / data.kpis.totalRevenue * 100).toFixed(0)}%`, height: '100%', background: '#6366f1', borderRadius: 2, transformOrigin: 'left center', transform: 'scaleX(0)', animation: 'barGrow 0.8s ease-out 0.9s forwards' }}></div>
               </div>
               <div style={{ fontSize: 11, color: '#10b981', marginTop: 4 }}>%{(data.kpis.aRevenue / data.kpis.totalRevenue * 100).toFixed(0)} pay · ~%33 marj</div>
@@ -303,7 +296,7 @@ export default async function Dashboard() {
                 <span style={{ fontSize: 13 }}>Shopify</span>
                 <span style={{ marginLeft: 'auto', fontSize: 13, fontWeight: 600 }}>€{data.kpis.sRevenue.toLocaleString('de-DE', { maximumFractionDigits: 0 })}</span>
               </div>
-              <div style={{ height: 4, background: '#1a1e29', borderRadius: 2 }}>
+              <div style={{ height: 4, background: 'var(--bg-elevated)', borderRadius: 2 }}>
                 <div style={{ width: `${(data.kpis.sRevenue / data.kpis.totalRevenue * 100).toFixed(0)}%`, height: '100%', background: '#10b981', borderRadius: 2, transformOrigin: 'left center', transform: 'scaleX(0)', animation: 'barGrow 0.8s ease-out 1.1s forwards' }}></div>
               </div>
               <div style={{ fontSize: 11, color: '#10b981', marginTop: 4 }}>%{(data.kpis.sRevenue / data.kpis.totalRevenue * 100).toFixed(0)} pay · ~%41 marj</div>
@@ -312,11 +305,11 @@ export default async function Dashboard() {
         </div>
 
         {/* AD PERFORMANCE ROW */}
-        <div style={{ background: '#13161e', border: '1px solid #222636', borderRadius: 14, padding: 20, marginBottom: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.8s forwards' }}>
+        <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: 20, marginBottom: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.8s forwards' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
             <div>
               <div style={{ fontSize: 14, fontWeight: 600 }}>Reklam Performansı</div>
-              <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>Şubat 2026 · Günlük Spend vs Satış + Top Kampanyalar</div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>Şubat 2026 · Günlük Spend vs Satış + Top Kampanyalar</div>
             </div>
             <Link href="/ads/campaigns" style={{ fontSize: 12, color: '#6366f1', textDecoration: 'none' }}>Detayları Gör →</Link>
           </div>
@@ -325,7 +318,7 @@ export default async function Dashboard() {
             <div>
               <div style={{ display: 'flex', gap: 16, marginBottom: 10 }}>
                 {[{ color: '#f59e0b', label: 'Ad Spend' }, { color: '#10b981', label: 'Ad Sales' }].map(l => (
-                  <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: '#6b7280' }}>
+                  <div key={l.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--text-secondary)' }}>
                     <div style={{ width: 10, height: 3, background: l.color, borderRadius: 2 }}></div>{l.label}
                   </div>
                 ))}
@@ -343,7 +336,7 @@ export default async function Dashboard() {
                     </linearGradient>
                   </defs>
                   {[0.25, 0.5, 0.75].map((y, i) => (
-                    <line key={y} x1="0" y1={adChartH * y} x2={adChartW} y2={adChartH * y} stroke="#222636" strokeWidth="1" style={{ opacity: 0, animation: `areaFadeIn 0.5s ease-out ${i * 0.15}s forwards` }}/>
+                    <line key={y} x1="0" y1={adChartH * y} x2={adChartW} y2={adChartH * y} stroke="var(--border-color)" strokeWidth="1" style={{ opacity: 0, animation: `areaFadeIn 0.5s ease-out ${i * 0.15}s forwards` }}/>
                   ))}
                   <path d={adSalesArea} fill="url(#aslg)" style={{ opacity: 0, animation: 'areaFadeIn 1s ease-out 0.8s forwards' }}/>
                   <path d={adSalesPath} fill="none" stroke="#10b981" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ strokeDasharray: 1500, strokeDashoffset: 1500, animation: 'lineDrawIn 1.5s ease-out 0.2s forwards' }}/>
@@ -354,9 +347,9 @@ export default async function Dashboard() {
                   ))}
                 </svg>
               ) : (
-                <div style={{ textAlign: 'center', padding: 40, color: '#6b7280' }}>Reklam verisi yok</div>
+                <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-secondary)' }}>Reklam verisi yok</div>
               )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: '#6b7280', marginTop: 4 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-secondary)', marginTop: 4 }}>
                 <span>{data.dailyAdData[0]?.date?.substring(5) || ''}</span>
                 <span>{data.dailyAdData[data.dailyAdData.length - 1]?.date?.substring(5) || ''}</span>
               </div>
@@ -375,15 +368,15 @@ export default async function Dashboard() {
                       </div>
                       <div style={{ fontSize: 10, fontWeight: 600, color: acosColor(c.acos) }}>ACOS %{c.acos.toFixed(1)}</div>
                     </div>
-                    <div style={{ height: 8, background: '#1a1e29', borderRadius: 4 }}>
+                    <div style={{ height: 8, background: 'var(--bg-elevated)', borderRadius: 4 }}>
                       <div style={{ height: '100%', width: `${Math.max(barW, 2)}%`, background: 'linear-gradient(90deg, #f59e0b, #f97316)', borderRadius: 4, transformOrigin: 'left center', transform: 'scaleX(0)', animation: `barGrow 0.7s ease-out ${0.3 + i * 0.12}s forwards` }}></div>
                     </div>
-                    <div style={{ fontSize: 10, color: '#6b7280', marginTop: 2 }}>€{c.spend.toFixed(0)} spend · €{c.sales.toFixed(0)} satış</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-secondary)', marginTop: 2 }}>€{c.spend.toFixed(0)} spend · €{c.sales.toFixed(0)} satış</div>
                   </div>
                 )
               })}
               {data.topCampaigns.length === 0 && (
-                <div style={{ textAlign: 'center', padding: 20, color: '#6b7280', fontSize: 12 }}>Kampanya verisi yok</div>
+                <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-secondary)', fontSize: 12 }}>Kampanya verisi yok</div>
               )}
             </div>
           </div>
@@ -393,33 +386,21 @@ export default async function Dashboard() {
         <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
 
           {/* AI Öneriler */}
-          <div style={{ background: '#13161e', border: '1px solid #222636', borderRadius: 14, padding: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 1s forwards' }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 1s forwards' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 16 }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>AI Öneriler & Uyarılar</div>
-                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{data.insights.length} aksiyon bekliyor</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>{data.insights.length} aksiyon bekliyor</div>
               </div>
               <div style={{ fontSize: 12, color: '#6366f1', cursor: 'pointer' }}>Tümü →</div>
             </div>
-            {data.insights.map((ins, i) => {
-              const b = badgeStyle(ins.priority)
-              return (
-                <div key={ins.id} style={{ display: 'flex', gap: 10, padding: '11px 0', borderBottom: i < data.insights.length - 1 ? '1px solid #222636' : 'none' }}>
-                  <div style={{ width: 30, height: 30, borderRadius: 8, background: b.bg, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 13, flexShrink: 0 }}>{b.icon}</div>
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>{ins.title}</div>
-                    <div style={{ fontSize: 11.5, color: '#9ca3af', lineHeight: 1.5 }}>{ins.content}</div>
-                  </div>
-                  <div style={{ background: b.bg, color: b.color, padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700, flexShrink: 0, alignSelf: 'flex-start' }}>{b.label}</div>
-                </div>
-              )
-            })}
+            <InsightsList insights={data.insights} />
           </div>
 
           {/* Ürün Performansı */}
-          <div style={{ background: '#13161e', border: '1px solid #222636', borderRadius: 14, padding: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 1.15s forwards' }}>
+          <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 1.15s forwards' }}>
             <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Ürün Performansı</div>
-            <div style={{ fontSize: 12, color: '#6b7280', marginBottom: 16 }}>Top 10 · Net marj & satış sıralaması</div>
+            <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16 }}>Top 10 · Net marj & satış sıralaması</div>
             {data.products
               .filter(p => {
                 const pp = data.productProfit[p.id]
@@ -440,11 +421,11 @@ export default async function Dashboard() {
                   <div style={{ width: 8, height: 8, borderRadius: '50%', background: segColor(p.margin), flexShrink: 0 }}></div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <div style={{ fontSize: 13, fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{p.title?.substring(0, 38)}...</div>
-                    <div style={{ fontSize: 10, color: '#6b7280' }}>{p.asin} · {p.pp.units} adet · ★{p.rating}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>{p.asin} · {p.pp.units} adet · ★{p.rating}</div>
                   </div>
                   <div style={{ textAlign: 'right', flexShrink: 0 }}>
                     <div style={{ fontSize: 14, fontWeight: 700, color: segColor(p.margin) }}>%{p.margin}</div>
-                    <div style={{ fontSize: 10, color: '#6b7280' }}>net marj</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-secondary)' }}>net marj</div>
                   </div>
                 </div>
               ))}
