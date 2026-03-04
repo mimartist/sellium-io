@@ -1,0 +1,183 @@
+/* === Responsive / Mobile === */
+
+/* Sidebar mobile transition */
+.dashboard-sidebar {
+  transition: transform 0.3s ease;
+}
+
+/* Root overflow control */
+.dashboard-root {
+  overflow-x: hidden;
+  min-width: 0;
+}
+
+/* Ensure all sections don't overflow */
+.dashboard-main {
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+/* Tables always scrollable */
+.table-container > div[style*="overflowX"] {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ============================================
+   TABLET & BELOW  (max-width: 1024px)
+   ============================================ */
+@media (max-width: 1024px) {
+  /* Sidebar: slide off-screen */
+  .dashboard-sidebar {
+    transform: translateX(-100%) !important;
+  }
+  .dashboard-sidebar.sidebar-open {
+    transform: translateX(0) !important;
+  }
+
+  /* Main: full width, top padding for hamburger */
+  .dashboard-main {
+    margin-left: 0 !important;
+    padding-top: 60px !important;
+  }
+
+  /* Show hamburger button */
+  .mobile-hamburger {
+    display: flex !important;
+  }
+
+  /* KPI grids → 2 columns */
+  .kpi-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+  .kpi-grid-6 {
+    grid-template-columns: repeat(3, 1fr) !important;
+  }
+
+  /* Two-column layouts → stack */
+  .two-col-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .chart-split-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Tab navigation → horizontal scroll */
+  .tab-nav {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap !important;
+  }
+  .tab-nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  /* Page headers → stack vertically */
+  .page-header {
+    flex-direction: column !important;
+    align-items: flex-start !important;
+    gap: 12px !important;
+  }
+
+  /* Search inputs → full width */
+  .page-header input[type="text"],
+  .table-container input[type="text"] {
+    width: 100% !important;
+  }
+}
+
+/* ============================================
+   MOBILE  (max-width: 768px)
+   ============================================ */
+@media (max-width: 768px) {
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+  .kpi-grid-6 {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  .dashboard-main {
+    padding: 14px !important;
+    padding-top: 58px !important;
+  }
+
+  /* Table improvements */
+  .table-container {
+    padding: 12px !important;
+    overflow: hidden !important;
+  }
+  .table-container > div:has(table) {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+  .table-container table {
+    font-size: 11px !important;
+    min-width: 600px !important;
+  }
+  .table-container th,
+  .table-container td {
+    padding: 6px 8px !important;
+    font-size: 11px !important;
+  }
+
+  /* Tab nav compact */
+  .tab-nav {
+    gap: 0 !important;
+  }
+  .tab-nav a > div {
+    padding: 10px 12px !important;
+    font-size: 12px !important;
+    white-space: nowrap !important;
+  }
+
+  /* KPI card spacing tighter */
+  .kpi-grid,
+  .kpi-grid-6 {
+    gap: 10px !important;
+  }
+  .kpi-grid > div,
+  .kpi-grid-6 > div {
+    padding: 14px 16px !important;
+    border-radius: 10px !important;
+  }
+
+  /* Insight / chart cards */
+  .two-col-grid > div,
+  .chart-split-grid > div {
+    padding: 14px !important;
+  }
+
+  /* Section gaps tighter */
+  .kpi-grid,
+  .kpi-grid-6,
+  .two-col-grid,
+  .chart-split-grid {
+    margin-bottom: 14px !important;
+  }
+}
+
+/* ============================================
+   SMALL MOBILE  (max-width: 480px)
+   ============================================ */
+@media (max-width: 480px) {
+  .kpi-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .kpi-grid-6 {
+    grid-template-columns: 1fr !important;
+  }
+  .dashboard-main {
+    padding: 10px !important;
+    padding-top: 54px !important;
+  }
+
+  /* Hamburger smaller position */
+  .mobile-hamburger {
+    top: 10px !important;
+    left: 10px !important;
+    width: 36px !important;
+    height: 36px !important;
+    font-size: 18px !important;
+  }
+}
