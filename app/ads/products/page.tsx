@@ -2,6 +2,7 @@
 
 import { createClient } from '@supabase/supabase-js'
 import { useEffect, useState, useMemo } from 'react'
+import { useDateRange, formatDateTR } from '../DateRangeContext'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -36,10 +37,8 @@ const acosColor = (v: number) => v < 25 ? '#10b981' : v < 40 ? '#f59e0b' : '#f43
 const priorityColor = (p: string) => p === 'high' ? '#f43f5e' : p === 'normal' ? '#f59e0b' : '#10b981'
 const priorityBg = (p: string) => p === 'high' ? 'rgba(244,63,94,0.12)' : p === 'normal' ? 'rgba(245,158,11,0.12)' : 'rgba(16,185,129,0.12)'
 
-const monthLabels: Record<string, string> = { '2026-01': 'Ocak 2026', '2026-02': 'Şubat 2026' }
-
 export default function ProductsPage() {
-  const [month, setMonth] = useState('2026-01')
+  const { startDate, endDate, months } = useDateRange()
   const [rawData, setRawData] = useState<ProductRow[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -49,15 +48,13 @@ export default function ProductsPage() {
   const [aiInsights, setAiInsights] = useState<AiInsight[]>([])
 
   useEffect(() => {
+    if (!startDate || !endDate) return
     const fetchData = async () => {
       setLoading(true)
-      const startDate = `${month}-01`
-      const [y, m] = month.split('-').map(Number)
-      const nextMonth = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`
 
       const [prodRes, skuRes, aiRes] = await Promise.all([
-        supabase.from('ad_product_performance').select('*').gte('date', startDate).lt('date', nextMonth),
-        supabase.from('insight_sku_performance').select('*').eq('report_month', month).limit(20),
+        supabase.from('ad_product_performance').select('*').gte('date', startDate).lte('date', endDate),
+        supabase.from('insight_sku_performance').select('*').in('report_month', months).limit(20),
         supabase.from('ai_insights').select('*').eq('insight_type', 'sku_optimization').eq('status', 'pending').order('created_at', { ascending: false }).limit(5),
       ])
 
@@ -77,7 +74,7 @@ export default function ProductsPage() {
       setLoading(false)
     }
     fetchData()
-  }, [month])
+  }, [startDate, endDate, months])
 
   const updateInsightStatus = async (id: number, status: 'applied' | 'dismissed') => {
     await supabase.from('ai_insights').update({ status }).eq('id', id)
@@ -121,7 +118,7 @@ export default function ProductsPage() {
   const handleSort = (key: SortKey) => { if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('desc') } }
   const sortIcon = (key: SortKey) => sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''
 
-  const thStyle: React.CSSProperties = { padding: '10px 12px', fontSize: 10.5, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', cursor: 'pointer', whiteSpace: 'nowrap', borderBottom: '1px solid var(--border-color)', userSelect: 'none' }
+  const thStyle: React.CSSProperties = { padding: '10px 12px', fontSize: 10.5, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', cursor: 'pointer', whiteSpace: 'nowrap', borderBottom: '1px solid var(--border-color)', userSelect: 'none' }
   const tdStyle: React.CSSProperties = { padding: '10px 12px', fontSize: 13, borderBottom: '1px solid var(--bg-elevated)', whiteSpace: 'nowrap' }
 
   const worst3 = useMemo(() => [...insightSkus].filter(s => Number(s.calc_acos) > 0).sort((a, b) => Number(b.calc_acos) - Number(a.calc_acos)).slice(0, 3), [insightSkus])
@@ -132,17 +129,12 @@ export default function ProductsPage() {
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>SP Ürün Performansı</h1>
-          <p style={{ fontSize: 12, color: '#6b7280', marginTop: 3 }}>Sponsored Products · {monthLabels[month]}</p>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {Object.entries(monthLabels).map(([value, label]) => (
-            <button key={value} onClick={() => setMonth(value)} style={{ background: month === value ? '#6366f1' : 'var(--bg-card)', border: `1px solid ${month === value ? '#6366f1' : 'var(--border-color)'}`, borderRadius: 8, padding: '7px 14px', fontSize: 12.5, color: month === value ? 'white' : '#6b7280', cursor: 'pointer' }}>{label}</button>
-          ))}
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 3 }}>Sponsored Products · {formatDateTR(startDate)} – {formatDateTR(endDate)}</p>
         </div>
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 80, color: '#6b7280', fontSize: 14 }}>Veriler yükleniyor...</div>
+        <div style={{ textAlign: 'center', padding: 80, color: 'var(--text-secondary)', fontSize: 14 }}>Veriler yükleniyor...</div>
       ) : (
         <>
           {/* KPI CARDS */}
@@ -155,7 +147,7 @@ export default function ProductsPage() {
             ].map((kpi, i) => (
               <div key={i} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: '18px 20px', position: 'relative', overflow: 'hidden', opacity: 0, animation: `fadeInUp 0.6s ease-out ${i * 0.1}s forwards` }}>
                 <div style={{ position: 'absolute', top: 0, right: 0, width: 70, height: 70, borderRadius: '0 14px 0 70px', background: kpi.color, opacity: 0.07 }} />
-                <div style={{ fontSize: 10.5, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>{kpi.label}</div>
+                <div style={{ fontSize: 10.5, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>{kpi.label}</div>
                 <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-1px', animation: `numberCount 0.5s ease-out ${0.3 + i * 0.1}s both` }}>{kpi.value}</div>
               </div>
             ))}
@@ -172,10 +164,10 @@ export default function ProductsPage() {
                 </div>
                 {worst3.map((s, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: i < 2 ? '1px solid var(--bg-elevated)' : 'none' }}>
-                    <div style={{ fontSize: 12, color: '#9ca3af', fontWeight: 600 }}>{s.sku}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>{s.sku}</div>
                     <div style={{ display: 'flex', gap: 12, fontSize: 11 }}>
                       <span style={{ color: '#f43f5e', fontWeight: 600 }}>ACOS %{Number(s.calc_acos).toFixed(1)}</span>
-                      <span style={{ color: '#6b7280' }}>€{Number(s.total_spend).toFixed(0)} spend</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>€{Number(s.total_spend).toFixed(0)} spend</span>
                     </div>
                   </div>
                 ))}
@@ -188,10 +180,10 @@ export default function ProductsPage() {
                 </div>
                 {best3.map((s, i) => (
                   <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: i < 2 ? '1px solid var(--bg-elevated)' : 'none' }}>
-                    <div style={{ fontSize: 12, color: '#9ca3af', fontWeight: 600 }}>{s.sku}</div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 600 }}>{s.sku}</div>
                     <div style={{ display: 'flex', gap: 12, fontSize: 11 }}>
                       <span style={{ color: '#10b981', fontWeight: 600 }}>ACOS %{Number(s.calc_acos).toFixed(1)}</span>
-                      <span style={{ color: '#6b7280' }}>€{Number(s.total_sales).toFixed(0)} satış</span>
+                      <span style={{ color: 'var(--text-secondary)' }}>€{Number(s.total_sales).toFixed(0)} satış</span>
                     </div>
                   </div>
                 ))}
@@ -213,10 +205,10 @@ export default function ProductsPage() {
                     <span style={{ fontSize: 9, fontWeight: 700, color: priorityColor(ins.priority), background: priorityBg(ins.priority), padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase' }}>{ins.priority}</span>
                     <span style={{ fontSize: 12.5, fontWeight: 600 }}>{ins.title}</span>
                   </div>
-                  <div style={{ fontSize: 12, color: '#9ca3af', marginBottom: 8, lineHeight: 1.4 }}>{ins.content}</div>
+                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8, lineHeight: 1.4 }}>{ins.content}</div>
                   <div style={{ display: 'flex', gap: 8 }}>
                     <button onClick={() => updateInsightStatus(ins.id, 'applied')} style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 6, padding: '4px 12px', fontSize: 11, color: '#10b981', cursor: 'pointer', fontWeight: 600 }}>Uygulandı</button>
-                    <button onClick={() => updateInsightStatus(ins.id, 'dismissed')} style={{ background: 'rgba(107,114,128,0.12)', border: '1px solid rgba(107,114,128,0.3)', borderRadius: 6, padding: '4px 12px', fontSize: 11, color: '#6b7280', cursor: 'pointer', fontWeight: 600 }}>Geç</button>
+                    <button onClick={() => updateInsightStatus(ins.id, 'dismissed')} style={{ background: 'rgba(107,114,128,0.12)', border: '1px solid rgba(107,114,128,0.3)', borderRadius: 6, padding: '4px 12px', fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}>Geç</button>
                   </div>
                 </div>
               ))}
@@ -228,9 +220,9 @@ export default function ProductsPage() {
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>SKU Bazlı Performans</div>
-                <div style={{ fontSize: 12, color: '#6b7280', marginTop: 2 }}>{filtered.length} ürün</div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>{filtered.length} ürün</div>
               </div>
-              <input type="text" placeholder="SKU veya ASIN ara..." value={search} onChange={e => setSearch(e.target.value)} style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '7px 14px', fontSize: 12.5, color: '#e8eaf0', outline: 'none', width: 220 }} />
+              <input type="text" placeholder="SKU veya ASIN ara..." value={search} onChange={e => setSearch(e.target.value)} style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '7px 14px', fontSize: 12.5, color: 'var(--text-primary)', outline: 'none', width: 220 }} />
             </div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
@@ -243,7 +235,7 @@ export default function ProductsPage() {
                   {filtered.map((s, i) => (
                     <tr key={i} style={{ transition: 'background 0.15s' }} onMouseEnter={e => (e.currentTarget.style.background = 'rgba(99,102,241,0.04)')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                       <td style={{ ...tdStyle, fontWeight: 600, maxWidth: 160, overflow: 'hidden', textOverflow: 'ellipsis' }}>{s.sku}</td>
-                      <td style={{ ...tdStyle, fontSize: 11, color: '#9ca3af' }}>{s.asin}</td>
+                      <td style={{ ...tdStyle, fontSize: 11, color: 'var(--text-muted)' }}>{s.asin}</td>
                       <td style={{ ...tdStyle, textAlign: 'right' }}>{s.impressions.toLocaleString('de-DE')}</td>
                       <td style={{ ...tdStyle, textAlign: 'right' }}>{s.clicks.toLocaleString('de-DE')}</td>
                       <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>€{s.spend.toFixed(2)}</td>
@@ -254,7 +246,7 @@ export default function ProductsPage() {
                       <td style={{ ...tdStyle, textAlign: 'right' }}>{s.roas.toFixed(2)}x</td>
                     </tr>
                   ))}
-                  {filtered.length === 0 && <tr><td colSpan={10} style={{ ...tdStyle, textAlign: 'center', color: '#6b7280', padding: 30 }}>{search ? 'Sonuç bulunamadı' : 'Bu ay için veri yok'}</td></tr>}
+                  {filtered.length === 0 && <tr><td colSpan={10} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-secondary)', padding: 30 }}>{search ? 'Sonuç bulunamadı' : 'Bu tarih aralığı için veri yok'}</td></tr>}
                 </tbody>
               </table>
             </div>

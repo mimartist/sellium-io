@@ -3,16 +3,12 @@
 import { createClient } from '@supabase/supabase-js'
 import { useEffect, useState } from 'react'
 import Link from 'next/link'
+import { useDateRange, formatDateTR } from './DateRangeContext'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
-
-const monthLabels: Record<string, string> = {
-  '2026-01': 'Ocak 2026',
-  '2026-02': 'Şubat 2026',
-}
 
 interface CardData {
   title: string
@@ -23,22 +19,20 @@ interface CardData {
 }
 
 export default function AdsOverviewPage() {
-  const [month, setMonth] = useState('2026-01')
+  const { startDate, endDate } = useDateRange()
   const [loading, setLoading] = useState(true)
   const [cards, setCards] = useState<CardData[]>([])
 
   useEffect(() => {
+    if (!startDate || !endDate) return
     const fetchAll = async () => {
       setLoading(true)
-      const startDate = `${month}-01`
-      const [y, m] = month.split('-').map(Number)
-      const nextMonth = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`
 
       const [campaigns, products, searchTerms, brand] = await Promise.all([
-        supabase.from('amazon_ads').select('spend,sales,acos,clicks').gte('date', startDate).lt('date', nextMonth),
-        supabase.from('ad_product_performance').select('spend,sales_7d,acos,roas').gte('date', startDate).lt('date', nextMonth),
-        supabase.from('ad_search_terms').select('spend,clicks,conversion_rate,search_term').gte('date', startDate).lt('date', nextMonth),
-        supabase.from('ad_brand_performance').select('impressions,spend,brand_searches,new_to_brand_orders').gte('date', startDate).lt('date', nextMonth),
+        supabase.from('amazon_ads').select('spend,sales,acos,clicks').gte('date', startDate).lte('date', endDate),
+        supabase.from('ad_product_performance').select('spend,sales_7d,acos,roas').gte('date', startDate).lte('date', endDate),
+        supabase.from('ad_search_terms').select('spend,clicks,conversion_rate,search_term').gte('date', startDate).lte('date', endDate),
+        supabase.from('ad_brand_performance').select('impressions,spend,brand_searches,new_to_brand_orders').gte('date', startDate).lte('date', endDate),
       ])
 
       const cData = campaigns.data || []
@@ -110,7 +104,7 @@ export default function AdsOverviewPage() {
       setLoading(false)
     }
     fetchAll()
-  }, [month])
+  }, [startDate, endDate])
 
   return (
     <div>
@@ -118,28 +112,12 @@ export default function AdsOverviewPage() {
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Reklam Genel Bakış</h1>
-          <p style={{ fontSize: 12, color: '#6b7280', marginTop: 3 }}>Amazon Ads · {monthLabels[month]}</p>
-        </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          {Object.entries(monthLabels).map(([value, label]) => (
-            <button
-              key={value}
-              onClick={() => setMonth(value)}
-              style={{
-                background: month === value ? '#6366f1' : 'var(--bg-card)',
-                border: `1px solid ${month === value ? '#6366f1' : 'var(--border-color)'}`,
-                borderRadius: 8, padding: '7px 14px', fontSize: 12.5,
-                color: month === value ? 'white' : '#6b7280', cursor: 'pointer',
-              }}
-            >
-              {label}
-            </button>
-          ))}
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 3 }}>Amazon Ads · {formatDateTR(startDate)} – {formatDateTR(endDate)}</p>
         </div>
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 80, color: '#6b7280', fontSize: 14 }}>Veriler yükleniyor...</div>
+        <div style={{ textAlign: 'center', padding: 80, color: 'var(--text-secondary)', fontSize: 14 }}>Veriler yükleniyor...</div>
       ) : (
         <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           {cards.map((card, i) => (
@@ -162,12 +140,12 @@ export default function AdsOverviewPage() {
                     {card.icon}
                   </div>
                   <div style={{ fontSize: 16, fontWeight: 600 }}>{card.title}</div>
-                  <div style={{ marginLeft: 'auto', fontSize: 18, color: '#6b7280' }}>→</div>
+                  <div style={{ marginLeft: 'auto', fontSize: 18, color: 'var(--text-secondary)' }}>→</div>
                 </div>
                 <div style={{ display: 'flex', gap: 20 }}>
                   {card.kpis.map(kpi => (
                     <div key={kpi.label}>
-                      <div style={{ fontSize: 10.5, color: '#6b7280', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{kpi.label}</div>
+                      <div style={{ fontSize: 10.5, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{kpi.label}</div>
                       <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.5px', animation: `numberCount 0.5s ease-out ${0.3 + i * 0.1}s both` }}>{kpi.value}</div>
                     </div>
                   ))}

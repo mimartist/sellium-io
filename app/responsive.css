@@ -45,6 +45,11 @@
     display: flex !important;
   }
 
+  /* Show close button inside sidebar */
+  .mobile-close-btn {
+    display: flex !important;
+  }
+
   /* KPI grids → 2 columns */
   .kpi-grid {
     grid-template-columns: repeat(2, 1fr) !important;
@@ -77,6 +82,16 @@
     flex-direction: column !important;
     align-items: flex-start !important;
     gap: 12px !important;
+  }
+
+  /* Ads header: stack tabs and date picker */
+  .ads-header {
+    flex-direction: column !important;
+    align-items: stretch !important;
+    gap: 12px !important;
+  }
+  .ads-header > div:last-child {
+    padding-bottom: 12px !important;
   }
 
   /* Search inputs → full width */

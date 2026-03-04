@@ -3,6 +3,8 @@
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import DashboardShell from '../components/DashboardShell'
+import { DateRangeProvider } from './DateRangeContext'
+import DateRangePicker from './DateRangePicker'
 
 const sidebarItems = [
   { icon: '⬡', label: 'Dashboard', href: '/' },
@@ -77,32 +79,39 @@ export default function AdsLayout({ children }: { children: React.ReactNode }) {
   )
 
   return (
-    <DashboardShell sidebar={sidebarContent}>
+    <DateRangeProvider>
+      <DashboardShell sidebar={sidebarContent}>
 
-      {/* TAB NAV */}
-      <div className="tab-nav" style={{ display: 'flex', gap: 4, marginBottom: 24, borderBottom: '1px solid var(--border-color)', paddingBottom: 0 }}>
-        {tabs.map(tab => {
-          const active = isActiveTab(tab.href)
-          return (
-            <Link key={tab.href} href={tab.href} style={{ textDecoration: 'none' }}>
-              <div style={{
-                padding: '10px 18px',
-                fontSize: 13,
-                fontWeight: active ? 600 : 400,
-                color: active ? '#e8eaf0' : '#6b7280',
-                borderBottom: active ? '2px solid #6366f1' : '2px solid transparent',
-                cursor: 'pointer',
-                transition: 'color 0.15s, border-color 0.15s',
-                marginBottom: -1,
-              }}>
-                {tab.label}
-              </div>
-            </Link>
-          )
-        })}
-      </div>
+        {/* HEADER: TABS + DATE PICKER */}
+        <div className="ads-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: 24, borderBottom: '1px solid var(--border-color)' }}>
+          <div className="tab-nav" style={{ display: 'flex', gap: 4 }}>
+            {tabs.map(tab => {
+              const active = isActiveTab(tab.href)
+              return (
+                <Link key={tab.href} href={tab.href} style={{ textDecoration: 'none' }}>
+                  <div style={{
+                    padding: '10px 18px',
+                    fontSize: 13,
+                    fontWeight: active ? 600 : 400,
+                    color: active ? 'var(--text-primary)' : 'var(--text-secondary)',
+                    borderBottom: active ? '2px solid #6366f1' : '2px solid transparent',
+                    cursor: 'pointer',
+                    transition: 'color 0.15s, border-color 0.15s',
+                    marginBottom: -1,
+                  }}>
+                    {tab.label}
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
+          <div style={{ paddingBottom: 8 }}>
+            <DateRangePicker />
+          </div>
+        </div>
 
-      {children}
-    </DashboardShell>
+        {children}
+      </DashboardShell>
+    </DateRangeProvider>
   )
 }

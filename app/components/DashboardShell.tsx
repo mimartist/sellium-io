@@ -32,31 +32,33 @@ export default function DashboardShell({ sidebar, children }: DashboardShellProp
   return (
     <div className="dashboard-root" style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontFamily: 'system-ui, sans-serif', fontSize: 14 }}>
 
-      {/* MOBILE HAMBURGER */}
-      <button
-        className="mobile-hamburger"
-        onClick={() => setSidebarOpen(true)}
-        style={{
-          display: 'none',
-          position: 'fixed',
-          top: 14,
-          left: 14,
-          zIndex: 200,
-          width: 48,
-          height: 48,
-          borderRadius: 10,
-          background: 'var(--bg-card)',
-          border: '1px solid var(--border-color)',
-          color: 'var(--text-primary)',
-          fontSize: 24,
-          cursor: 'pointer',
-          alignItems: 'center',
-          justifyContent: 'center',
-        }}
-        aria-label="Menüyü aç"
-      >
-        ☰
-      </button>
+      {/* MOBILE HAMBURGER - hidden when sidebar is open */}
+      {!sidebarOpen && (
+        <button
+          className="mobile-hamburger"
+          onClick={() => setSidebarOpen(true)}
+          style={{
+            display: 'none',
+            position: 'fixed',
+            top: 14,
+            left: 14,
+            zIndex: 200,
+            width: 48,
+            height: 48,
+            borderRadius: 10,
+            background: 'var(--bg-card)',
+            border: '1px solid var(--border-color)',
+            color: 'var(--text-primary)',
+            fontSize: 24,
+            cursor: 'pointer',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          aria-label="Menüyü aç"
+        >
+          ☰
+        </button>
+      )}
 
       {/* OVERLAY */}
       {sidebarOpen && (
@@ -87,6 +89,31 @@ export default function DashboardShell({ sidebar, children }: DashboardShellProp
           zIndex: 150,
         }}
       >
+        {/* MOBILE CLOSE BUTTON */}
+        <button
+          className="mobile-close-btn"
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            display: 'none',
+            position: 'absolute',
+            top: 14,
+            right: 14,
+            zIndex: 160,
+            width: 36,
+            height: 36,
+            borderRadius: 8,
+            background: 'transparent',
+            border: '1px solid var(--border-color)',
+            color: 'var(--text-secondary)',
+            fontSize: 18,
+            cursor: 'pointer',
+            alignItems: 'center',
+            justifyContent: 'center',
+          }}
+          aria-label="Menüyü kapat"
+        >
+          ✕
+        </button>
         {sidebar}
       </aside>
 
