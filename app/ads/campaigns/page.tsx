@@ -130,7 +130,7 @@ export default function CampaignsPage() {
         if (typeof av === 'number' && typeof bv === 'number') return sortDir === 'asc' ? av - bv : bv - av
         return sortDir === 'asc' ? String(av).localeCompare(String(bv)) : String(bv).localeCompare(String(av))
       })
-  }, [campaigns, search, sortKey, sortDir])
+  }, [campaigns, search, sortKey, sortDir, statusFilter])
 
   const top10BySpend = useMemo(() => [...campaigns].sort((a, b) => b.spend - a.spend).slice(0, 10), [campaigns])
   const top10ByAcos = useMemo(() => [...campaigns].filter(c => c.acos > 0).sort((a, b) => b.acos - a.acos).slice(0, 10), [campaigns])
