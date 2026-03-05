@@ -250,10 +250,10 @@ export default function DateRangePicker() {
         className="date-range-trigger"
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 6,
-          background: 'var(--bg-elevated)', border: '1px solid var(--border-color)',
-          borderRadius: 8, padding: '6px 12px', fontSize: 12.5,
+          background: 'var(--bg-elevated)', border: '1.5px solid var(--border-color)',
+          borderRadius: 8, padding: '7px 14px', fontSize: 13,
           color: 'var(--text-primary)', cursor: 'pointer', outline: 'none',
-          whiteSpace: 'nowrap',
+          whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
         }}
       >
         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.5, flexShrink: 0 }}>
@@ -288,7 +288,7 @@ export default function DateRangePicker() {
                   onClick={() => handlePreset(p)}
                   style={{
                     background: activePreset === p.label ? 'rgba(99,102,241,0.1)' : 'transparent',
-                    border: 'none', padding: '8px 16px', fontSize: 12.5, cursor: 'pointer',
+                    border: 'none', padding: '9px 16px', fontSize: 13.5, cursor: 'pointer',
                     color: activePreset === p.label ? '#6366f1' : 'var(--text-muted)',
                     textAlign: 'left', fontWeight: activePreset === p.label ? 600 : 400,
                     transition: 'background 0.15s, color 0.15s',

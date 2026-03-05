@@ -40,8 +40,8 @@
     padding-top: 60px !important;
   }
 
-  /* Show hamburger button */
-  .mobile-hamburger {
+  /* Show mobile top bar (hamburger + theme toggle) */
+  .mobile-topbar {
     display: flex !important;
   }
 
@@ -231,13 +231,14 @@
     padding-top: 54px !important;
   }
 
-  /* Hamburger smaller position */
+  /* Topbar tighter on small mobile */
+  .mobile-topbar {
+    padding: 8px 10px !important;
+  }
   .mobile-hamburger {
-    top: 10px !important;
-    left: 10px !important;
-    width: 43px !important;
-    height: 43px !important;
-    font-size: 22px !important;
+    width: 40px !important;
+    height: 40px !important;
+    font-size: 20px !important;
   }
 
   /* Compact KPI cards */
@@ -274,15 +275,18 @@
   /* Date picker popup mobile */
   .date-picker-popup {
     position: fixed !important;
-    top: 50% !important;
-    left: 50% !important;
-    right: auto !important;
-    transform: translate(-50%, -50%) !important;
+    top: auto !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    transform: none !important;
     margin-top: 0 !important;
     min-width: auto !important;
-    width: 95vw !important;
-    max-height: 90vh !important;
+    width: 100% !important;
+    max-height: 85vh !important;
     overflow-y: auto !important;
+    border-radius: 20px 20px 0 0 !important;
+    box-shadow: 0 -10px 40px rgba(0,0,0,0.3) !important;
   }
   .date-picker-popup > div:first-child {
     flex-direction: column !important;
@@ -293,23 +297,23 @@
     border-bottom: 1px solid var(--border-color) !important;
     min-width: auto !important;
     overflow-x: auto !important;
-    padding: 8px 8px !important;
-    gap: 0 !important;
+    padding: 10px 12px !important;
+    gap: 4px !important;
   }
   .date-picker-presets > div:first-child {
     display: none !important;
   }
   .date-picker-presets > button {
     white-space: nowrap !important;
-    padding: 6px 12px !important;
-    font-size: 11.5px !important;
-    border-radius: 6px !important;
+    padding: 7px 14px !important;
+    font-size: 13px !important;
+    border-radius: 8px !important;
   }
+  /* Show only one calendar on mobile */
   .date-picker-popup > div:first-child > div:last-child {
     flex-direction: column !important;
   }
   .date-picker-popup > div:first-child > div:last-child > div:last-child {
-    border-left: none !important;
-    border-top: 1px solid var(--border-color) !important;
+    display: none !important;
   }
 }

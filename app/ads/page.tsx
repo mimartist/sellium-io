@@ -119,34 +119,35 @@ export default function AdsOverviewPage() {
       {loading ? (
         <div style={{ textAlign: 'center', padding: 80, color: 'var(--text-secondary)', fontSize: 14 }}>Veriler yükleniyor...</div>
       ) : (
-        <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
           {cards.map((card, i) => (
             <Link key={card.href} href={card.href} style={{ textDecoration: 'none', color: 'inherit' }}>
               <div className="overview-card" style={{
-                background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: '16px 18px',
+                background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: '14px 16px',
                 position: 'relative', overflow: 'hidden', cursor: 'pointer',
                 transition: 'border-color 0.2s, transform 0.2s',
                 opacity: 0, animation: `fadeInUp 0.6s ease-out ${i * 0.12}s forwards`,
+                height: '100%', display: 'flex', flexDirection: 'column',
               }}
                 onMouseEnter={e => { e.currentTarget.style.borderColor = card.color; e.currentTarget.style.transform = 'translateY(-2px)' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.transform = 'translateY(0)' }}
               >
-                <div style={{ position: 'absolute', top: 0, right: 0, width: 60, height: 60, borderRadius: '0 14px 0 60px', background: card.color, opacity: 0.07 }} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <div style={{ position: 'absolute', top: 0, right: 0, width: 50, height: 50, borderRadius: '0 14px 0 50px', background: card.color, opacity: 0.07 }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
                   <div style={{
-                    width: 30, height: 30, borderRadius: 8, background: `${card.color}18`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, color: card.color,
+                    width: 28, height: 28, borderRadius: 7, background: `${card.color}18`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, color: card.color, flexShrink: 0,
                   }}>
                     {card.icon}
                   </div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{card.title}</div>
-                  <div style={{ marginLeft: 'auto', fontSize: 16, color: 'var(--text-secondary)' }}>→</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, lineHeight: 1.2 }}>{card.title}</div>
+                  <div style={{ marginLeft: 'auto', fontSize: 14, color: 'var(--text-secondary)', flexShrink: 0 }}>→</div>
                 </div>
-                <div style={{ display: 'flex', gap: 16 }}>
+                <div style={{ display: 'flex', gap: 12, marginTop: 'auto' }}>
                   {card.kpis.map(kpi => (
-                    <div key={kpi.label}>
-                      <div style={{ fontSize: 9.5, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 3 }}>{kpi.label}</div>
-                      <div className="overview-card-value" style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.5px', animation: `numberCount 0.5s ease-out ${0.3 + i * 0.1}s both` }}>{kpi.value}</div>
+                    <div key={kpi.label} style={{ minWidth: 0 }}>
+                      <div style={{ fontSize: 9, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.3px', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{kpi.label}</div>
+                      <div className="overview-card-value" style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.5px', animation: `numberCount 0.5s ease-out ${0.3 + i * 0.1}s both` }}>{kpi.value}</div>
                     </div>
                   ))}
                 </div>

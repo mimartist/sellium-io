@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 
-export default function ThemeToggle() {
+export default function ThemeToggle({ compact }: { compact?: boolean } = {}) {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
 
   useEffect(() => {
@@ -18,6 +18,30 @@ export default function ThemeToggle() {
     setTheme(next)
     document.documentElement.setAttribute('data-theme', next)
     localStorage.setItem('sellium-theme', next)
+  }
+
+  if (compact) {
+    return (
+      <button
+        onClick={toggle}
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 44,
+          height: 44,
+          borderRadius: 10,
+          background: 'var(--bg-card)',
+          border: '1px solid var(--border-color)',
+          color: 'var(--text-secondary)',
+          fontSize: 18,
+          cursor: 'pointer',
+        }}
+        aria-label="Tema değiştir"
+      >
+        {theme === 'dark' ? '☀️' : '🌙'}
+      </button>
+    )
   }
 
   return (

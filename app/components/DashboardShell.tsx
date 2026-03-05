@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import ThemeToggle from './ThemeToggle'
 
 interface DashboardShellProps {
   sidebar: React.ReactNode
@@ -32,32 +33,31 @@ export default function DashboardShell({ sidebar, children }: DashboardShellProp
   return (
     <div className="dashboard-root" style={{ display: 'flex', minHeight: '100vh', background: 'var(--bg-primary)', color: 'var(--text-primary)', fontFamily: 'system-ui, sans-serif', fontSize: 14 }}>
 
-      {/* MOBILE HAMBURGER - hidden when sidebar is open */}
+      {/* MOBILE TOP BAR - hamburger + theme toggle */}
       {!sidebarOpen && (
-        <button
-          className="mobile-hamburger"
-          onClick={() => setSidebarOpen(true)}
-          style={{
-            display: 'none',
-            position: 'fixed',
-            top: 14,
-            left: 14,
-            zIndex: 200,
-            width: 48,
-            height: 48,
-            borderRadius: 10,
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-color)',
-            color: 'var(--text-primary)',
-            fontSize: 24,
-            cursor: 'pointer',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-          aria-label="Menüyü aç"
-        >
-          ☰
-        </button>
+        <div className="mobile-topbar" style={{ display: 'none', position: 'fixed', top: 0, left: 0, right: 0, zIndex: 200, padding: '10px 14px', alignItems: 'center', justifyContent: 'space-between' }}>
+          <button
+            className="mobile-hamburger"
+            onClick={() => setSidebarOpen(true)}
+            style={{
+              display: 'flex',
+              width: 44,
+              height: 44,
+              borderRadius: 10,
+              background: 'var(--bg-card)',
+              border: '1px solid var(--border-color)',
+              color: 'var(--text-primary)',
+              fontSize: 22,
+              cursor: 'pointer',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}
+            aria-label="Menüyü aç"
+          >
+            ☰
+          </button>
+          <ThemeToggle compact />
+        </div>
       )}
 
       {/* OVERLAY */}
