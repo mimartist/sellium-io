@@ -49,6 +49,7 @@ export default function KeywordsPage() {
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('spend')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [termFilter, setTermFilter] = useState<string>('all')
   const [insightNeg, setInsightNeg] = useState<InsightNegKw[]>([])
   const [insightWasted, setInsightWasted] = useState<InsightWasted[]>([])
   const [aiInsights, setAiInsights] = useState<AiInsight[]>([])
@@ -116,6 +117,11 @@ export default function KeywordsPage() {
 
   const filtered = useMemo(() => {
     return termData
+      .filter(t => {
+        if (termFilter === 'negative') return t.cvr === 0 && t.spend > 0
+        if (termFilter === 'converting') return t.orders > 0
+        return true
+      })
       .filter(t => t.search_term.toLowerCase().includes(search.toLowerCase()))
       .sort((a, b) => {
         const av = a[sortKey], bv = b[sortKey]
@@ -125,8 +131,10 @@ export default function KeywordsPage() {
   }, [termData, search, sortKey, sortDir])
 
   const handleSort = (key: SortKey) => { if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('desc') } }
-  const sortIcon = (key: SortKey) => sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''
+  const sortIcon = (key: SortKey) => sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ' ↕'
   const isNegativeCandidate = (t: TermAgg) => t.cvr === 0 && t.spend > 0
+  const negCount = useMemo(() => termData.filter(t => t.cvr === 0 && t.spend > 0).length, [termData])
+  const convCount = useMemo(() => termData.filter(t => t.orders > 0).length, [termData])
 
   const thStyle: React.CSSProperties = { padding: '10px 12px', fontSize: 10.5, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', cursor: 'pointer', whiteSpace: 'nowrap', borderBottom: '1px solid var(--border-color)', userSelect: 'none' }
   const tdStyle: React.CSSProperties = { padding: '10px 12px', fontSize: 13, borderBottom: '1px solid var(--bg-elevated)', whiteSpace: 'nowrap' }
@@ -229,12 +237,27 @@ export default function KeywordsPage() {
 
           {/* TABLE */}
           <div className="table-container" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.6s forwards' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>Arama Terimleri</div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>{filtered.length} terim · <span style={{ color: '#f43f5e' }}>{filtered.filter(isNegativeCandidate).length} negatif aday</span></div>
+                <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>{filtered.length} terim</div>
               </div>
               <input type="text" placeholder="Terim ara..." value={search} onChange={e => setSearch(e.target.value)} style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '7px 14px', fontSize: 12.5, color: 'var(--text-primary)', outline: 'none', width: 220 }} />
+            </div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+              {[
+                { key: 'all', label: 'Tümü', count: termData.length, color: '#6366f1' },
+                { key: 'negative', label: 'Negatif Adaylar', count: negCount, color: '#f43f5e' },
+                { key: 'converting', label: 'Dönüşüm Sağlayanlar', count: convCount, color: '#10b981' },
+              ].map(opt => (
+                <button key={opt.key} onClick={() => setTermFilter(opt.key)} style={{
+                  padding: '5px 12px', fontSize: 11.5, borderRadius: 6, cursor: 'pointer', fontWeight: termFilter === opt.key ? 600 : 400,
+                  background: termFilter === opt.key ? `${opt.color}18` : 'var(--bg-elevated)',
+                  color: termFilter === opt.key ? opt.color : 'var(--text-secondary)',
+                  border: termFilter === opt.key ? `1px solid ${opt.color}4d` : '1px solid var(--border-color)',
+                  transition: 'all 0.15s',
+                }}>{opt.label} ({opt.count})</button>
+              ))}
             </div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>

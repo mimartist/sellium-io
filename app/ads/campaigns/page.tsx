@@ -50,6 +50,7 @@ export default function CampaignsPage() {
   const [search, setSearch] = useState('')
   const [sortKey, setSortKey] = useState<SortKey>('spend')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
+  const [statusFilter, setStatusFilter] = useState<string>('all')
   const [insightCampaigns, setInsightCampaigns] = useState<InsightCampaignEff[]>([])
   const [insightWasted, setInsightWasted] = useState<InsightWasted[]>([])
   const [aiInsights, setAiInsights] = useState<AiInsight[]>([])
@@ -115,8 +116,14 @@ export default function CampaignsPage() {
     return Object.values(map)
   }, [rawData])
 
+  const statusOptions = useMemo(() => {
+    const statuses = new Set(campaigns.map(c => c.status))
+    return Array.from(statuses)
+  }, [campaigns])
+
   const filtered = useMemo(() => {
     return campaigns
+      .filter(c => statusFilter === 'all' || c.status === statusFilter)
       .filter(c => c.campaign_name.toLowerCase().includes(search.toLowerCase()))
       .sort((a, b) => {
         const av = a[sortKey], bv = b[sortKey]
@@ -129,7 +136,7 @@ export default function CampaignsPage() {
   const top10ByAcos = useMemo(() => [...campaigns].filter(c => c.acos > 0).sort((a, b) => b.acos - a.acos).slice(0, 10), [campaigns])
 
   const handleSort = (key: SortKey) => { if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('desc') } }
-  const sortIcon = (key: SortKey) => sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ''
+  const sortIcon = (key: SortKey) => sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ' ↕'
 
   const maxSpendSales = Math.max(...top10BySpend.map(c => Math.max(c.spend, c.sales)), 1)
   const maxAcos = Math.max(...top10ByAcos.map(c => c.acos), 1)
@@ -287,12 +294,23 @@ export default function CampaignsPage() {
 
           {/* CAMPAIGN TABLE */}
           <div className="table-container" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.9s forwards' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, flexWrap: 'wrap', gap: 10 }}>
               <div>
                 <div style={{ fontSize: 14, fontWeight: 600 }}>Kampanya Detayları</div>
                 <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>{filtered.length} kampanya</div>
               </div>
               <input type="text" placeholder="Kampanya ara..." value={search} onChange={e => setSearch(e.target.value)} style={{ background: 'var(--bg-primary)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '7px 14px', fontSize: 12.5, color: 'var(--text-primary)', outline: 'none', width: 220 }} />
+            </div>
+            <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap' }}>
+              {[{ key: 'all', label: 'Tümü' }, ...statusOptions.map(s => ({ key: s, label: s === 'ENABLED' ? 'Aktif' : s === 'PAUSED' ? 'Durdurulmuş' : s === 'ARCHIVED' ? 'Arşivlenmiş' : s }))].map(opt => (
+                <button key={opt.key} onClick={() => setStatusFilter(opt.key)} style={{
+                  padding: '5px 12px', fontSize: 11.5, borderRadius: 6, cursor: 'pointer', fontWeight: statusFilter === opt.key ? 600 : 400,
+                  background: statusFilter === opt.key ? 'rgba(99,102,241,0.12)' : 'var(--bg-elevated)',
+                  color: statusFilter === opt.key ? '#6366f1' : 'var(--text-secondary)',
+                  border: statusFilter === opt.key ? '1px solid rgba(99,102,241,0.3)' : '1px solid var(--border-color)',
+                  transition: 'all 0.15s',
+                }}>{opt.label}{opt.key === 'all' ? '' : ` (${campaigns.filter(c => c.status === opt.key).length})`}</button>
+              ))}
             </div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
