@@ -205,11 +205,11 @@ export default async function Dashboard() {
             { label: 'ORT. ACOS', value: `%${data.kpis.avgAcos}`, color: '#f59e0b', change: '↓ -2.1pp geçen ay' },
             { label: 'STOK UYARISI', value: `${data.kpis.lowStockCount} SKU`, color: data.kpis.lowStockCount > 0 ? '#f43f5e' : '#10b981', change: data.kpis.lowStockCount > 0 ? '⚠ Kritik seviye' : '✓ Sağlıklı' },
           ].map((kpi, i) => (
-            <div key={i} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: '18px 20px', position: 'relative', overflow: 'hidden', opacity: 0, animation: `fadeInUp 0.6s ease-out ${i * 0.12}s forwards` }}>
-              <div style={{ position: 'absolute', top: 0, right: 0, width: 70, height: 70, borderRadius: '0 14px 0 70px', background: kpi.color, opacity: 0.07 }}></div>
-              <div style={{ fontSize: 10.5, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>{kpi.label}</div>
-              <div style={{ fontSize: 26, fontWeight: 700, letterSpacing: '-1px', marginBottom: 6, animation: `numberCount 0.5s ease-out ${0.3 + i * 0.12}s both` }}>{kpi.value}</div>
-              <div style={{ fontSize: 12, color: kpi.color }}>{kpi.change}</div>
+            <div key={i} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: '14px 16px', position: 'relative', overflow: 'hidden', opacity: 0, animation: `fadeInUp 0.6s ease-out ${i * 0.12}s forwards` }}>
+              <div style={{ position: 'absolute', top: 0, right: 0, width: 55, height: 55, borderRadius: '0 14px 0 55px', background: kpi.color, opacity: 0.07 }}></div>
+              <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>{kpi.label}</div>
+              <div style={{ fontSize: 22, fontWeight: 700, letterSpacing: '-1px', marginBottom: 4, animation: `numberCount 0.5s ease-out ${0.3 + i * 0.12}s both` }}>{kpi.value}</div>
+              <div style={{ fontSize: 11, color: kpi.color }}>{kpi.change}</div>
             </div>
           ))}
         </div>

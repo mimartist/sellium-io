@@ -122,8 +122,8 @@ export default function AdsOverviewPage() {
         <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
           {cards.map((card, i) => (
             <Link key={card.href} href={card.href} style={{ textDecoration: 'none', color: 'inherit' }}>
-              <div style={{
-                background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 16, padding: 24,
+              <div className="overview-card" style={{
+                background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: '16px 18px',
                 position: 'relative', overflow: 'hidden', cursor: 'pointer',
                 transition: 'border-color 0.2s, transform 0.2s',
                 opacity: 0, animation: `fadeInUp 0.6s ease-out ${i * 0.12}s forwards`,
@@ -131,22 +131,22 @@ export default function AdsOverviewPage() {
                 onMouseEnter={e => { e.currentTarget.style.borderColor = card.color; e.currentTarget.style.transform = 'translateY(-2px)' }}
                 onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border-color)'; e.currentTarget.style.transform = 'translateY(0)' }}
               >
-                <div style={{ position: 'absolute', top: 0, right: 0, width: 90, height: 90, borderRadius: '0 16px 0 90px', background: card.color, opacity: 0.07 }} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 18 }}>
+                <div style={{ position: 'absolute', top: 0, right: 0, width: 60, height: 60, borderRadius: '0 14px 0 60px', background: card.color, opacity: 0.07 }} />
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                   <div style={{
-                    width: 36, height: 36, borderRadius: 10, background: `${card.color}18`,
-                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, color: card.color,
+                    width: 30, height: 30, borderRadius: 8, background: `${card.color}18`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 15, color: card.color,
                   }}>
                     {card.icon}
                   </div>
-                  <div style={{ fontSize: 16, fontWeight: 600 }}>{card.title}</div>
-                  <div style={{ marginLeft: 'auto', fontSize: 18, color: 'var(--text-secondary)' }}>→</div>
+                  <div style={{ fontSize: 14, fontWeight: 600 }}>{card.title}</div>
+                  <div style={{ marginLeft: 'auto', fontSize: 16, color: 'var(--text-secondary)' }}>→</div>
                 </div>
-                <div style={{ display: 'flex', gap: 20 }}>
+                <div style={{ display: 'flex', gap: 16 }}>
                   {card.kpis.map(kpi => (
                     <div key={kpi.label}>
-                      <div style={{ fontSize: 10.5, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{kpi.label}</div>
-                      <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.5px', animation: `numberCount 0.5s ease-out ${0.3 + i * 0.1}s both` }}>{kpi.value}</div>
+                      <div style={{ fontSize: 9.5, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 3 }}>{kpi.label}</div>
+                      <div className="overview-card-value" style={{ fontSize: 16, fontWeight: 700, letterSpacing: '-0.5px', animation: `numberCount 0.5s ease-out ${0.3 + i * 0.1}s both` }}>{kpi.value}</div>
                     </div>
                   ))}
                 </div>
