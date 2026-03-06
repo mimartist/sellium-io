@@ -5,7 +5,7 @@ export async function POST(request: Request) {
 
   if (password === process.env.SITE_PASSWORD) {
     const response = NextResponse.json({ success: true })
-    response.cookies.set('sellium-auth', process.env.SITE_AUTH_TOKEN!, {
+    response.cookies.set('sellometrix-auth', process.env.SITE_AUTH_TOKEN!, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

@@ -44,7 +44,7 @@ export default function AdsLayout({ children }: { children: React.ReactNode }) {
     <>
       <div style={{ padding: '0 18px 20px', borderBottom: '1px solid var(--border-color)', marginBottom: 16 }}>
         <Link href="/" style={{ textDecoration: 'none', color: 'inherit' }}>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>Sellium<span style={{ color: '#6366f1' }}>.io</span></div>
+          <div style={{ fontSize: 18, fontWeight: 700 }}>Sellometrix<span style={{ color: '#6366f1' }}>.io</span></div>
         </Link>
         <div style={{ fontSize: 10, color: '#6b7280', letterSpacing: '1.5px', textTransform: 'uppercase', marginTop: 2 }}>AI Commerce OS</div>
       </div>

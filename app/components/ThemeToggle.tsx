@@ -6,7 +6,7 @@ export default function ThemeToggle({ compact }: { compact?: boolean } = {}) {
   const [theme, setTheme] = useState<'dark' | 'light'>('dark')
 
   useEffect(() => {
-    const saved = localStorage.getItem('sellium-theme') as 'dark' | 'light' | null
+    const saved = localStorage.getItem('sellometrix-theme') as 'dark' | 'light' | null
     if (saved) {
       setTheme(saved)
       document.documentElement.setAttribute('data-theme', saved)
@@ -17,7 +17,7 @@ export default function ThemeToggle({ compact }: { compact?: boolean } = {}) {
     const next = theme === 'dark' ? 'light' : 'dark'
     setTheme(next)
     document.documentElement.setAttribute('data-theme', next)
-    localStorage.setItem('sellium-theme', next)
+    localStorage.setItem('sellometrix-theme', next)
   }
 
   if (compact) {

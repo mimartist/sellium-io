@@ -152,7 +152,7 @@ export default async function Dashboard() {
   const sidebarContent = (
     <>
       <div style={{ padding: '0 18px 20px', borderBottom: '1px solid var(--border-color)', marginBottom: 16 }}>
-        <div style={{ fontSize: 18, fontWeight: 700 }}>Sellium<span style={{ color: '#6366f1' }}>.io</span></div>
+        <div style={{ fontSize: 18, fontWeight: 700 }}>Sellometrix<span style={{ color: '#6366f1' }}>.io</span></div>
         <div style={{ fontSize: 10, color: 'var(--text-secondary)', letterSpacing: '1.5px', textTransform: 'uppercase', marginTop: 2 }}>AI Commerce OS</div>
       </div>
       {[

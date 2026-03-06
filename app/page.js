@@ -59,7 +59,7 @@ export default async function Dashboard() {
       {/* SIDEBAR */}
       <aside style={{ width: 210, background: '#13161e', borderRight: '1px solid #222636', padding: '20px 0', position: 'fixed', top: 0, left: 0, bottom: 0 }}>
         <div style={{ padding: '0 18px 20px', borderBottom: '1px solid #222636', marginBottom: 16 }}>
-          <div style={{ fontSize: 18, fontWeight: 700 }}>Sellium<span style={{ color: '#6366f1' }}>.io</span></div>
+          <div style={{ fontSize: 18, fontWeight: 700 }}>Sellometrix<span style={{ color: '#6366f1' }}>.io</span></div>
           <div style={{ fontSize: 10, color: '#6b7280', letterSpacing: '1.5px', textTransform: 'uppercase', marginTop: 2 }}>AI Commerce OS</div>
         </div>
         {[

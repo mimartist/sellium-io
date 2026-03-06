@@ -75,7 +75,7 @@ export default function LoginPage() {
             fontWeight: 700,
             margin: 0,
           }}>
-            Sellium.io
+            Sellometrix.io
           </h1>
           <p style={{
             color: '#6b7280',
@@ -170,7 +170,7 @@ export default function LoginPage() {
           marginTop: 32,
           marginBottom: 0,
         }}>
-          Sellium.io Dashboard v0.1
+          Sellometrix.io Dashboard v0.1
         </p>
       </div>
     </div>
