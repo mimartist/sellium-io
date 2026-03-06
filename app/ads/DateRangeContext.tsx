@@ -57,12 +57,16 @@ export function DateRangeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const fetchRange = async () => {
+      // brand_id filtresi olmadan dene, daha güvenilir
       const [minRes, maxRes] = await Promise.all([
-        supabase.from('amazon_ads').select('date').eq('brand_id', 2).order('date', { ascending: true }).limit(1),
-        supabase.from('amazon_ads').select('date').eq('brand_id', 2).order('date', { ascending: false }).limit(1),
+        supabase.from('amazon_ads').select('date').order('date', { ascending: true }).limit(1),
+        supabase.from('amazon_ads').select('date').order('date', { ascending: false }).limit(1),
       ])
+      if (minRes.error) console.error('DateRange min error:', minRes.error)
+      if (maxRes.error) console.error('DateRange max error:', maxRes.error)
       const min = minRes.data?.[0]?.date || ''
       const max = maxRes.data?.[0]?.date || ''
+      console.log('DateRange fetched:', { min, max })
       setMinDate(min)
       setMaxDate(max)
       setStartDate(min)

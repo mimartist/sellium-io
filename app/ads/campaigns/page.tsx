@@ -61,11 +61,16 @@ export default function CampaignsPage() {
       setLoading(true)
 
       const [adsRes, effRes, wastedRes, aiRes] = await Promise.all([
-        isAllTime ? supabase.from('amazon_ads').select('*') : supabase.from('amazon_ads').select('*').gte('date', startDate).lte('date', endDate),
+        supabase.from('amazon_ads').select('*').gte('date', startDate).lte('date', endDate),
         supabase.from('insight_campaign_efficiency').select('*').eq('period', 'last_30d').order('calc_acos', { ascending: false }).limit(10),
         supabase.from('insight_wasted_spend').select('*').eq('period', 'last_30d').order('total_spend', { ascending: false }).limit(5),
         supabase.from('ai_insights').select('*').eq('insight_type', 'budget_allocation').eq('status', 'pending').order('created_at', { ascending: false }).limit(5),
       ])
+
+      if (adsRes.error) console.error('Campaigns adsRes error:', adsRes.error)
+      if (effRes.error) console.error('Campaigns effRes error:', effRes.error)
+      if (wastedRes.error) console.error('Campaigns wastedRes error:', wastedRes.error)
+      console.log('Campaigns query:', { startDate, endDate, isAllTime, rowCount: adsRes.data?.length, error: adsRes.error })
 
       setInsightCampaigns((effRes.data || []) as InsightCampaignEff[])
       setInsightWasted((wastedRes.data || []) as InsightWasted[])

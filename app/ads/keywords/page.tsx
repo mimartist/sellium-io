@@ -60,7 +60,7 @@ export default function KeywordsPage() {
       setLoading(true)
 
       const [stRes, negRes, wastedRes, aiRes] = await Promise.all([
-        isAllTime ? supabase.from('ad_search_terms').select('*') : supabase.from('ad_search_terms').select('*').gte('date', startDate).lte('date', endDate),
+        supabase.from('ad_search_terms').select('*').gte('date', startDate).lte('date', endDate),
         supabase.from('insight_negative_keyword_candidates').select('*').eq('period', 'last_30d').order('total_spend', { ascending: false }).limit(20),
         supabase.from('insight_wasted_spend').select('*').eq('period', 'last_30d').order('total_spend', { ascending: false }).limit(5),
         supabase.from('ai_insights').select('*').in('insight_type', ['negative_keywords', 'wasted_spend']).eq('status', 'pending').order('created_at', { ascending: false }).limit(5),

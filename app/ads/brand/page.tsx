@@ -47,7 +47,7 @@ export default function BrandPage() {
       setLoading(true)
 
       const [brandRes, aiRes] = await Promise.all([
-        isAllTime ? supabase.from('ad_brand_performance').select('*') : supabase.from('ad_brand_performance').select('*').gte('date', startDate).lte('date', endDate),
+        supabase.from('ad_brand_performance').select('*').gte('date', startDate).lte('date', endDate),
         supabase.from('ai_insights').select('*').eq('insight_type', 'budget_allocation').eq('status', 'pending').order('created_at', { ascending: false }).limit(5),
       ])
 

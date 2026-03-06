@@ -4,7 +4,8 @@
       "Bash(npx next:*)",
       "Bash(node:*)",
       "Bash(openssl rand:*)",
-      "Bash(ls \"C:\\\\Users\\\\Admin\\\\.claude\\\\projects\\\\C--Users-Admin-sellium-io\\\\memory\"\" 2>/dev/null || echo \"Directory does not exist \")"
+      "Bash(ls \"C:\\\\Users\\\\Admin\\\\.claude\\\\projects\\\\C--Users-Admin-sellium-io\\\\memory\"\" 2>/dev/null || echo \"Directory does not exist \")",
+      "Bash(npm list:*)"
     ]
   }
 }

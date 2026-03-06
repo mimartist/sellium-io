@@ -53,7 +53,7 @@ export default function ProductsPage() {
       setLoading(true)
 
       const [prodRes, skuRes, aiRes] = await Promise.all([
-        isAllTime ? supabase.from('ad_product_performance').select('*') : supabase.from('ad_product_performance').select('*').gte('date', startDate).lte('date', endDate),
+        supabase.from('ad_product_performance').select('*').gte('date', startDate).lte('date', endDate),
         supabase.from('insight_sku_performance').select('*').eq('period', 'last_30d').limit(20),
         supabase.from('ai_insights').select('*').eq('insight_type', 'sku_optimization').eq('status', 'pending').order('created_at', { ascending: false }).limit(5),
       ])

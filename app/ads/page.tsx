@@ -28,17 +28,12 @@ export default function AdsOverviewPage() {
     const fetchAll = async () => {
       setLoading(true)
 
-      let q1 = supabase.from('amazon_ads').select('spend,sales,acos,clicks')
-      let q2 = supabase.from('ad_product_performance').select('spend,sales_7d,acos,roas')
-      let q3 = supabase.from('ad_search_terms').select('spend,clicks,conversion_rate,search_term')
-      let q4 = supabase.from('ad_brand_performance').select('impressions,spend,brand_searches,new_to_brand_orders')
-      if (!isAllTime) {
-        q1 = q1.gte('date', startDate).lte('date', endDate)
-        q2 = q2.gte('date', startDate).lte('date', endDate)
-        q3 = q3.gte('date', startDate).lte('date', endDate)
-        q4 = q4.gte('date', startDate).lte('date', endDate)
-      }
-      const [campaigns, products, searchTerms, brand] = await Promise.all([q1, q2, q3, q4])
+      const [campaigns, products, searchTerms, brand] = await Promise.all([
+        supabase.from('amazon_ads').select('spend,sales,acos,clicks').gte('date', startDate).lte('date', endDate),
+        supabase.from('ad_product_performance').select('spend,sales_7d,acos,roas').gte('date', startDate).lte('date', endDate),
+        supabase.from('ad_search_terms').select('spend,clicks,conversion_rate,search_term').gte('date', startDate).lte('date', endDate),
+        supabase.from('ad_brand_performance').select('impressions,spend,brand_searches,new_to_brand_orders').gte('date', startDate).lte('date', endDate),
+      ])
 
       const cData = campaigns.data || []
       const cSpend = cData.reduce((s, r) => s + Number(r.spend), 0)
