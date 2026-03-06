@@ -124,8 +124,8 @@ function CalendarMonth({
                   padding: '6px 0',
                   fontSize: 12.5,
                   cursor: disabled || !cell.current ? 'default' : 'pointer',
-                  color: !cell.current ? 'var(--text-secondary)' : disabled ? 'var(--text-secondary)' : isEdge ? '#fff' : inRange ? '#6366f1' : 'var(--text-primary)',
-                  opacity: !cell.current ? 0.3 : disabled ? 0.4 : 1,
+                  color: (!cell.current || disabled) ? 'var(--text-secondary)' : isEdge ? '#fff' : inRange ? '#6366f1' : 'var(--text-primary)',
+                  opacity: (!cell.current || disabled) ? 0.3 : 1,
                   background: isEdge ? '#6366f1' : inRange ? 'rgba(99,102,241,0.1)' : 'transparent',
                   borderRadius: isStart ? '50% 0 0 50%' : isEnd ? '0 50% 50% 0' : (isStart && isEnd) ? '50%' : 0,
                   fontWeight: isEdge ? 700 : 400,
@@ -158,7 +158,7 @@ export default function DateRangePicker() {
   const [selectingEnd, setSelectingEnd] = useState(false)
   const [leftMonth, setLeftMonth] = useState(0)
   const [leftYear, setLeftYear] = useState(2026)
-  const [activePreset, setActivePreset] = useState<string | null>(null)
+  const [activePreset, setActivePreset] = useState<string | null>('Tüm Zamanlar')
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -168,8 +168,12 @@ export default function DateRangePicker() {
       setLeftMonth(p.month)
       setTempStart(startDate)
       setTempEnd(endDate)
+      // Eğer tüm aralık seçiliyse preset'i güncelle
+      if (startDate === minDate && endDate === maxDate) {
+        setActivePreset('Tüm Zamanlar')
+      }
     }
-  }, [startDate, endDate])
+  }, [startDate, endDate, minDate, maxDate])
 
   useEffect(() => {
     const handleClick = (e: MouseEvent) => {
