@@ -22,7 +22,7 @@ interface SkuAgg {
 
 interface InsightSku {
   sku: string; asin: string; total_spend: number; total_sales: number; total_clicks: number
-  total_orders: number; calc_acos: number; calc_roas: number; report_month: string
+  total_orders: number; calc_acos: number; calc_roas: number; period: string
 }
 
 interface AiInsight {
@@ -38,7 +38,7 @@ const priorityColor = (p: string) => p === 'high' ? '#f43f5e' : p === 'normal' ?
 const priorityBg = (p: string) => p === 'high' ? 'rgba(244,63,94,0.12)' : p === 'normal' ? 'rgba(245,158,11,0.12)' : 'rgba(16,185,129,0.12)'
 
 export default function ProductsPage() {
-  const { startDate, endDate, months } = useDateRange()
+  const { startDate, endDate } = useDateRange()
   const [rawData, setRawData] = useState<ProductRow[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -54,7 +54,7 @@ export default function ProductsPage() {
 
       const [prodRes, skuRes, aiRes] = await Promise.all([
         supabase.from('ad_product_performance').select('*').gte('date', startDate).lte('date', endDate),
-        supabase.from('insight_sku_performance').select('*').in('report_month', months).limit(20),
+        supabase.from('insight_sku_performance').select('*').eq('period', 'last_30d').limit(20),
         supabase.from('ai_insights').select('*').eq('insight_type', 'sku_optimization').eq('status', 'pending').order('created_at', { ascending: false }).limit(5),
       ])
 
@@ -74,7 +74,7 @@ export default function ProductsPage() {
       setLoading(false)
     }
     fetchData()
-  }, [startDate, endDate, months])
+  }, [startDate, endDate])
 
   const updateInsightStatus = async (id: number, status: 'applied' | 'dismissed') => {
     await supabase.from('ai_insights').update({ status }).eq('id', id)

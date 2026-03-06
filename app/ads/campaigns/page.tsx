@@ -23,12 +23,12 @@ interface CampaignAgg {
 
 interface InsightCampaignEff {
   campaign_name: string; total_spend: number; total_sales: number; total_clicks: number
-  total_impressions: number; total_orders: number; calc_acos: number; cvr: number; report_month: string
+  total_impressions: number; total_orders: number; calc_acos: number; cvr: number; period: string
 }
 
 interface InsightWasted {
   search_term: string; campaign_name: string; total_spend: number; total_clicks: number
-  total_impressions: number; total_orders: number; report_month: string
+  total_impressions: number; total_orders: number; period: string
 }
 
 interface AiInsight {
@@ -44,7 +44,7 @@ const priorityColor = (p: string) => p === 'high' ? '#f43f5e' : p === 'normal' ?
 const priorityBg = (p: string) => p === 'high' ? 'rgba(244,63,94,0.12)' : p === 'normal' ? 'rgba(245,158,11,0.12)' : 'rgba(16,185,129,0.12)'
 
 export default function CampaignsPage() {
-  const { startDate, endDate, months } = useDateRange()
+  const { startDate, endDate } = useDateRange()
   const [rawData, setRawData] = useState<AdRow[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -62,8 +62,8 @@ export default function CampaignsPage() {
 
       const [adsRes, effRes, wastedRes, aiRes] = await Promise.all([
         supabase.from('amazon_ads').select('*').gte('date', startDate).lte('date', endDate),
-        supabase.from('insight_campaign_efficiency').select('*').in('report_month', months).order('calc_acos', { ascending: false }).limit(10),
-        supabase.from('insight_wasted_spend').select('*').in('report_month', months).order('total_spend', { ascending: false }).limit(5),
+        supabase.from('insight_campaign_efficiency').select('*').eq('period', 'last_30d').order('calc_acos', { ascending: false }).limit(10),
+        supabase.from('insight_wasted_spend').select('*').eq('period', 'last_30d').order('total_spend', { ascending: false }).limit(5),
         supabase.from('ai_insights').select('*').eq('insight_type', 'budget_allocation').eq('status', 'pending').order('created_at', { ascending: false }).limit(5),
       ])
 
@@ -84,7 +84,7 @@ export default function CampaignsPage() {
       setLoading(false)
     }
     fetchData()
-  }, [startDate, endDate, months])
+  }, [startDate, endDate])
 
   const updateInsightStatus = async (id: number, status: 'applied' | 'dismissed') => {
     await supabase.from('ai_insights').update({ status }).eq('id', id)
