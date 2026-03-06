@@ -17,14 +17,16 @@ interface DateRangeCtx {
   maxDate: string
   months: string[]
   loading: boolean
+  isAllTime: boolean
 }
 
 const DateRangeContext = createContext<DateRangeCtx>({
   startDate: '', endDate: '', setStartDate: () => {}, setEndDate: () => {},
-  minDate: '', maxDate: '', months: [], loading: true,
+  minDate: '', maxDate: '', months: [], loading: true, isAllTime: true,
 })
 
 export const useDateRange = () => useContext(DateRangeContext)
+
 
 export const formatDateTR = (d: string) => {
   if (!d) return ''
@@ -71,9 +73,10 @@ export function DateRangeProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   const months = useMemo(() => getMonthsInRange(startDate, endDate), [startDate, endDate])
+  const isAllTime = !!(minDate && maxDate && startDate === minDate && endDate === maxDate)
 
   return (
-    <DateRangeContext.Provider value={{ startDate, endDate, setStartDate, setEndDate, minDate, maxDate, months, loading }}>
+    <DateRangeContext.Provider value={{ startDate, endDate, setStartDate, setEndDate, minDate, maxDate, months, loading, isAllTime }}>
       {children}
     </DateRangeContext.Provider>
   )

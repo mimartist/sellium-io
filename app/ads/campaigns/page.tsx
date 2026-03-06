@@ -44,7 +44,7 @@ const priorityColor = (p: string) => p === 'high' ? '#f43f5e' : p === 'normal' ?
 const priorityBg = (p: string) => p === 'high' ? 'rgba(244,63,94,0.12)' : p === 'normal' ? 'rgba(245,158,11,0.12)' : 'rgba(16,185,129,0.12)'
 
 export default function CampaignsPage() {
-  const { startDate, endDate } = useDateRange()
+  const { startDate, endDate, isAllTime } = useDateRange()
   const [rawData, setRawData] = useState<AdRow[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -61,7 +61,7 @@ export default function CampaignsPage() {
       setLoading(true)
 
       const [adsRes, effRes, wastedRes, aiRes] = await Promise.all([
-        supabase.from('amazon_ads').select('*').gte('date', startDate).lte('date', endDate),
+        isAllTime ? supabase.from('amazon_ads').select('*') : supabase.from('amazon_ads').select('*').gte('date', startDate).lte('date', endDate),
         supabase.from('insight_campaign_efficiency').select('*').eq('period', 'last_30d').order('calc_acos', { ascending: false }).limit(10),
         supabase.from('insight_wasted_spend').select('*').eq('period', 'last_30d').order('total_spend', { ascending: false }).limit(5),
         supabase.from('ai_insights').select('*').eq('insight_type', 'budget_allocation').eq('status', 'pending').order('created_at', { ascending: false }).limit(5),
@@ -84,7 +84,7 @@ export default function CampaignsPage() {
       setLoading(false)
     }
     fetchData()
-  }, [startDate, endDate])
+  }, [startDate, endDate, isAllTime])
 
   const updateInsightStatus = async (id: number, status: 'applied' | 'dismissed') => {
     await supabase.from('ai_insights').update({ status }).eq('id', id)

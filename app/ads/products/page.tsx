@@ -38,7 +38,7 @@ const priorityColor = (p: string) => p === 'high' ? '#f43f5e' : p === 'normal' ?
 const priorityBg = (p: string) => p === 'high' ? 'rgba(244,63,94,0.12)' : p === 'normal' ? 'rgba(245,158,11,0.12)' : 'rgba(16,185,129,0.12)'
 
 export default function ProductsPage() {
-  const { startDate, endDate } = useDateRange()
+  const { startDate, endDate, isAllTime } = useDateRange()
   const [rawData, setRawData] = useState<ProductRow[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -53,7 +53,7 @@ export default function ProductsPage() {
       setLoading(true)
 
       const [prodRes, skuRes, aiRes] = await Promise.all([
-        supabase.from('ad_product_performance').select('*').gte('date', startDate).lte('date', endDate),
+        isAllTime ? supabase.from('ad_product_performance').select('*') : supabase.from('ad_product_performance').select('*').gte('date', startDate).lte('date', endDate),
         supabase.from('insight_sku_performance').select('*').eq('period', 'last_30d').limit(20),
         supabase.from('ai_insights').select('*').eq('insight_type', 'sku_optimization').eq('status', 'pending').order('created_at', { ascending: false }).limit(5),
       ])
@@ -74,7 +74,7 @@ export default function ProductsPage() {
       setLoading(false)
     }
     fetchData()
-  }, [startDate, endDate])
+  }, [startDate, endDate, isAllTime])
 
   const updateInsightStatus = async (id: number, status: 'applied' | 'dismissed') => {
     await supabase.from('ai_insights').update({ status }).eq('id', id)
