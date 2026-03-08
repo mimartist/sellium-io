@@ -17,17 +17,17 @@ const supabase = createClient(
 )
 
 const MARKETPLACE_OPTIONS = [
-  { value: 'all', label: 'All Marketplaces', flag: '\u{1F30D}' },
-  { value: 'Amazon.de', label: 'Amazon.de', flag: '\u{1F1E9}\u{1F1EA}' },
-  { value: 'Amazon.fr', label: 'Amazon.fr', flag: '\u{1F1EB}\u{1F1F7}' },
-  { value: 'Amazon.es', label: 'Amazon.es', flag: '\u{1F1EA}\u{1F1F8}' },
-  { value: 'Amazon.it', label: 'Amazon.it', flag: '\u{1F1EE}\u{1F1F9}' },
-  { value: 'Amazon.co.uk', label: 'Amazon.co.uk', flag: '\u{1F1EC}\u{1F1E7}' },
-  { value: 'Amazon.nl', label: 'Amazon.nl', flag: '\u{1F1F3}\u{1F1F1}' },
-  { value: 'Amazon.pl', label: 'Amazon.pl', flag: '\u{1F1F5}\u{1F1F1}' },
-  { value: 'Amazon.ie', label: 'Amazon.ie', flag: '\u{1F1EE}\u{1F1EA}' },
-  { value: 'Amazon.com.be', label: 'Amazon.com.be', flag: '\u{1F1E7}\u{1F1EA}' },
-  { value: 'Amazon.se', label: 'Amazon.se', flag: '\u{1F1F8}\u{1F1EA}' },
+  { value: 'all', label: 'All Marketplaces', flag: '🌍' },
+  { value: 'Amazon.de', label: 'Amazon.de', flag: '🇩🇪' },
+  { value: 'Amazon.fr', label: 'Amazon.fr', flag: '🇫🇷' },
+  { value: 'Amazon.es', label: 'Amazon.es', flag: '🇪🇸' },
+  { value: 'Amazon.it', label: 'Amazon.it', flag: '🇮🇹' },
+  { value: 'Amazon.co.uk', label: 'Amazon.co.uk', flag: '🇬🇧' },
+  { value: 'Amazon.nl', label: 'Amazon.nl', flag: '🇳🇱' },
+  { value: 'Amazon.pl', label: 'Amazon.pl', flag: '🇵🇱' },
+  { value: 'Amazon.ie', label: 'Amazon.ie', flag: '🇮🇪' },
+  { value: 'Amazon.com.be', label: 'Amazon.com.be', flag: '🇧🇪' },
+  { value: 'Amazon.se', label: 'Amazon.se', flag: '🇸🇪' },
 ]
 
 const MARKETPLACE_FLAG_MAP: Record<string, string> = {}
@@ -73,8 +73,8 @@ function getPrevMonth(month: string): string {
 }
 
 const fmtNum = (v: number) => {
-  if (v < 0) return `-\u20AC${Math.abs(v).toLocaleString('de-DE', { maximumFractionDigits: 0 })}`
-  return `\u20AC${v.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`
+  if (v < 0) return `-€${Math.abs(v).toLocaleString('de-DE', { maximumFractionDigits: 0 })}`
+  return `€${v.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`
 }
 const fmtPct = (v: number) => `%${v.toFixed(1)}`
 const pctChange = (cur: number, prev: number) => prev === 0 ? 0 : ((cur - prev) / Math.abs(prev)) * 100
@@ -117,7 +117,7 @@ export default function PLPage() {
     fetchData()
   }, [])
 
-  // ========== 2. REKLAM VER\u0130S\u0130 \u2014 RPC ile server-side SUM ==========
+  // ========== 2. REKLAM VERİSİ — RPC ile server-side SUM ==========
   useEffect(() => {
     async function fetchAdSpend() {
       const { startDate: curStart, endDate: curEnd } = getMonthRange(selectedMonth)
@@ -145,7 +145,7 @@ export default function PLPage() {
     fetchAdSpend()
   }, [selectedMonth])
 
-  // ========== 3. G\u00FCnl\u00FCk veri ==========
+  // ========== 3. Günlük veri ==========
   useEffect(() => {
     async function fetchDaily() {
       let query = supabase
@@ -203,7 +203,7 @@ export default function PLPage() {
   const prev = aggregateMonth(prevMonthStr, selectedMarketplace)
   const hasPrev = prev.sales > 0
 
-  // 2 ay \u00F6ncesi
+  // 2 ay öncesi
   const prevPrevMonthStr = getPrevMonth(prevMonthStr)
   const prevPrev = aggregateMonth(prevPrevMonthStr, selectedMarketplace)
 
@@ -333,7 +333,7 @@ export default function PLPage() {
     if (mpSortKey === key) setMpSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setMpSortKey(key); setMpSortDir('desc') }
   }
-  const sortIndicator = (key: SortKey) => mpSortKey !== key ? ' \u21C5' : mpSortDir === 'asc' ? ' \u2191' : ' \u2193'
+  const sortIndicator = (key: SortKey) => mpSortKey !== key ? ' ⇅' : mpSortDir === 'asc' ? ' ↑' : ' ↓'
 
   // ========== Top 5 marketplace by sales & refunds ==========
   const topSellersMp = useMemo(() => {
@@ -352,27 +352,27 @@ export default function PLPage() {
     const refundRate = cur.sales > 0 ? (cur.refunds / cur.sales) * 100 : 0
     const prevRefundRate = prev.sales > 0 ? (prev.refunds / prev.sales) * 100 : 0
     if (refundRate > prevRefundRate + 1) {
-      insights.push({ icon: '\u26A0\uFE0F', type: '\u0130ade Uyar\u0131s\u0131', color: '#ef4444', title: '\u0130ade oran\u0131 artt\u0131', desc: `Bu ay %${refundRate.toFixed(1)} iade oran\u0131, ge\u00E7en ay %${prevRefundRate.toFixed(1)} idi. \u00DCr\u00FCn kalite kontrol\u00FC \u00F6nerilir.` })
+      insights.push({ icon: '⚠️', type: 'İade Uyarısı', color: '#ef4444', title: 'İade oranı arttı', desc: `Bu ay %${refundRate.toFixed(1)} iade oranı, geçen ay %${prevRefundRate.toFixed(1)} idi. Ürün kalite kontrolü önerilir.` })
     }
 
     // Ad spend efficiency
     if (curAcos > 35) {
-      insights.push({ icon: '\uD83D\uDCB0', type: 'Reklam Optimizasyonu', color: '#f59e0b', title: 'ACoS y\u00FCksek', desc: `ACoS %${curAcos.toFixed(1)} seviyesinde. D\u00FC\u015F\u00FCk performansl\u0131 kampanyalar\u0131 duraklat\u0131n veya bid\u2019leri d\u00FC\u015F\u00FCr\u00FCn.` })
+      insights.push({ icon: '��', type: 'Reklam Optimizasyonu', color: '#f59e0b', title: 'ACoS yüksek', desc: `ACoS %${curAcos.toFixed(1)} seviyesinde. Düşük performanslı kampanyaları duraklatın veya bid’leri düşürün.` })
     } else if (curAcos < 20 && displayAd > 0) {
-      insights.push({ icon: '\uD83D\uDE80', type: 'F\u0131rsat', color: '#10b981', title: 'Reklam b\u00FCtçesi art\u0131r\u0131labilir', desc: `ACoS %${curAcos.toFixed(1)} ile \u00E7ok verimli. B\u00FCtçe art\u0131\u015F\u0131 de\u011Ferlendirilmeli.` })
+      insights.push({ icon: '��', type: 'Fırsat', color: '#10b981', title: 'Reklam bütçesi artırılabilir', desc: `ACoS %${curAcos.toFixed(1)} ile çok verimli. Bütçe artışı değerlendirilmeli.` })
     }
 
     // Margin trend
     if (curMargin < prevMargin - 3) {
-      insights.push({ icon: '\uD83D\uDCC9', type: 'Trend', color: '#ef4444', title: 'Marj d\u00FC\u015F\u00FC\u015Fte', desc: `Marj %${prevMargin.toFixed(1)}\u2019den %${curMargin.toFixed(1)}\u2019e geriledi. Maliyet analizi yap\u0131n.` })
+      insights.push({ icon: '��', type: 'Trend', color: '#ef4444', title: 'Marj düşüşte', desc: `Marj %${prevMargin.toFixed(1)}’den %${curMargin.toFixed(1)}’e geriledi. Maliyet analizi yapın.` })
     } else if (curMargin > prevMargin + 3) {
-      insights.push({ icon: '\uD83D\uDCC8', type: 'Trend', color: '#10b981', title: 'Marj y\u00FCkseldi', desc: `Marj %${prevMargin.toFixed(1)}\u2019den %${curMargin.toFixed(1)}\u2019e \u00E7\u0131kt\u0131. Ba\u015Far\u0131l\u0131 optimizasyon!` })
+      insights.push({ icon: '��', type: 'Trend', color: '#10b981', title: 'Marj yükseldi', desc: `Marj %${prevMargin.toFixed(1)}’den %${curMargin.toFixed(1)}’e çıktı. Başarılı optimizasyon!` })
     }
 
     // FBA cost increase
     const fbaChange = pctChange(cur.fba, prev.fba)
     if (fbaChange > 15) {
-      insights.push({ icon: '\uD83D\uDCE6', type: 'FBA Maliyet', color: '#f59e0b', title: 'FBA maliyetleri artt\u0131', desc: `FBA \u00FCcretleri %${fbaChange.toFixed(0)} artt\u0131. Boyut/a\u011F\u0131rl\u0131k optimizasyonu de\u011Ferlendirilmeli.` })
+      insights.push({ icon: '��', type: 'FBA Maliyet', color: '#f59e0b', title: 'FBA maliyetleri arttı', desc: `FBA ücretleri %${fbaChange.toFixed(0)} arttı. Boyut/ağırlık optimizasyonu değerlendirilmeli.` })
     }
 
     // Growing marketplace
@@ -383,11 +383,11 @@ export default function PLPage() {
     })
     if (growingMps.length > 0) {
       const mp = growingMps[0]
-      insights.push({ icon: '\uD83C\uDF1F', type: 'B\u00FCy\u00FCme F\u0131rsat\u0131', color: '#6366f1', title: `${mp.marketplace} b\u00FCy\u00FCyor`, desc: `${mp.marketplace}\u2019da sat\u0131\u015Flar g\u00FC\u00E7l\u00FC b\u00FCy\u00FCme g\u00F6steriyor. Stok ve reklam b\u00FCtçesini art\u0131rmay\u0131 d\u00FC\u015F\u00FCn\u00FCn.` })
+      insights.push({ icon: '��', type: 'Büyüme Fırsatı', color: '#6366f1', title: `${mp.marketplace} büyüyor`, desc: `${mp.marketplace}’da satışlar güçlü büyüme gösteriyor. Stok ve reklam bütçesini artırmayı düşünün.` })
     }
 
     if (insights.length === 0) {
-      insights.push({ icon: '\u2705', type: 'Genel', color: '#10b981', title: 'Her \u015Fey yolunda', desc: 'Bu ay i\u00E7in \u00F6nemli bir uyar\u0131 yok. Performans stabil g\u00F6r\u00FCn\u00FCyor.' })
+      insights.push({ icon: '✅', type: 'Genel', color: '#10b981', title: 'Her şey yolunda', desc: 'Bu ay için önemli bir uyarı yok. Performans stabil görünüyor.' })
     }
 
     return insights
@@ -397,14 +397,14 @@ export default function PLPage() {
   const quickActions = useMemo(() => {
     const actions: { status: string; statusColor: string; label: string }[] = []
 
-    if (curAcos > 30) actions.push({ status: 'Acil', statusColor: '#ef4444', label: 'Y\u00FCksek ACoS kampanyalar\u0131 duraklat' })
-    if (cur.refunds > prev.refunds * 1.2 && prev.refunds > 0) actions.push({ status: 'Acil', statusColor: '#ef4444', label: '\u0130ade art\u0131\u015F\u0131n\u0131 incele' })
+    if (curAcos > 30) actions.push({ status: 'Acil', statusColor: '#ef4444', label: 'Yüksek ACoS kampanyaları duraklat' })
+    if (cur.refunds > prev.refunds * 1.2 && prev.refunds > 0) actions.push({ status: 'Acil', statusColor: '#ef4444', label: 'İade artışını incele' })
 
     const lowStockMps = mpGrouped.filter(mp => mp.sales > 500 && mp.margin < 5)
-    if (lowStockMps.length > 0) actions.push({ status: 'Planl\u0131', statusColor: '#6366f1', label: `${lowStockMps[0].marketplace} marj\u0131n\u0131 iyile\u015Ftir` })
+    if (lowStockMps.length > 0) actions.push({ status: 'Planlı', statusColor: '#6366f1', label: `${lowStockMps[0].marketplace} marjını iyileştir` })
 
-    if (displayAd > 0 && curAcos < 25) actions.push({ status: 'Planl\u0131', statusColor: '#6366f1', label: 'SB b\u00FCtçesini art\u0131r' })
-    if (curMargin > prevMargin) actions.push({ status: 'Tamamland\u0131', statusColor: '#10b981', label: 'Marj optimizasyonu ba\u015Far\u0131l\u0131' })
+    if (displayAd > 0 && curAcos < 25) actions.push({ status: 'Planlı', statusColor: '#6366f1', label: 'SB bütçesini artır' })
+    if (curMargin > prevMargin) actions.push({ status: 'Tamamlandı', statusColor: '#10b981', label: 'Marj optimizasyonu başarılı' })
 
     if (actions.length === 0) actions.push({ status: 'Bilgi', statusColor: '#6366f1', label: 'Yeni aksiyon gerekmiyor' })
 
@@ -413,15 +413,15 @@ export default function PLPage() {
 
   // ========== KPIs ==========
   const changeArrow = (change: number) => {
-    if (change > 0) return { symbol: '\u2191', color: '#10b981' }
-    if (change < 0) return { symbol: '\u2193', color: '#ef4444' }
-    return { symbol: '\u2192', color: 'var(--text-secondary)' }
+    if (change > 0) return { symbol: '↑', color: '#10b981' }
+    if (change < 0) return { symbol: '↓', color: '#ef4444' }
+    return { symbol: '→', color: 'var(--text-secondary)' }
   }
 
   const kpis = [
-    { label: 'SATI\u015E', value: fmtNum(cur.sales), change: pctChange(cur.sales, prev.sales), color: '#6366f1' },
-    { label: 'B\u0130R\u0130M', value: cur.units.toLocaleString('de-DE'), change: pctChange(cur.units, prev.units), color: '#a78bfa' },
-    { label: 'NET K\u00C2R', value: fmtNum(curNetProfit), change: pctChange(curNetProfit, prevNetProfit), color: curNetProfit >= 0 ? '#10b981' : '#ef4444' },
+    { label: 'SATIŞ', value: fmtNum(cur.sales), change: pctChange(cur.sales, prev.sales), color: '#6366f1' },
+    { label: 'BİRİM', value: cur.units.toLocaleString('de-DE'), change: pctChange(cur.units, prev.units), color: '#a78bfa' },
+    { label: 'NET KÂR', value: fmtNum(curNetProfit), change: pctChange(curNetProfit, prevNetProfit), color: curNetProfit >= 0 ? '#10b981' : '#ef4444' },
     { label: 'MARJ', value: fmtPct(curMargin), change: curMargin - prevMargin, color: curMargin >= 0 ? '#10b981' : '#ef4444' },
     { label: 'REKLAM', value: fmtNum(displayAd), change: pctChange(displayAd, displayAdPrev), color: '#f59e0b' },
     { label: 'ACOS', value: fmtPct(curAcos), change: curAcos - prevAcos, color: curAcos < 25 ? '#10b981' : curAcos < 40 ? '#f59e0b' : '#ef4444' },
@@ -468,14 +468,14 @@ export default function PLPage() {
         <div style={{ fontSize: 10, color: 'var(--text-secondary)', letterSpacing: '1.5px', textTransform: 'uppercase', marginTop: 2 }}>AI Commerce OS</div>
       </div>
       {[
-        { icon: '\u2B21', label: 'Dashboard', href: '/' },
-        { icon: '\u25C8', label: 'Karl\u0131l\u0131k', href: '/pl', active: true },
-        { icon: '\u25EB', label: 'Stok', href: '#' },
-        { icon: '\u25EC', label: 'Reklam', href: '/ads' },
-        { icon: '\u25C9', label: 'Rakip Analizi', href: '#' },
-        { icon: '\u25CC', label: '\u0130\u00E7erik', href: '#' },
-        { icon: '\u25CE', label: 'AI \u00D6neriler', href: '#' },
-        { icon: '\u25F1', label: 'Raporlar', href: '#' },
+        { icon: '⬡', label: 'Dashboard', href: '/' },
+        { icon: '◈', label: 'Karlılık', href: '/pl', active: true },
+        { icon: '◫', label: 'Stok', href: '#' },
+        { icon: '◬', label: 'Reklam', href: '/ads' },
+        { icon: '◉', label: 'Rakip Analizi', href: '#' },
+        { icon: '◌', label: 'İçerik', href: '#' },
+        { icon: '◎', label: 'AI Öneriler', href: '#' },
+        { icon: '◱', label: 'Raporlar', href: '#' },
       ].map((item, i) => (
         <div key={i}>
           <Link href={item.href} style={{ textDecoration: 'none' }}>
@@ -502,7 +502,7 @@ export default function PLPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ width: 36, height: 36, border: '3px solid var(--border-color)', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Veriler y\u00FCkleniyor...</div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Veriler yükleniyor...</div>
           </div>
         </div>
       </DashboardShell>
@@ -518,8 +518,8 @@ export default function PLPage() {
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>P&L Dashboard</h1>
           <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 3, margin: 0 }}>
-            K\u00E2r & Zarar Analizi \u00B7 {selectedMonth}
-            {selectedMarketplace !== 'all' && ` \u00B7 ${selectedMpOption.flag} ${selectedMpOption.label}`}
+            Kâr & Zarar Analizi · {selectedMonth}
+            {selectedMarketplace !== 'all' && ` · ${selectedMpOption.flag} ${selectedMpOption.label}`}
           </p>
         </div>
         <div className="header-controls" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -532,7 +532,7 @@ export default function PLPage() {
         </div>
       </div>
 
-      {/* B\u00D6L\u00DCM 1: KPI CARDS */}
+      {/* BÖLÜM 1: KPI CARDS */}
       <div className="kpi-grid-6" style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 12, marginBottom: 20 }}>
         {kpis.map((kpi, i) => {
           const arrow = changeArrow(kpi.change)
@@ -541,31 +541,31 @@ export default function PLPage() {
               <div style={{ position: 'absolute', top: 0, right: 0, width: 45, height: 45, borderRadius: '0 14px 0 45px', background: kpi.color, opacity: 0.07 }} />
               <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>{kpi.label}</div>
               <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-1px', marginBottom: 4 }}>{kpi.value}</div>
-              <div style={{ fontSize: 11, color: arrow.color }}>{arrow.symbol} {kpi.change >= 0 ? '+' : ''}{kpi.change.toFixed(1)}% \u00F6nceki ay</div>
+              <div style={{ fontSize: 11, color: arrow.color }}>{arrow.symbol} {kpi.change >= 0 ? '+' : ''}{kpi.change.toFixed(1)}% önceki ay</div>
             </div>
           )
         })}
       </div>
 
-      {/* B\u00D6L\u00DCM 2: CHARTS ROW */}
+      {/* BÖLÜM 2: CHARTS ROW */}
       <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
         {/* Monthly Trend */}
         <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.6s forwards' }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Ayl\u0131k Trend</div>
-          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16 }}>Sat\u0131\u015F vs Net K\u00E2r</div>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Aylık Trend</div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16 }}>Satış vs Net Kâr</div>
           <ResponsiveContainer width="100%" height={220}>
             <ComposedChart data={monthlyChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
               <XAxis dataKey="month" tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `\u20AC${(v / 1000).toFixed(0)}k`} />
-              <Tooltip {...tooltipStyle} formatter={(value: any, name: any) => [fmtNum(Number(value)), name === 'sales' ? 'Sat\u0131\u015F' : 'Net K\u00E2r']} />
+              <YAxis tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `€${(v / 1000).toFixed(0)}k`} />
+              <Tooltip {...tooltipStyle} formatter={(value: any, name: any) => [fmtNum(Number(value)), name === 'sales' ? 'Satış' : 'Net Kâr']} />
               <Bar dataKey="sales" fill="#6366f1" radius={[4, 4, 0, 0]} name="sales" />
               <Line type="monotone" dataKey="netProfit" stroke="#10b981" strokeWidth={2.5} dot={{ fill: '#10b981', r: 4 }} name="netProfit" />
             </ComposedChart>
           </ResponsiveContainer>
           <div style={{ display: 'flex', gap: 20, marginTop: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}><div style={{ width: 12, height: 10, background: '#6366f1', borderRadius: 2 }} />Sat\u0131\u015F</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}><div style={{ width: 12, height: 3, background: '#10b981', borderRadius: 2 }} />Net K\u00E2r</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}><div style={{ width: 12, height: 10, background: '#6366f1', borderRadius: 2 }} />Satış</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}><div style={{ width: 12, height: 3, background: '#10b981', borderRadius: 2 }} />Net Kâr</div>
           </div>
         </div>
 
@@ -573,19 +573,19 @@ export default function PLPage() {
         <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.7s forwards' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>G\u00FCnl\u00FCk Sat\u0131\u015F Trendi</div>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Günlük Satış Trendi</div>
               <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{selectedMonth}</div>
             </div>
           </div>
           <div className="daily-range-bar" style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-            <button onClick={() => setDailyRange('7d')} style={rangeBtn(dailyRange === '7d')}>Son 7 g\u00FCn</button>
-            <button onClick={() => setDailyRange('14d')} style={rangeBtn(dailyRange === '14d')}>Son 14 g\u00FCn</button>
+            <button onClick={() => setDailyRange('7d')} style={rangeBtn(dailyRange === '7d')}>Son 7 gün</button>
+            <button onClick={() => setDailyRange('14d')} style={rangeBtn(dailyRange === '14d')}>Son 14 gün</button>
             <button onClick={() => setDailyRange('month')} style={rangeBtn(dailyRange === 'month')}>Bu ay</button>
-            <button onClick={() => setDailyRange('custom')} style={rangeBtn(dailyRange === 'custom')}>\u00D6zel aral\u0131k</button>
+            <button onClick={() => setDailyRange('custom')} style={rangeBtn(dailyRange === 'custom')}>Özel aralık</button>
             {dailyRange === 'custom' && (
               <>
                 <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} style={{ ...selectStyle, padding: '4px 8px', fontSize: 11 }} />
-                <span style={{ color: 'var(--text-secondary)', fontSize: 11 }}>\u2013</span>
+                <span style={{ color: 'var(--text-secondary)', fontSize: 11 }}>–</span>
                 <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} style={{ ...selectStyle, padding: '4px 8px', fontSize: 11 }} />
               </>
             )}
@@ -595,45 +595,45 @@ export default function PLPage() {
               <LineChart data={dailyChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
                 <XAxis dataKey="day" tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `\u20AC${(v / 1000).toFixed(0)}k`} />
-                <Tooltip {...tooltipStyle} formatter={(value: any, name: any) => [fmtNum(Number(value)), name === 'sales' ? 'Sat\u0131\u015F' : 'Net K\u00E2r']} />
+                <YAxis tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `€${(v / 1000).toFixed(0)}k`} />
+                <Tooltip {...tooltipStyle} formatter={(value: any, name: any) => [fmtNum(Number(value)), name === 'sales' ? 'Satış' : 'Net Kâr']} />
                 <Line type="monotone" dataKey="sales" stroke="#6366f1" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="netProfit" stroke="#10b981" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 190, color: 'var(--text-secondary)', fontSize: 13 }}>Bu ay i\u00E7in g\u00FCnl\u00FCk veri bulunamad\u0131</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 190, color: 'var(--text-secondary)', fontSize: 13 }}>Bu ay için günlük veri bulunamadı</div>
           )}
           <div style={{ display: 'flex', gap: 20, marginTop: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}><div style={{ width: 12, height: 3, background: '#6366f1', borderRadius: 2 }} />Sat\u0131\u015F</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}><div style={{ width: 12, height: 3, background: '#10b981', borderRadius: 2 }} />Net K\u00E2r</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}><div style={{ width: 12, height: 3, background: '#6366f1', borderRadius: 2 }} />Satış</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}><div style={{ width: 12, height: 3, background: '#10b981', borderRadius: 2 }} />Net Kâr</div>
           </div>
         </div>
       </div>
 
-      {/* B\u00D6L\u00DCM 3: MINI CARDS */}
+      {/* BÖLÜM 3: MINI CARDS */}
       <div className="mini-card-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 20 }}>
-        {/* Bu Ay vs Ge\u00E7en Ay */}
+        {/* Bu Ay vs Geçen Ay */}
         <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.8s forwards' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Bu Ay vs Ge\u00E7en Ay</div>
-          {miniCompare('Sat\u0131\u015F', cur.sales, prev.sales)}
-          {miniCompare('Net K\u00E2r', curNetProfit, prevNetProfit)}
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Bu Ay vs Geçen Ay</div>
+          {miniCompare('Satış', cur.sales, prev.sales)}
+          {miniCompare('Net Kâr', curNetProfit, prevNetProfit)}
           {miniCompare('Birim', cur.units, prev.units)}
           {miniCompare('Reklam', displayAd, displayAdPrev)}
         </div>
 
-        {/* Ge\u00E7en Ay vs 2 Ay \u00D6nce */}
+        {/* Geçen Ay vs 2 Ay Önce */}
         <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.85s forwards' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Ge\u00E7en Ay vs 2 Ay \u00D6nce</div>
-          {miniCompare('Sat\u0131\u015F', prev.sales, prevPrev.sales)}
-          {miniCompare('Net K\u00E2r', prevNetProfit, prevPrevNetProfit)}
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Geçen Ay vs 2 Ay Önce</div>
+          {miniCompare('Satış', prev.sales, prevPrev.sales)}
+          {miniCompare('Net Kâr', prevNetProfit, prevPrevNetProfit)}
           {miniCompare('Birim', prev.units, prevPrev.units)}
-          {miniCompare('\u0130ade', prev.refunds, prevPrev.refunds)}
+          {miniCompare('İade', prev.refunds, prevPrev.refunds)}
         </div>
 
-        {/* En \u00C7ok Satan Top 5 */}
+        {/* En Çok Satan Top 5 */}
         <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.9s forwards' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>\uD83C\uDFC6 En \u00C7ok Satan</div>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>�� En Çok Satan</div>
           {topSellersMp.map((mp, i) => (
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: i < topSellersMp.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
               <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{MARKETPLACE_FLAG_MAP[mp.marketplace] || ''} {mp.marketplace.replace('Amazon.', '')}</span>
@@ -642,9 +642,9 @@ export default function PLPage() {
           ))}
         </div>
 
-        {/* En \u00C7ok \u0130ade Alan */}
+        {/* En Çok İade Alan */}
         <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.95s forwards' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>\u26A0\uFE0F En \u00C7ok \u0130ade</div>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>⚠️ En Çok İade</div>
           {topRefundsMp.map((mp, i) => {
             const refRate = mp.sales > 0 ? (mp.refunds / mp.sales * 100) : 0
             return (
@@ -660,15 +660,15 @@ export default function PLPage() {
         </div>
       </div>
 
-      {/* B\u00D6L\u00DCM 4: AI \u00D6NERILER + HIZLI AKS\u0130YONLAR */}
+      {/* BÖLÜM 4: AI ÖNERILER + HIZLI AKSİYONLAR */}
       <div className="ai-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14, marginBottom: 20 }}>
-        {/* AI \u00D6neriler */}
+        {/* AI Öneriler */}
         <div style={{ ...cardStyle, background: 'var(--ai-gradient)', border: '1px solid var(--border-color)', opacity: 0, animation: 'fadeInUp 0.6s ease-out 1s forwards' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <span style={{ fontSize: 18 }}>\uD83E\uDD16</span>
+            <span style={{ fontSize: 18 }}>��</span>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>AI \u00D6neriler</div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Yapay zeka tabanl\u0131 i\u00E7g\u00F6r\u00FCler</div>
+              <div style={{ fontSize: 14, fontWeight: 600 }}>AI Öneriler</div>
+              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Yapay zeka tabanlı içgörüler</div>
             </div>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -685,9 +685,9 @@ export default function PLPage() {
           </div>
         </div>
 
-        {/* H\u0131zl\u0131 Aksiyonlar */}
+        {/* Hızlı Aksiyonlar */}
         <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 1.05s forwards' }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>H\u0131zl\u0131 Aksiyonlar</div>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>Hızlı Aksiyonlar</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {quickActions.map((action, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'var(--bg-elevated)', borderRadius: 8, border: '1px solid var(--border-color)' }}>
@@ -702,7 +702,7 @@ export default function PLPage() {
         </div>
       </div>
 
-      {/* B\u00D6L\u00DCM 5: P&L TABLE */}
+      {/* BÖLÜM 5: P&L TABLE */}
       <div style={{ ...cardStyle, marginBottom: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 1.1s forwards' }}>
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>P&L Tablosu</div>
         <div className="pl-table-wrap" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
@@ -712,7 +712,7 @@ export default function PLPage() {
                 <th style={thStyle('left')}>Kalem</th>
                 <th style={thStyle('right')}>{selectedMonth}</th>
                 {hasPrev && <th style={thStyle('right')}>{prevMonthStr}</th>}
-                <th style={thStyle('right')}>De\u011Fi\u015Fim</th>
+                <th style={thStyle('right')}>Değişim</th>
               </tr>
             </thead>
             <tbody>
@@ -736,7 +736,7 @@ export default function PLPage() {
               </tr>
               {/* Amazon Fees - expandable */}
               <tr style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer' }} onClick={() => setFeesExpanded(!feesExpanded)}>
-                <td style={{ padding: '10px 12px' }}>{feesExpanded ? '\u25BC' : '\u25B6'} Amazon Fees</td>
+                <td style={{ padding: '10px 12px' }}>{feesExpanded ? '▼' : '▶'} Amazon Fees</td>
                 {plCell(-curTotalFees)}
                 {hasPrev && plPrevCell(-prevTotalFees)}
                 {plChangeCell(curTotalFees, prevTotalFees, true)}
@@ -773,7 +773,7 @@ export default function PLPage() {
               </tr>
               {/* Advertising - expandable */}
               <tr style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer' }} onClick={() => setAdsExpanded(!adsExpanded)}>
-                <td style={{ padding: '10px 12px' }}>{adsExpanded ? '\u25BC' : '\u25B6'} Advertising (SP + SB)</td>
+                <td style={{ padding: '10px 12px' }}>{adsExpanded ? '▼' : '▶'} Advertising (SP + SB)</td>
                 {plCell(-displayAd)}
                 {hasPrev && plPrevCell(-displayAdPrev)}
                 {plChangeCell(displayAd, displayAdPrev, true)}
@@ -816,22 +816,22 @@ export default function PLPage() {
         </div>
       </div>
 
-      {/* B\u00D6L\u00DCM 6: MARKETPLACE BREAKDOWN */}
+      {/* BÖLÜM 6: MARKETPLACE BREAKDOWN */}
       {selectedMarketplace === 'all' && (
         <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 1.2s forwards' }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Marketplace K\u0131r\u0131l\u0131m\u0131</div>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Marketplace Kırılımı</div>
           <div className="mp-table-wrap" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
                   {([
                     { key: 'marketplace' as SortKey, label: 'Marketplace', align: 'left' },
-                    { key: 'sales' as SortKey, label: 'Sat\u0131\u015F', align: 'right' },
+                    { key: 'sales' as SortKey, label: 'Satış', align: 'right' },
                     { key: 'units' as SortKey, label: 'Birim', align: 'right' },
                     { key: 'fees' as SortKey, label: 'Amazon Fees', align: 'right' },
                     { key: 'adSpend' as SortKey, label: 'Reklam', align: 'right' },
                     { key: 'cogs' as SortKey, label: 'COGS', align: 'right' },
-                    { key: 'netProfit' as SortKey, label: 'Net K\u00E2r', align: 'right' },
+                    { key: 'netProfit' as SortKey, label: 'Net Kâr', align: 'right' },
                     { key: 'margin' as SortKey, label: 'Marj', align: 'right' },
                   ]).map(h => (
                     <th key={h.key} onClick={() => handleMpSort(h.key)} style={{ ...thStyle(h.align), color: mpSortKey === h.key ? '#6366f1' : 'var(--text-secondary)', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
@@ -847,7 +847,7 @@ export default function PLPage() {
                     onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
                     onClick={() => setSelectedMarketplace(mp.marketplace)}
                   >
-                    <td style={{ padding: '10px 12px', fontWeight: 500 }}>{MARKETPLACE_FLAG_MAP[mp.marketplace] || '\u{1F30D}'} {mp.marketplace}</td>
+                    <td style={{ padding: '10px 12px', fontWeight: 500 }}>{MARKETPLACE_FLAG_MAP[mp.marketplace] || '🌍'} {mp.marketplace}</td>
                     <td style={{ padding: '10px 12px', textAlign: 'right' }}>{fmtNum(mp.sales)}</td>
                     <td style={{ padding: '10px 12px', textAlign: 'right' }}>{mp.units.toLocaleString('de-DE')}</td>
                     <td style={{ padding: '10px 12px', textAlign: 'right', color: '#ef4444' }}>{fmtNum(mp.fees)}</td>
@@ -858,7 +858,7 @@ export default function PLPage() {
                   </tr>
                 ))}
                 {mpRows.length === 0 && (
-                  <tr><td colSpan={8} style={{ padding: 20, textAlign: 'center', color: 'var(--text-secondary)' }}>Bu ay i\u00E7in marketplace verisi bulunamad\u0131</td></tr>
+                  <tr><td colSpan={8} style={{ padding: 20, textAlign: 'center', color: 'var(--text-secondary)' }}>Bu ay için marketplace verisi bulunamadı</td></tr>
                 )}
               </tbody>
             </table>
