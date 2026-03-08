@@ -8,7 +8,7 @@ import DateRangePicker from './DateRangePicker'
 
 const sidebarItems = [
   { icon: '⬡', label: 'Dashboard', href: '/' },
-  { icon: '◈', label: 'Karlılık', href: '#' },
+  { icon: '◈', label: 'Karlılık', href: '/pl' },
   { icon: '◫', label: 'Stok', href: '#' },
   { icon: '◬', label: 'Reklam', href: '/ads', active: true },
   { icon: '◉', label: 'Rakip Analizi', href: '#' },

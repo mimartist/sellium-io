@@ -157,7 +157,7 @@ export default async function Dashboard() {
       </div>
       {[
         { icon: '⬡', label: 'Dashboard', href: '/', active: true },
-        { icon: '◈', label: 'Karlılık', href: '#' },
+        { icon: '◈', label: 'Karlılık', href: '/pl' },
         { icon: '◫', label: 'Stok', href: '#' },
         { icon: '◬', label: 'Reklam', href: '/ads' },
         { icon: '◉', label: 'Rakip Analizi', href: '#' },
