@@ -407,37 +407,37 @@ export default function DashboardPage() {
     const refundRate = cur.sales > 0 ? (cur.refunds / cur.sales) * 100 : 0
     const prevRefundRate = prev.sales > 0 ? (prev.refunds / prev.sales) * 100 : 0
     if (refundRate > prevRefundRate + 1) {
-      insights.push({ icon: '\u26A0\uFE0F', type: '\u0130ade Uyar\u0131s\u0131', color: '#ef4444', title: '\u0130ade oran\u0131 artt\u0131', desc: 'Bu ay %' + refundRate.toFixed(1) + ' iade oran\u0131, ge\u00E7en ay %' + prevRefundRate.toFixed(1) + ' idi. \u00DCr\u00FCn kalite kontrol\u00FC \u00F6nerilir.' })
+      insights.push({ icon: '⚠️', type: 'İade Uyarısı', color: '#ef4444', title: 'İade oranı arttı', desc: 'Bu ay %' + refundRate.toFixed(1) + ' iade oranı, geçen ay %' + prevRefundRate.toFixed(1) + ' idi. Ürün kalite kontrolü önerilir.' })
     }
 
     // Ad spend efficiency
     if (curAcos > 35) {
-      insights.push({ icon: '\uD83D\uDCCA', type: 'Reklam Optimizasyonu', color: '#f59e0b', title: 'TCoS y\u00FCksek', desc: 'TCoS %' + curAcos.toFixed(1) + ' seviyesinde. D\u00FC\u015F\u00FCk performansl\u0131 kampanyalar\u0131 duraklatarak bid d\u00FC\u015F\u00FCr\u00FCn.' })
+      insights.push({ icon: '\uD83D\uDCCA', type: 'Reklam Optimizasyonu', color: '#f59e0b', title: 'TCoS yüksek', desc: 'TCoS %' + curAcos.toFixed(1) + ' seviyesinde. Düşük performanslı kampanyaları duraklatarak bid düşürün.' })
     } else if (curAcos < 20 && displayAd > 0) {
-      insights.push({ icon: '\uD83D\uDCA1', type: 'F\u0131rsat', color: '#10b981', title: 'Reklam b\u00FCt\u00E7esi art\u0131r\u0131labilir', desc: 'TCoS %' + curAcos.toFixed(1) + ' ile \u00E7ok verimli. B\u00FCt\u00E7e art\u0131\u015F\u0131 de\u011Ferlendirilmeli.' })
+      insights.push({ icon: '\uD83D\uDCA1', type: 'Fırsat', color: '#10b981', title: 'Reklam bütçesi artırılabilir', desc: 'TCoS %' + curAcos.toFixed(1) + ' ile çok verimli. Bütçe artışı değerlendirilmeli.' })
     }
 
     // Margin trend
     if (curMargin < prevMargin - 3) {
-      insights.push({ icon: '\uD83D\uDCC9', type: 'Trend', color: '#ef4444', title: 'Marj d\u00FC\u015F\u00FC\u015Fte', desc: 'Marj %' + prevMargin.toFixed(1) + ' dan %' + curMargin.toFixed(1) + ' e geriledi. Maliyet analizi yap\u0131n.' })
+      insights.push({ icon: '\uD83D\uDCC9', type: 'Trend', color: '#ef4444', title: 'Marj düşüşte', desc: 'Marj %' + prevMargin.toFixed(1) + ' dan %' + curMargin.toFixed(1) + ' e geriledi. Maliyet analizi yapın.' })
     } else if (curMargin > prevMargin + 3) {
-      insights.push({ icon: '\uD83D\uDCC8', type: 'Trend', color: '#10b981', title: 'Marj y\u00FCkseldi', desc: 'Marj %' + prevMargin.toFixed(1) + ' den %' + curMargin.toFixed(1) + ' e \u00E7\u0131kt\u0131. Ba\u015Far\u0131l\u0131 optimizasyon!' })
+      insights.push({ icon: '\uD83D\uDCC8', type: 'Trend', color: '#10b981', title: 'Marj yükseldi', desc: 'Marj %' + prevMargin.toFixed(1) + ' den %' + curMargin.toFixed(1) + ' e çıktı. Başarılı optimizasyon!' })
     }
 
     // FBA cost increase
     const fbaChange = pctChange(cur.fba, prev.fba)
     if (fbaChange > 15) {
-      insights.push({ icon: '\uD83D\uDCE6', type: 'FBA Maliyet', color: '#f59e0b', title: 'FBA maliyetleri artt\u0131', desc: 'FBA \u00FCcretleri %' + fbaChange.toFixed(0) + ' artt\u0131. Boyut/a\u011F\u0131rl\u0131k optimizasyonu de\u011Ferlendirilmeli.' })
+      insights.push({ icon: '\uD83D\uDCE6', type: 'FBA Maliyet', color: '#f59e0b', title: 'FBA maliyetleri arttı', desc: 'FBA ücretleri %' + fbaChange.toFixed(0) + ' arttı. Boyut/ağırlık optimizasyonu değerlendirilmeli.' })
     }
 
     // COGS warning
     if (cur.cogs > prev.cogs * 1.15 && prev.cogs > 0) {
-      insights.push({ icon: '\uD83D\uDCB0', type: 'Maliyet Uyar\u0131s\u0131', color: '#f59e0b', title: '\u00DCr\u00FCn maliyetleri artt\u0131', desc: 'COGS %' + pctChange(cur.cogs, prev.cogs).toFixed(0) + ' artt\u0131. Tedarik\u00E7i fiyatlar\u0131n\u0131 veya alternatifleri g\u00F6zden ge\u00E7irin.' })
+      insights.push({ icon: '\uD83D\uDCB0', type: 'Maliyet Uyarısı', color: '#f59e0b', title: 'Ürün maliyetleri arttı', desc: 'COGS %' + pctChange(cur.cogs, prev.cogs).toFixed(0) + ' arttı. Tedarikçi fiyatlarını veya alternatifleri gözden geçirin.' })
     }
 
     // Storage optimization
     if (cur.storage > cur.sales * 0.03 && cur.storage > 0) {
-      insights.push({ icon: '\uD83C\uDFE0', type: 'Depolama', color: '#6366f1', title: 'Depolama maliyeti y\u00FCksek', desc: 'Depolama \u00FCcretleri sat\u0131\u015F\u0131n %' + (cur.storage / cur.sales * 100).toFixed(1) + ' i. D\u00FC\u015F\u00FCk stoklu \u00FCr\u00FCnleri de\u011Ferlendirin.' })
+      insights.push({ icon: '\uD83C\uDFE0', type: 'Depolama', color: '#6366f1', title: 'Depolama maliyeti yüksek', desc: 'Depolama ücretleri satışın %' + (cur.storage / cur.sales * 100).toFixed(1) + ' i. Düşük stoklu ürünleri değerlendirin.' })
     }
 
     // Growing marketplace
@@ -448,7 +448,7 @@ export default function DashboardPage() {
     })
     if (growingMps.length > 0) {
       const mp = growingMps[0]
-      insights.push({ icon: '\uD83D\uDE80', type: 'B\u00FCy\u00FCme F\u0131rsat\u0131', color: '#6366f1', title: mp.marketplace + ' b\u00FCy\u00FCyor', desc: mp.marketplace + ' da sat\u0131\u015Flar g\u00FC\u00E7l\u00FC b\u00FCy\u00FCme g\u00F6steriyor. Stok ve reklam b\u00FCt\u00E7esini art\u0131rmay\u0131 d\u00FC\u015F\u00FCn\u00FCn.' })
+      insights.push({ icon: '\uD83D\uDE80', type: 'Büyüme Fırsatı', color: '#6366f1', title: mp.marketplace + ' büyüyor', desc: mp.marketplace + ' da satışlar güçlü büyüme gösteriyor. Stok ve reklam bütçesini artırmayı düşünün.' })
     }
 
     if (insights.length === 0) {
@@ -466,7 +466,7 @@ export default function DashboardPage() {
     if (cur.refunds > prev.refunds * 1.2 && prev.refunds > 0) actions.push({ status: 'Acil', statusColor: '#ef4444', label: 'İade artışını incele' })
 
     const lowStockMps = mpGrouped.filter(mp => mp.sales > 500 && mp.margin < 5)
-    if (lowStockMps.length > 0) actions.push({ status: 'Planl\u0131', statusColor: '#6366f1', label: lowStockMps[0].marketplace + ' marj\u0131n\u0131 iyile\u015Ftir' })
+    if (lowStockMps.length > 0) actions.push({ status: 'Planlı', statusColor: '#6366f1', label: lowStockMps[0].marketplace + ' marjını iyileştir' })
 
     if (displayAd > 0 && curAcos < 25) actions.push({ status: 'Planlı', statusColor: '#6366f1', label: 'SB bütçesini artır' })
     if (curMargin > prevMargin) actions.push({ status: 'Tamamlandı', statusColor: '#10b981', label: 'Marj optimizasyonu başarılı' })
@@ -662,9 +662,9 @@ export default function DashboardPage() {
           {miniCompare('İade', prev.refunds, prevPrev.refunds)}
         </div>
 
-        {/* En \u00C7ok Satan \u00DCr\u00FCnler */}
+        {/* En Çok Satan Ürünler */}
         <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.9s forwards' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>{'\uD83C\uDFC6'} En \u00C7ok Satan \u00DCr\u00FCnler</div>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>{'\uD83C\uDFC6'} En Çok Satan Ürünler</div>
           {topProducts.length > 0 ? topProducts.map((p, i) => (
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: i < topProducts.length - 1 ? '1px solid var(--border-color)' : 'none', gap: 8 }}>
               <div style={{ minWidth: 0, flex: 1 }}>
@@ -681,9 +681,9 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* En \u00C7ok \u0130ade \u00DCr\u00FCnler */}
+        {/* En Çok İade Ürünler */}
         <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.95s forwards' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>{'\u26A0\uFE0F'} En \u00C7ok \u0130ade \u00DCr\u00FCnler</div>
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>{'⚠️'} En Çok İade Ürünler</div>
           {topRefundProducts.length > 0 ? topRefundProducts.map((p, i) => (
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: i < topRefundProducts.length - 1 ? '1px solid var(--border-color)' : 'none', gap: 8 }}>
               <div style={{ minWidth: 0, flex: 1 }}>
@@ -785,7 +785,7 @@ export default function DashboardPage() {
               </tr>
               {/* Amazon Fees - expandable */}
               <tr style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer' }} onClick={() => setFeesExpanded(!feesExpanded)}>
-                <td style={{ padding: '8px' }}>{feesExpanded ? '\u25BC' : '\u25B6'} Amazon Fees</td>
+                <td style={{ padding: '8px' }}>{feesExpanded ? '▼' : '▶'} Amazon Fees</td>
                 {plCell(-curTotalFees)}
                 {hasPrev && plPrevCell(-prevTotalFees)}
                 {plChangeCell(curTotalFees, prevTotalFees, true)}
@@ -822,7 +822,7 @@ export default function DashboardPage() {
               </tr>
               {/* Advertising - expandable */}
               <tr style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer' }} onClick={() => setAdsExpanded(!adsExpanded)}>
-                <td style={{ padding: '8px' }}>{adsExpanded ? '\u25BC' : '\u25B6'} Advertising (SP + SB)</td>
+                <td style={{ padding: '8px' }}>{adsExpanded ? '▼' : '▶'} Advertising (SP + SB)</td>
                 {plCell(-displayAd)}
                 {hasPrev && plPrevCell(-displayAdPrev)}
                 {plChangeCell(displayAd, displayAdPrev, true)}
