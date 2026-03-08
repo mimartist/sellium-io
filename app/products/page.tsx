@@ -11,7 +11,7 @@ const supabase = createClient(
 )
 
 const MARKETPLACE_OPTIONS = [
-  { value: 'all', label: 'T\u00FCm Pazaryerleri' },
+  { value: 'all', label: 'Tüm Pazaryerleri' },
   { value: 'Amazon.de', label: 'Amazon.de' },
   { value: 'Amazon.fr', label: 'Amazon.fr' },
   { value: 'Amazon.es', label: 'Amazon.es' },
@@ -39,7 +39,7 @@ function getMonthRange(month: string) {
 }
 
 const n = (v: any) => Number(v) || 0
-const fmtNum = (v: number) => `\u20AC${v.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`
+const fmtNum = (v: number) => `€${v.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`
 
 interface ProductRow {
   parentAsin: string
@@ -158,7 +158,7 @@ export default function ProductsPage() {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortKey(key); setSortDir('desc') }
   }
-  const sortIcon = (key: SortKey) => sortKey !== key ? ' \u21C5' : sortDir === 'asc' ? ' \u2191' : ' \u2193'
+  const sortIcon = (key: SortKey) => sortKey !== key ? ' ⇅' : sortDir === 'asc' ? ' ↑' : ' ↓'
 
   const cardStyle: React.CSSProperties = { background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: 20 }
   const selectStyle: React.CSSProperties = { background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '7px 14px', fontSize: 12.5, color: 'var(--text-primary)', cursor: 'pointer', outline: 'none' }
@@ -171,7 +171,7 @@ export default function ProductsPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ width: 36, height: 36, border: '3px solid var(--border-color)', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Veriler y\u00FCkleniyor...</div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Veriler yükleniyor...</div>
           </div>
         </div>
       </DashboardShell>
@@ -182,8 +182,8 @@ export default function ProductsPage() {
     <DashboardShell sidebar={<Sidebar />}>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>\u00DCr\u00FCn Performans\u0131</h1>
-          <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '3px 0 0' }}>\u00DCr\u00FCn bazl\u0131 sat\u0131\u015F ve iade analizi \u00B7 {selectedMonth}</p>
+          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Ürün Performansı</h1>
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '3px 0 0' }}>Ürün bazlı satış ve iade analizi · {selectedMonth}</p>
         </div>
         <div className="header-controls" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} style={selectStyle}>
@@ -198,19 +198,19 @@ export default function ProductsPage() {
       {/* KPIs */}
       <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 }}>
         <div style={{ ...cardStyle, padding: '14px 16px' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 4 }}>TOPLAM \u00DCR\u00DCN</div>
+          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 4 }}>TOPLAM ÜRÜN</div>
           <div style={{ fontSize: 22, fontWeight: 700 }}>{products.length}</div>
         </div>
         <div style={{ ...cardStyle, padding: '14px 16px' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 4 }}>TOPLAM SATI\u015E</div>
+          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 4 }}>TOPLAM SATIŞ</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: '#6366f1' }}>{fmtNum(products.reduce((s, r) => s + r.sales, 0))}</div>
         </div>
         <div style={{ ...cardStyle, padding: '14px 16px' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 4 }}>TOPLAM B\u0130R\u0130M</div>
+          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 4 }}>TOPLAM BİRİM</div>
           <div style={{ fontSize: 22, fontWeight: 700 }}>{products.reduce((s, r) => s + r.units, 0).toLocaleString('de-DE')}</div>
         </div>
         <div style={{ ...cardStyle, padding: '14px 16px' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 4 }}>\u0130ADE TOPLAM</div>
+          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 4 }}>İADE TOPLAM</div>
           <div style={{ fontSize: 22, fontWeight: 700, color: '#ef4444' }}>{fmtNum(products.reduce((s, r) => s + r.refunds, 0))}</div>
         </div>
       </div>
@@ -219,7 +219,7 @@ export default function ProductsPage() {
       <div style={{ marginBottom: 14 }}>
         <input
           type="text"
-          placeholder="\u00DCr\u00FCn ara..."
+          placeholder="Ürün ara..."
           value={search}
           onChange={e => setSearch(e.target.value)}
           style={{ ...selectStyle, width: '100%', maxWidth: 400, padding: '10px 14px' }}
@@ -232,13 +232,13 @@ export default function ProductsPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
-                <th style={{ ...th, textAlign: 'left', minWidth: 250 }}>\u00DCr\u00FCn</th>
+                <th style={{ ...th, textAlign: 'left', minWidth: 250 }}>Ürün</th>
                 <th style={th} onClick={() => handleSort('skuCount')}>SKU{sortIcon('skuCount')}</th>
                 <th style={th} onClick={() => handleSort('units')}>Adet{sortIcon('units')}</th>
-                <th style={th} onClick={() => handleSort('sales')}>Sat\u0131\u015F{sortIcon('sales')}</th>
+                <th style={th} onClick={() => handleSort('sales')}>Satış{sortIcon('sales')}</th>
                 <th style={th} onClick={() => handleSort('avgPrice')}>Ort.Fiyat{sortIcon('avgPrice')}</th>
-                <th style={th} onClick={() => handleSort('refunds')}>\u0130ade{sortIcon('refunds')}</th>
-                <th style={th} onClick={() => handleSort('refundRate')}>\u0130ade%{sortIcon('refundRate')}</th>
+                <th style={th} onClick={() => handleSort('refunds')}>İade{sortIcon('refunds')}</th>
+                <th style={th} onClick={() => handleSort('refundRate')}>İade%{sortIcon('refundRate')}</th>
               </tr>
             </thead>
             <tbody>
@@ -268,7 +268,7 @@ export default function ProductsPage() {
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={7} style={{ padding: 30, textAlign: 'center', color: 'var(--text-secondary)' }}>Veri bulunamad\u0131</td></tr>
+                <tr><td colSpan={7} style={{ padding: 30, textAlign: 'center', color: 'var(--text-secondary)' }}>Veri bulunamadı</td></tr>
               )}
             </tbody>
           </table>

@@ -110,8 +110,8 @@ const n = (v: any) => Number(v) || 0
 
 const fmtEur = (v: number | null | undefined, dec = 2) => {
   const val = n(v)
-  if (val < 0) return `-${Math.abs(val).toLocaleString('de-DE', { minimumFractionDigits: dec, maximumFractionDigits: dec })} \u20AC`
-  return `${val.toLocaleString('de-DE', { minimumFractionDigits: dec, maximumFractionDigits: dec })} \u20AC`
+  if (val < 0) return `-${Math.abs(val).toLocaleString('de-DE', { minimumFractionDigits: dec, maximumFractionDigits: dec })} €`
+  return `${val.toLocaleString('de-DE', { minimumFractionDigits: dec, maximumFractionDigits: dec })} €`
 }
 const fmtPct = (v: number | null | undefined) => `%${n(v).toFixed(1)}`
 
@@ -470,14 +470,14 @@ export default function COGSPage() {
   const waterfallData = useMemo(() => {
     if (!sel) return []
     return [
-      { name: 'Sat\u0131\u015F Fiyat\u0131', value: sel.avgPrice, fill: '#22c55e' },
+      { name: 'Satış Fiyatı', value: sel.avgPrice, fill: '#22c55e' },
       { name: 'COGS', value: -sel.cogs, fill: '#ef4444' },
       { name: 'Komisyon', value: -sel.commission, fill: '#ef4444' },
       { name: 'FBA Kargo', value: -sel.fba, fill: '#ef4444' },
       { name: 'Depolama', value: -sel.storage, fill: '#f59e0b' },
-      { name: '\u0130ade+Digital', value: -(sel.returnMgmt + sel.digital), fill: '#f59e0b' },
+      { name: 'İade+Digital', value: -(sel.returnMgmt + sel.digital), fill: '#f59e0b' },
       { name: 'Reklam', value: -sel.adSpend, fill: '#f59e0b' },
-      { name: 'Net K\u00E2r', value: sel.profitPerUnit, fill: sel.profitPerUnit >= 0 ? '#3b82f6' : '#ef4444' },
+      { name: 'Net Kâr', value: sel.profitPerUnit, fill: sel.profitPerUnit >= 0 ? '#3b82f6' : '#ef4444' },
     ]
   }, [sel])
 
@@ -491,9 +491,9 @@ export default function COGSPage() {
       const nonCommCost = sel.cogs + sel.fba + sel.storage + sel.returnMgmt + sel.digital + sel.adSpend
       const newProfit = newPrice - nonCommCost - newComm
       const newMargin = newPrice > 0 ? (newProfit / newPrice) * 100 : 0
-      let status = '\u2705'
-      if (newMargin < 0) status = '\u274C'
-      else if (newMargin < 10) status = '\u26A0\uFE0F'
+      let status = '✅'
+      if (newMargin < 0) status = '❌'
+      else if (newMargin < 10) status = '⚠️'
       const commNote = (sel.avgPrice >= 20 && newPrice < 20) ? '\uD83D\uDCA1 %10' : ''
       steps.push({ pct, newPrice, profit: newProfit, margin: newMargin, status, commNote })
     }
@@ -538,7 +538,7 @@ export default function COGSPage() {
       await supabase.from('sku_cogs').insert({
         sku_prefix: skuPrefix, pack_cost_eur: newPackCost, other_cost_eur: newOtherCost,
         unit_cost_eur: newPackCost, valid_from: today, valid_to: null,
-        notes: `Manuel g\u00FCncelleme - ${today}`,
+        notes: `Manuel güncelleme - ${today}`,
       })
       setEditingGroup(null)
       fetchData()
@@ -552,7 +552,7 @@ export default function COGSPage() {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortKey(key); setSortDir('desc') }
   }
-  const sortIcon = (key: SortKey) => sortKey !== key ? ' \u21C5' : sortDir === 'asc' ? ' \u2191' : ' \u2193'
+  const sortIcon = (key: SortKey) => sortKey !== key ? ' ⇅' : sortDir === 'asc' ? ' ↑' : ' ↓'
 
   const marginBadge = (margin: number) => {
     let bg = '#22c55e20', color = '#22c55e'
@@ -575,7 +575,7 @@ export default function COGSPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ width: 36, height: 36, border: '3px solid var(--border-color)', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Veriler y\u00FCkleniyor...</div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Veriler yükleniyor...</div>
           </div>
         </div>
       </DashboardShell>
@@ -587,8 +587,8 @@ export default function COGSPage() {
       {/* Header */}
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>COGS & Karl\u0131l\u0131k</h1>
-          <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '3px 0 0' }}>SKU bazl\u0131 maliyet ve k\u00E2rl\u0131l\u0131k analizi \u00B7 {selectedMonth}</p>
+          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>COGS & Karlılık</h1>
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '3px 0 0' }}>SKU bazlı maliyet ve kârlılık analizi · {selectedMonth}</p>
         </div>
         <div className="header-controls" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} style={selectStyle}>
@@ -611,15 +611,15 @@ export default function COGSPage() {
           <div style={{ fontSize: 20, fontWeight: 700, color: lossMakingSkus.length > 0 ? '#ef4444' : '#22c55e' }}>{lossMakingSkus.length}</div>
         </div>
         <div style={{ ...cardStyle, padding: '14px 16px', opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.2s forwards' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>EN K\u00C2RLI \u00DCR\u00DCN</div>
+          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>EN KÂRLI ÜRÜN</div>
           {bestSku ? (
             <>
               <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
                 {bestSku.parentTitle ? bestSku.parentTitle.substring(0, 30) : bestSku.sku}
               </div>
-              <div style={{ fontSize: 11, color: '#22c55e' }}>{fmtEur(bestSku.profitPerUnit)}/birim \u00B7 {fmtPct(bestSku.margin)}</div>
+              <div style={{ fontSize: 11, color: '#22c55e' }}>{fmtEur(bestSku.profitPerUnit)}/birim · {fmtPct(bestSku.margin)}</div>
             </>
-          ) : <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>\u2014</div>}
+          ) : <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>—</div>}
         </div>
         <div style={{ ...cardStyle, padding: '14px 16px', opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.3s forwards' }}>
           <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>ORT. BREAKEVEN</div>
@@ -630,16 +630,16 @@ export default function COGSPage() {
 
       {/* 3-Level Table */}
       <div style={{ ...cardStyle, marginBottom: 16, padding: 16, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.4s forwards' }}>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>\u00DCr\u00FCn Karl\u0131l\u0131k Tablosu</div>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Ürün Karlılık Tablosu</div>
         <div className="pl-table-wrap" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
-                <th style={{ ...th, textAlign: 'left', minWidth: 200 }}>\u00DCr\u00FCn</th>
+                <th style={{ ...th, textAlign: 'left', minWidth: 200 }}>Ürün</th>
                 {([
                   ['units', 'Adet'], ['avgPrice', 'Ort.Fiyat'], ['cogs', 'COGS'], ['commission', 'Komisyon'],
                   ['fba', 'FBA'], ['storage', 'Depolama'], ['totalCost', 'Top.Maliyet'], ['breakeven', 'Breakeven'],
-                  ['profitPerUnit', 'K\u00E2r/birim'], ['margin', 'Marj%'], ['maxDiscount', 'Maks \u0130nd.%'],
+                  ['profitPerUnit', 'Kâr/birim'], ['margin', 'Marj%'], ['maxDiscount', 'Maks İnd.%'],
                 ] as const).map(([key, label]) => (
                   <th key={key} onClick={() => handleSort(key as SortKey)} style={{ ...th, textAlign: 'right', color: sortKey === key ? '#6366f1' : 'var(--text-secondary)' }}>
                     {label}{sortIcon(key as SortKey)}
@@ -677,10 +677,10 @@ export default function COGSPage() {
                     >
                       <td style={{ ...td, fontWeight: 600, fontSize: 12 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontSize: 9, color: 'var(--text-muted)', flexShrink: 0 }}>{isParentExpanded ? '\u25BC' : '\u25B6'}</span>
+                          <span style={{ fontSize: 9, color: 'var(--text-muted)', flexShrink: 0 }}>{isParentExpanded ? '▼' : '▶'}</span>
                           <div style={{ minWidth: 0 }}>
                             <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayTitle}</div>
-                            <div style={{ fontSize: 9.5, color: 'var(--text-muted)', fontWeight: 400, marginTop: 1 }}>{skuCount} SKU \u00B7 {pg.totalUnits.toLocaleString('de-DE')} adet</div>
+                            <div style={{ fontSize: 9.5, color: 'var(--text-muted)', fontWeight: 400, marginTop: 1 }}>{skuCount} SKU · {pg.totalUnits.toLocaleString('de-DE')} adet</div>
                           </div>
                         </div>
                       </td>
@@ -716,7 +716,7 @@ export default function COGSPage() {
                             onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-sub-row)'}
                           >
                             <td style={{ ...td, paddingLeft: 24, fontWeight: 500, fontSize: 11.5 }}>
-                              {hasMultipleSizes && <span style={{ marginRight: 5, fontSize: 8 }}>{isGroupExpanded ? '\u25BC' : '\u25B6'}</span>}
+                              {hasMultipleSizes && <span style={{ marginRight: 5, fontSize: 8 }}>{isGroupExpanded ? '▼' : '▶'}</span>}
                               {cg.skuGroup}
                               {hasMultipleSizes && <span style={{ fontSize: 9.5, color: 'var(--text-muted)', marginLeft: 6 }}>({cg.rows.length} beden)</span>}
                             </td>
@@ -741,7 +741,7 @@ export default function COGSPage() {
                               onClick={e => { e.stopPropagation(); setSelectedSku(row.sku); setDiscountPct(0) }}
                             >
                               <td style={{ ...td, paddingLeft: 44, fontSize: 10.5, color: selectedSku === row.sku ? '#6366f1' : 'var(--text-secondary)' }}>
-                                {selectedSku === row.sku && '\u25CF '}{row.sku}
+                                {selectedSku === row.sku && '● '}{row.sku}
                               </td>
                               <td style={{ ...td, textAlign: 'right', fontSize: 10.5 }}>{row.units.toLocaleString('de-DE')}</td>
                               <td style={{ ...td, textAlign: 'right', fontSize: 10.5 }}>{fmtEur(row.avgPrice)}</td>
@@ -763,7 +763,7 @@ export default function COGSPage() {
                 )
               })}
               {parentGroups.length === 0 && (
-                <tr><td colSpan={12} style={{ padding: 30, textAlign: 'center', color: 'var(--text-secondary)' }}>Bu ay i\u00E7in veri bulunamad\u0131</td></tr>
+                <tr><td colSpan={12} style={{ padding: 30, textAlign: 'center', color: 'var(--text-secondary)' }}>Bu ay için veri bulunamadı</td></tr>
               )}
             </tbody>
           </table>
@@ -773,7 +773,7 @@ export default function COGSPage() {
       {/* SKU Selector for detail sections */}
       {skuRows.length > 0 && (
         <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Detay g\u00F6r\u00FCnt\u00FClemek i\u00E7in SKU se\u00E7in:</div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Detay görüntülemek için SKU seçin:</div>
           <select
             value={selectedSku || ''}
             onChange={e => { setSelectedSku(e.target.value); setDiscountPct(0) }}
@@ -786,13 +786,13 @@ export default function COGSPage() {
         </div>
       )}
 
-      {/* Waterfall + Maliyet D\u00FCzenleme */}
+      {/* Waterfall + Maliyet Düzenleme */}
       {sel && (
         <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
           <div style={{ ...cardStyle, padding: 16, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.5s forwards' }}>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Maliyet K\u0131r\u0131l\u0131m\u0131</div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Maliyet Kırılımı</div>
             <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 12 }}>
-              {sel.parentTitle ? sel.parentTitle.substring(0, 35) : sel.sku} \u00B7 Fiyattan k\u00E2ra giden yol
+              {sel.parentTitle ? sel.parentTitle.substring(0, 35) : sel.sku} · Fiyattan kâra giden yol
             </div>
             <ResponsiveContainer width="100%" height={280}>
               <BarChart data={waterfallData} layout="vertical" margin={{ left: 10, right: 20 }}>
@@ -807,29 +807,29 @@ export default function COGSPage() {
             </ResponsiveContainer>
             <div style={{ marginTop: 8, padding: '8px 12px', background: 'var(--bg-elevated)', borderRadius: 8, fontSize: 12 }}>
               <span style={{ color: '#f59e0b', fontWeight: 600 }}>Breakeven: {fmtEur(sel.breakeven)}</span>
-              <span style={{ color: 'var(--text-muted)', marginLeft: 12 }}>Bu fiyat\u0131n alt\u0131nda zarar</span>
+              <span style={{ color: 'var(--text-muted)', marginLeft: 12 }}>Bu fiyatın altında zarar</span>
             </div>
           </div>
 
           <div style={{ ...cardStyle, padding: 16, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.55s forwards' }}>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Maliyet D\u00FCzenleme</div>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Maliyet Düzenleme</div>
             <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 12 }}>
-              {sel.parentTitle ? sel.parentTitle.substring(0, 35) : sel.skuGroup} \u00B7 COGS g\u00FCncelle
+              {sel.parentTitle ? sel.parentTitle.substring(0, 35) : sel.skuGroup} · COGS güncelle
             </div>
 
             {editingGroup === sel.skuGroup ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div>
-                  <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Paketleme Maliyeti (\u20AC)</label>
+                  <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Paketleme Maliyeti (€)</label>
                   <input type="number" step="0.01" value={editPackCost} onChange={e => setEditPackCost(e.target.value)} style={{ ...selectStyle, width: '100%' }} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Di\u011Fer Maliyet (\u20AC)</label>
+                  <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Diğer Maliyet (€)</label>
                   <input type="number" step="0.01" value={editOtherCost} onChange={e => setEditOtherCost(e.target.value)} style={{ ...selectStyle, width: '100%' }} />
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={() => saveCost(sel.skuGroup)} style={{ ...btnStyle, background: '#6366f1', color: 'white', flex: 1 }}>Kaydet</button>
-                  <button onClick={() => setEditingGroup(null)} style={{ ...btnStyle, background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', flex: 1 }}>\u0130ptal</button>
+                  <button onClick={() => setEditingGroup(null)} style={{ ...btnStyle, background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', flex: 1 }}>İptal</button>
                 </div>
               </div>
             ) : (
@@ -837,7 +837,7 @@ export default function COGSPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginBottom: 14 }}>
                   {[
                     ['COGS/birim', sel.cogs], ['Komisyon/birim', sel.commission], ['FBA Kargo/birim', sel.fba],
-                    ['Depolama/birim', sel.storage], ['\u0130ade+Digital/birim', sel.returnMgmt + sel.digital],
+                    ['Depolama/birim', sel.storage], ['İade+Digital/birim', sel.returnMgmt + sel.digital],
                     ['Reklam/birim', sel.adSpend], ['Toplam Maliyet', sel.totalCost],
                   ].map(([label, val], i) => (
                     <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border-color)' }}>
@@ -847,11 +847,11 @@ export default function COGSPage() {
                   ))}
                 </div>
                 <button onClick={() => { setEditingGroup(sel.skuGroup); setEditPackCost(sel.cogs.toFixed(2)); setEditOtherCost('0') }} style={{ ...btnStyle, background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', width: '100%' }}>
-                  Maliyeti D\u00FCzenle
+                  Maliyeti Düzenle
                 </button>
                 {!sel.hasEconData && (
                   <div style={{ marginTop: 8, fontSize: 10, color: '#f59e0b', padding: '6px 8px', background: 'rgba(245,158,11,0.08)', borderRadius: 6 }}>
-                    Amazon \u00FCcretleri ayl\u0131k P&L verilerinden tahmini hesaplanm\u0131\u015Ft\u0131r.
+                    Amazon ücretleri aylık P&L verilerinden tahmini hesaplanmıştır.
                   </div>
                 )}
               </div>
@@ -860,10 +860,10 @@ export default function COGSPage() {
         </div>
       )}
 
-      {/* \u0130ndirim Sim\u00FClat\u00F6r\u00FC */}
+      {/* İndirim Simülatörü */}
       {sel && (
         <div style={{ ...cardStyle, marginBottom: 16, padding: 16, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.6s forwards' }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>\u0130ndirim Sim\u00FClat\u00F6r\u00FC</div>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>İndirim Simülatörü</div>
           <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 14 }}>
             {sel.parentTitle ? sel.parentTitle.substring(0, 40) : sel.sku}
           </div>
@@ -880,7 +880,7 @@ export default function COGSPage() {
             {selectedDiscountRow && (
               <div style={{ display: 'flex', gap: 20, marginTop: 10, padding: '10px 14px', background: 'var(--bg-elevated)', borderRadius: 8 }}>
                 <div><span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Yeni Fiyat</span><div style={{ fontSize: 14, fontWeight: 700 }}>{fmtEur(selectedDiscountRow.newPrice)}</div></div>
-                <div><span style={{ fontSize: 10, color: 'var(--text-muted)' }}>K\u00E2r/birim</span><div style={{ fontSize: 14, fontWeight: 700, color: selectedDiscountRow.profit >= 0 ? '#22c55e' : '#ef4444' }}>{fmtEur(selectedDiscountRow.profit)}</div></div>
+                <div><span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Kâr/birim</span><div style={{ fontSize: 14, fontWeight: 700, color: selectedDiscountRow.profit >= 0 ? '#22c55e' : '#ef4444' }}>{fmtEur(selectedDiscountRow.profit)}</div></div>
                 <div><span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Marj</span><div style={{ fontSize: 14, fontWeight: 700, color: selectedDiscountRow.margin >= 0 ? '#22c55e' : '#ef4444' }}>{fmtPct(selectedDiscountRow.margin)}</div></div>
               </div>
             )}
@@ -889,9 +889,9 @@ export default function COGSPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                  <th style={{ ...th, textAlign: 'left', cursor: 'default' }}>\u0130ndirim</th>
+                  <th style={{ ...th, textAlign: 'left', cursor: 'default' }}>İndirim</th>
                   <th style={{ ...th, textAlign: 'right', cursor: 'default' }}>Yeni Fiyat</th>
-                  <th style={{ ...th, textAlign: 'right', cursor: 'default' }}>K\u00E2r/birim</th>
+                  <th style={{ ...th, textAlign: 'right', cursor: 'default' }}>Kâr/birim</th>
                   <th style={{ ...th, textAlign: 'right', cursor: 'default' }}>Marj%</th>
                   <th style={{ ...th, textAlign: 'center', cursor: 'default' }}>Durum</th>
                   <th style={{ ...th, textAlign: 'center', cursor: 'default' }}>Not</th>
@@ -912,9 +912,9 @@ export default function COGSPage() {
             </table>
           </div>
           <div style={{ marginTop: 10, fontSize: 11, color: 'var(--text-muted)' }}>
-            Bu \u00FCr\u00FCn maksimum <strong style={{ color: '#f59e0b' }}>%{sel.maxDiscount.toFixed(0)}</strong> indirim kald\u0131r\u0131r.
+            Bu ürün maksimum <strong style={{ color: '#f59e0b' }}>%{sel.maxDiscount.toFixed(0)}</strong> indirim kaldırır.
             {sel.avgPrice >= 20 && sel.avgPrice * (1 - sel.maxDiscount / 100) < 20 && (
-              <span style={{ color: '#06b6d4', marginLeft: 6 }}>Fiyat 20\u20AC alt\u0131na d\u00FC\u015Ferse komisyon %15\u2192%10 avantaj\u0131 devreye girer.</span>
+              <span style={{ color: '#06b6d4', marginLeft: 6 }}>Fiyat 20€ altına düşerse komisyon %15→%10 avantajı devreye girer.</span>
             )}
           </div>
         </div>
@@ -922,8 +922,8 @@ export default function COGSPage() {
 
       {/* Scatter */}
       <div style={{ ...cardStyle, padding: 16, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.7s forwards' }}>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Karl\u0131l\u0131k Haritas\u0131</div>
-        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 16 }}>X: Sat\u0131\u015F adedi \u00B7 Y: Marj% \u00B7 Boyut: Toplam k\u00E2r</div>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Karlılık Haritası</div>
+        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 16 }}>X: Satış adedi · Y: Marj% · Boyut: Toplam kâr</div>
         <ResponsiveContainer width="100%" height={350}>
           <ScatterChart margin={{ top: 20, right: 30, bottom: 20, left: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
@@ -938,7 +938,7 @@ export default function COGSPage() {
                   <div style={{ fontWeight: 600, marginBottom: 4 }}>{d.name}</div>
                   <div>Adet: {n(d.x).toLocaleString('de-DE')}</div>
                   <div>Marj: {fmtPct(d.y)}</div>
-                  <div>Toplam K\u00E2r: {fmtEur(d.profit, 0)}</div>
+                  <div>Toplam Kâr: {fmtEur(d.profit, 0)}</div>
                 </div>
               )
             }} />
@@ -956,8 +956,8 @@ export default function COGSPage() {
         </ResponsiveContainer>
         <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 8 }}>
           {[
-            { color: '#22c55e', label: 'Y\u0131ld\u0131z' },
-            { color: '#3b82f6', label: 'Ni\u015F' },
+            { color: '#22c55e', label: 'Yıldız' },
+            { color: '#3b82f6', label: 'Niş' },
             { color: '#f59e0b', label: 'Hacim' },
             { color: '#ef4444', label: 'Sorunlu' },
           ].map(item => (
