@@ -133,11 +133,13 @@ export default function PLPage() {
       const { startDate: prevStart, endDate: prevEnd } = getMonthRange(prevMonthStr)
 
       // 4 paralel sorgu
+      // Supabase varsayılan limiti 1000 satır — bunu aşmak için büyük limit koy
+      const LIMIT = 100000
       const [spCurRes, sbCurRes, spPrvRes, sbPrvRes] = await Promise.all([
-        supabase.from('ad_product_performance').select('spend').gte('date', curStart).lte('date', curEnd),
-        supabase.from('ad_brand_performance').select('spend').gte('date', curStart).lte('date', curEnd),
-        supabase.from('ad_product_performance').select('spend').gte('date', prevStart).lte('date', prevEnd),
-        supabase.from('ad_brand_performance').select('spend').gte('date', prevStart).lte('date', prevEnd),
+        supabase.from('ad_product_performance').select('spend').gte('date', curStart).lte('date', curEnd).limit(LIMIT),
+        supabase.from('ad_brand_performance').select('spend').gte('date', curStart).lte('date', curEnd).limit(LIMIT),
+        supabase.from('ad_product_performance').select('spend').gte('date', prevStart).lte('date', prevEnd).limit(LIMIT),
+        supabase.from('ad_brand_performance').select('spend').gte('date', prevStart).lte('date', prevEnd).limit(LIMIT),
       ])
 
       const curSp = (spCurRes.data || []).reduce((s: number, r: any) => s + (Number(r.spend) || 0), 0)
@@ -155,6 +157,7 @@ export default function PLPage() {
         currentSp: curSp.toFixed(2), currentSb: curSb.toFixed(2), currentTotal: (curSp + curSb).toFixed(2),
         prevMonth: prevMonthStr,
         prevSp: prvSp.toFixed(2), prevSb: prvSb.toFixed(2), prevTotal: (prvSp + prvSb).toFixed(2),
+        rowCounts: { spCur: (spCurRes.data || []).length, sbCur: (sbCurRes.data || []).length, spPrv: (spPrvRes.data || []).length, sbPrv: (sbPrvRes.data || []).length },
       })
 
       setAdSpend(result)
