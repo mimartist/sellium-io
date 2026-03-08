@@ -657,9 +657,10 @@ export default function COGSPage() {
               {parentGroups.map(pg => {
                 const isParentExpanded = expandedParents.has(pg.parentAsin)
                 const skuCount = pg.colorGroups.reduce((s, cg) => s + cg.rows.length, 0)
-                // Show title, not ASIN/SKU code
+                // Get parent SKU prefix (e.g. MMS1000, MMS2000) from first color group
+                const parentSkuPrefix = pg.colorGroups[0]?.skuGroup?.substring(0, 7) || ''
                 const displayTitle = pg.title
-                  ? (pg.title.length > 50 ? pg.title.substring(0, 50) + '...' : pg.title)
+                  ? (pg.title.length > 45 ? pg.title.substring(0, 45) + '...' : pg.title)
                   : pg.parentAsin
 
                 return (
@@ -685,7 +686,8 @@ export default function COGSPage() {
                         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                           <span style={{ fontSize: 9, color: 'var(--text-muted)', flexShrink: 0 }}>{isParentExpanded ? '▼' : '▶'}</span>
                           <div style={{ minWidth: 0 }}>
-                            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayTitle}</div>
+                            <div style={{ fontSize: 11, color: '#6366f1', fontWeight: 700, marginBottom: 1 }}>{parentSkuPrefix}</div>
+                            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 11.5 }}>{displayTitle}</div>
                             <div style={{ fontSize: 9.5, color: 'var(--text-muted)', fontWeight: 400, marginTop: 1 }}>{skuCount} SKU · {pg.totalUnits.toLocaleString('de-DE')} adet</div>
                           </div>
                         </div>
@@ -868,9 +870,10 @@ export default function COGSPage() {
         </div>
       )}
 
-      {/* İndirim Simülatörü */}
+      {/* İndirim Simülatörü + Karlılık Haritası - yan yana */}
       {sel && (
-        <div style={{ ...cardStyle, marginBottom: 16, padding: 16, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.6s forwards' }}>
+        <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
+        <div style={{ ...cardStyle, padding: 16, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.6s forwards' }}>
           <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>İndirim Simülatörü</div>
           <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 14 }}>
             {sel.parentTitle ? sel.parentTitle.substring(0, 40) : sel.sku}
@@ -926,9 +929,8 @@ export default function COGSPage() {
             )}
           </div>
         </div>
-      )}
 
-      {/* Scatter */}
+      {/* Karlılık Haritası - same grid row */}
       <div style={{ ...cardStyle, padding: 16, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.7s forwards' }}>
         <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Karlılık Haritası</div>
         <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 16 }}>X: Satış adedi · Y: Marj% · Boyut: Toplam kâr</div>
@@ -976,6 +978,8 @@ export default function COGSPage() {
           ))}
         </div>
       </div>
+      </div>
+      )}
     </DashboardShell>
   )
 }

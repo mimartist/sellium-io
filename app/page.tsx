@@ -396,64 +396,80 @@ export default function DashboardPage() {
     if (!loading) fetchTopProducts()
   }, [selectedMonth, selectedMarketplace, loading])
 
-  // ========== AI Insights ==========
+  // ========== AI Insights — always 5, priority-sorted, month-over-month ==========
   const aiInsights = useMemo(() => {
-    const insights: { icon: string; type: string; color: string; title: string; desc: string }[] = []
+    const pool: { priority: number; icon: string; type: string; color: string; title: string; desc: string }[] = []
 
-    // Refund rate check
+    // --- 1. Sales trend ---
+    const salesChange = pctChange(cur.sales, prev.sales)
+    if (salesChange < -10) {
+      pool.push({ priority: 1, icon: '\uD83D\uDCC9', type: 'Sat\u0131\u015f Uyar\u0131s\u0131', color: '#ef4444', title: 'Sat\u0131\u015flarda sert d\u00fc\u015f\u00fc\u015f', desc: `Sat\u0131\u015flar ge\u00e7en aya g\u00f6re %${Math.abs(salesChange).toFixed(1)} d\u00fc\u015ft\u00fc (\u20ac${Math.round(prev.sales).toLocaleString('de-DE')} \u2192 \u20ac${Math.round(cur.sales).toLocaleString('de-DE')}). Fiyatland\u0131rma, stok durumu ve listing kalitesini kontrol edin.` })
+    } else if (salesChange < -3) {
+      pool.push({ priority: 3, icon: '\uD83D\uDCC9', type: 'Sat\u0131\u015f Trendi', color: '#f59e0b', title: 'Sat\u0131\u015flar hafif d\u00fc\u015f\u00fc\u015fte', desc: `Sat\u0131\u015flar %${Math.abs(salesChange).toFixed(1)} azald\u0131. Mevsimsel etki olabilir, kampanya ve g\u00f6r\u00fcn\u00fcrl\u00fck art\u0131r\u0131lmal\u0131.` })
+    } else if (salesChange > 15) {
+      pool.push({ priority: 4, icon: '\uD83D\uDE80', type: 'Sat\u0131\u015f B\u00fcy\u00fcme', color: '#10b981', title: 'Sat\u0131\u015flar g\u00fc\u00e7l\u00fc b\u00fcy\u00fcyor', desc: `Sat\u0131\u015flar %${salesChange.toFixed(1)} artt\u0131! Stok durumunu kontrol edin, bu ivmeyi s\u00fcrd\u00fcrmek i\u00e7in reklam b\u00fct\u00e7esini optimize edin.` })
+    } else {
+      pool.push({ priority: 6, icon: '\uD83D\uDCCA', type: 'Sat\u0131\u015f', color: '#6366f1', title: 'Sat\u0131\u015flar stabil', desc: `Sat\u0131\u015flar ge\u00e7en aya g\u00f6re %${salesChange >= 0 ? '+' : ''}${salesChange.toFixed(1)} de\u011fi\u015fti. \u20ac${Math.round(cur.sales).toLocaleString('de-DE')} ciro ile stabil seyir devam ediyor.` })
+    }
+
+    // --- 2. Profit analysis ---
+    const profitChange = pctChange(curNetProfit, prevNetProfit)
+    if (curNetProfit < 0) {
+      pool.push({ priority: 1, icon: '\uD83D\uDEA8', type: 'K\u00e2r Uyar\u0131s\u0131', color: '#ef4444', title: 'Zarar ediyorsunuz!', desc: `Net k\u00e2r ${fmtNum(curNetProfit)} ile negatif. Marj %${curMargin.toFixed(1)}. Acil maliyet analizi yap\u0131n, d\u00fc\u015f\u00fck marjl\u0131 \u00fcr\u00fcnleri fiyatland\u0131r\u0131n veya duraklat\u0131n.` })
+    } else if (profitChange < -15) {
+      pool.push({ priority: 2, icon: '\uD83D\uDCC9', type: 'K\u00e2rl\u0131l\u0131k', color: '#ef4444', title: 'K\u00e2rl\u0131l\u0131k h\u0131zla d\u00fc\u015f\u00fcyor', desc: `Net k\u00e2r %${Math.abs(profitChange).toFixed(1)} d\u00fc\u015ft\u00fc (${fmtNum(prevNetProfit)} \u2192 ${fmtNum(curNetProfit)}). Marj %${prevMargin.toFixed(1)} dan %${curMargin.toFixed(1)} e geriledi. Maliyet kalemlerini inceleyin.` })
+    } else if (profitChange > 10) {
+      pool.push({ priority: 5, icon: '\uD83D\uDCC8', type: 'K\u00e2rl\u0131l\u0131k', color: '#10b981', title: 'K\u00e2rl\u0131l\u0131k art\u0131\u015fta', desc: `Net k\u00e2r %${profitChange.toFixed(1)} artt\u0131 (${fmtNum(curNetProfit)}). Marj %${curMargin.toFixed(1)} ile ba\u015far\u0131l\u0131 bir ay ge\u00e7iriyorsunuz.` })
+    } else {
+      pool.push({ priority: 6, icon: '\uD83D\uDCB0', type: 'K\u00e2rl\u0131l\u0131k', color: '#6366f1', title: 'K\u00e2r stabil', desc: `Net k\u00e2r ${fmtNum(curNetProfit)}, marj %${curMargin.toFixed(1)}. Ge\u00e7en aya g\u00f6re %${profitChange >= 0 ? '+' : ''}${profitChange.toFixed(1)} de\u011fi\u015fim.` })
+    }
+
+    // --- 3. Refund analysis ---
     const refundRate = cur.sales > 0 ? (cur.refunds / cur.sales) * 100 : 0
     const prevRefundRate = prev.sales > 0 ? (prev.refunds / prev.sales) * 100 : 0
-    if (refundRate > prevRefundRate + 1) {
-      insights.push({ icon: '⚠️', type: 'İade Uyarısı', color: '#ef4444', title: 'İade oranı arttı', desc: 'Bu ay %' + refundRate.toFixed(1) + ' iade oranı, geçen ay %' + prevRefundRate.toFixed(1) + ' idi. Ürün kalite kontrolü önerilir.' })
+    const refundChange = pctChange(cur.refunds, prev.refunds)
+    if (refundRate > 8) {
+      pool.push({ priority: 1, icon: '\uD83D\uDEA8', type: '\u0130ade Alarm\u0131', color: '#ef4444', title: '\u0130ade oran\u0131 kritik seviyede', desc: `\u0130ade oran\u0131 %${refundRate.toFixed(1)} (${fmtNum(cur.refunds)}). Ge\u00e7en ay %${prevRefundRate.toFixed(1)} idi. \u00dcr\u00fcn kalitesi ve listing a\u00e7\u0131klamalar\u0131 acil g\u00f6zden ge\u00e7irilmeli.` })
+    } else if (refundChange > 20 && cur.refunds > 100) {
+      pool.push({ priority: 2, icon: '\u26A0\uFE0F', type: '\u0130ade Uyar\u0131s\u0131', color: '#f59e0b', title: '\u0130adeler art\u0131\u015fta', desc: `\u0130adeler %${refundChange.toFixed(0)} artt\u0131 (${fmtNum(prev.refunds)} \u2192 ${fmtNum(cur.refunds)}). Oran %${refundRate.toFixed(1)}. En \u00e7ok iade edilen \u00fcr\u00fcnleri inceleyin.` })
+    } else if (refundChange < -10) {
+      pool.push({ priority: 6, icon: '\u2705', type: '\u0130ade', color: '#10b981', title: '\u0130adeler azal\u0131yor', desc: `\u0130adeler %${Math.abs(refundChange).toFixed(0)} azald\u0131. Oran %${refundRate.toFixed(1)} ile sa\u011fl\u0131kl\u0131 seviyede. Kalite iyile\u015ftirmeleri i\u015fe yar\u0131yor.` })
+    } else {
+      pool.push({ priority: 7, icon: '\uD83D\uDCE6', type: '\u0130ade', color: '#6366f1', title: '\u0130ade oran\u0131 stabil', desc: `\u0130ade oran\u0131 %${refundRate.toFixed(1)} (${fmtNum(cur.refunds)}). Ge\u00e7en ay %${prevRefundRate.toFixed(1)} idi. Normal seviyelerde.` })
     }
 
-    // Ad spend efficiency
-    if (curAcos > 35) {
-      insights.push({ icon: '\uD83D\uDCCA', type: 'Reklam Optimizasyonu', color: '#f59e0b', title: 'TCoS yüksek', desc: 'TCoS %' + curAcos.toFixed(1) + ' seviyesinde. Düşük performanslı kampanyaları duraklatarak bid düşürün.' })
-    } else if (curAcos < 20 && displayAd > 0) {
-      insights.push({ icon: '\uD83D\uDCA1', type: 'Fırsat', color: '#10b981', title: 'Reklam bütçesi artırılabilir', desc: 'TCoS %' + curAcos.toFixed(1) + ' ile çok verimli. Bütçe artışı değerlendirilmeli.' })
+    // --- 4. Promo & discount impact ---
+    const promoRate = cur.sales > 0 ? (cur.promo / cur.sales) * 100 : 0
+    const prevPromoRate = prev.sales > 0 ? (prev.promo / prev.sales) * 100 : 0
+    const promoChange = pctChange(cur.promo, prev.promo)
+    if (promoRate > 10) {
+      pool.push({ priority: 2, icon: '\uD83C\uDFF7\uFE0F', type: 'Promosyon', color: '#ef4444', title: 'Promosyon maliyeti \u00e7ok y\u00fcksek', desc: `Promosyonlar sat\u0131\u015f\u0131n %${promoRate.toFixed(1)} ini olu\u015fturuyor (${fmtNum(cur.promo)}). Ge\u00e7en ay %${prevPromoRate.toFixed(1)} idi. \u0130ndirim stratejisini g\u00f6zden ge\u00e7irin.` })
+    } else if (promoChange > 30 && cur.promo > 50) {
+      pool.push({ priority: 3, icon: '\uD83C\uDFF7\uFE0F', type: 'Promosyon', color: '#f59e0b', title: 'Promosyon harcamas\u0131 artt\u0131', desc: `Promosyonlar %${promoChange.toFixed(0)} artt\u0131 (${fmtNum(cur.promo)}). Sat\u0131\u015fa oran\u0131 %${promoRate.toFixed(1)}. Kupon ve indirim ROI'sini kontrol edin.` })
+    } else if (cur.promo === 0 && cur.sales > 5000) {
+      pool.push({ priority: 5, icon: '\uD83D\uDCA1', type: 'F\u0131rsat', color: '#10b981', title: 'Promosyon f\u0131rsat\u0131', desc: `Hi\u00e7 promosyon kullanm\u0131yorsunuz. Y\u00fcksek marjl\u0131 \u00fcr\u00fcnlerde k\u0131sa s\u00fcreli kuponlar sat\u0131\u015f h\u0131z\u0131n\u0131 art\u0131rabilir.` })
+    } else {
+      pool.push({ priority: 7, icon: '\uD83C\uDFF7\uFE0F', type: 'Promosyon', color: '#6366f1', title: 'Promosyon dengeli', desc: `Promosyonlar ${fmtNum(cur.promo)}, sat\u0131\u015fa oran\u0131 %${promoRate.toFixed(1)}. Ge\u00e7en ay: %${prevPromoRate.toFixed(1)}. Dengeli bir strateji izleniyor.` })
     }
 
-    // Margin trend
-    if (curMargin < prevMargin - 3) {
-      insights.push({ icon: '\uD83D\uDCC9', type: 'Trend', color: '#ef4444', title: 'Marj düşüşte', desc: 'Marj %' + prevMargin.toFixed(1) + ' dan %' + curMargin.toFixed(1) + ' e geriledi. Maliyet analizi yapın.' })
-    } else if (curMargin > prevMargin + 3) {
-      insights.push({ icon: '\uD83D\uDCC8', type: 'Trend', color: '#10b981', title: 'Marj yükseldi', desc: 'Marj %' + prevMargin.toFixed(1) + ' den %' + curMargin.toFixed(1) + ' e çıktı. Başarılı optimizasyon!' })
+    // --- 5. Ad spend analysis ---
+    const adChange = pctChange(displayAd, displayAdPrev)
+    if (curAcos > 40) {
+      pool.push({ priority: 1, icon: '\uD83D\uDEA8', type: 'Reklam Alarm\u0131', color: '#ef4444', title: 'Reklam verimlili\u011fi kritik', desc: `TCoS %${curAcos.toFixed(1)} ile \u00e7ok y\u00fcksek (${fmtNum(displayAd)} harcama). D\u00fc\u015f\u00fck ROAS kampanyalar\u0131 acil durdurulmal\u0131, bid'ler d\u00fc\u015f\u00fcr\u00fclmeli.` })
+    } else if (curAcos > 25) {
+      pool.push({ priority: 3, icon: '\uD83D\uDCCA', type: 'Reklam', color: '#f59e0b', title: 'Reklam optimizasyonu gerekli', desc: `TCoS %${curAcos.toFixed(1)} (${fmtNum(displayAd)}). Ge\u00e7en ay %${prevAcos.toFixed(1)} idi. Anahtar kelime bazl\u0131 analiz yap\u0131p d\u00fc\u015f\u00fck performansl\u0131 hedefleri \u00e7\u0131kar\u0131n.` })
+    } else if (curAcos < 15 && displayAd > 0) {
+      pool.push({ priority: 4, icon: '\uD83D\uDCA1', type: 'Reklam F\u0131rsat\u0131', color: '#10b981', title: 'Reklam \u00e7ok verimli, b\u00fct\u00e7e art\u0131r\u0131labilir', desc: `TCoS %${curAcos.toFixed(1)} ile m\u00fckemmel verim. B\u00fct\u00e7eyi art\u0131rarak sat\u0131\u015f hacmini b\u00fcy\u00fctebilirsiniz. SP ve SB kampanyalar\u0131n\u0131 geni\u015fletin.` })
+    } else if (displayAd === 0) {
+      pool.push({ priority: 3, icon: '\uD83D\uDCA1', type: 'Reklam', color: '#f59e0b', title: 'Reklam harcamas\u0131 yok', desc: `Bu ay reklam harcaman\u0131z \u20ac0. Organik sat\u0131\u015f iyiyse de, SP kampanyalar\u0131yla g\u00f6r\u00fcn\u00fcrl\u00fc\u011f\u00fc art\u0131rmay\u0131 de\u011ferlendirin.` })
+    } else {
+      pool.push({ priority: 6, icon: '\uD83D\uDCCA', type: 'Reklam', color: '#6366f1', title: 'Reklam performans\u0131 iyi', desc: `TCoS %${curAcos.toFixed(1)} (${fmtNum(displayAd)}). Ge\u00e7en ay %${prevAcos.toFixed(1)} idi. Verimli harcama devam ediyor.` })
     }
 
-    // FBA cost increase
-    const fbaChange = pctChange(cur.fba, prev.fba)
-    if (fbaChange > 15) {
-      insights.push({ icon: '\uD83D\uDCE6', type: 'FBA Maliyet', color: '#f59e0b', title: 'FBA maliyetleri arttı', desc: 'FBA ücretleri %' + fbaChange.toFixed(0) + ' arttı. Boyut/ağırlık optimizasyonu değerlendirilmeli.' })
-    }
-
-    // COGS warning
-    if (cur.cogs > prev.cogs * 1.15 && prev.cogs > 0) {
-      insights.push({ icon: '\uD83D\uDCB0', type: 'Maliyet Uyarısı', color: '#f59e0b', title: 'Ürün maliyetleri arttı', desc: 'COGS %' + pctChange(cur.cogs, prev.cogs).toFixed(0) + ' arttı. Tedarikçi fiyatlarını veya alternatifleri gözden geçirin.' })
-    }
-
-    // Storage optimization
-    if (cur.storage > cur.sales * 0.03 && cur.storage > 0) {
-      insights.push({ icon: '\uD83C\uDFE0', type: 'Depolama', color: '#6366f1', title: 'Depolama maliyeti yüksek', desc: 'Depolama ücretleri satışın %' + (cur.storage / cur.sales * 100).toFixed(1) + ' i. Düşük stoklu ürünleri değerlendirin.' })
-    }
-
-    // Growing marketplace
-    const growingMps = mpGrouped.filter(mp => {
-      const prevMpRows = rawData.filter((r: any) => r.report_month === prevMonthStr && r.marketplace === mp.marketplace)
-      const prevMpSales = prevMpRows.reduce((s: number, r: any) => s + (Number(r.sales) || 0), 0)
-      return prevMpSales > 0 && mp.sales > prevMpSales * 1.3
-    })
-    if (growingMps.length > 0) {
-      const mp = growingMps[0]
-      insights.push({ icon: '\uD83D\uDE80', type: 'Büyüme Fırsatı', color: '#6366f1', title: mp.marketplace + ' büyüyor', desc: mp.marketplace + ' da satışlar güçlü büyüme gösteriyor. Stok ve reklam bütçesini artırmayı düşünün.' })
-    }
-
-    if (insights.length === 0) {
-      insights.push({ icon: '✅', type: 'Genel', color: '#10b981', title: 'Her şey yolunda', desc: 'Bu ay için önemli bir uyarı yok. Performans stabil görünüyor.' })
-    }
-
-    return insights
-  }, [cur, prev, curAcos, curMargin, prevMargin, displayAd, mpGrouped, rawData, prevMonthStr])
+    // Sort by priority (lower = more important), take top 5
+    pool.sort((a, b) => a.priority - b.priority)
+    return pool.slice(0, 5).map(({ priority, ...rest }) => rest)
+  }, [cur, prev, curNetProfit, prevNetProfit, curAcos, prevAcos, curMargin, prevMargin, displayAd, displayAdPrev])
 
   // ========== Quick actions ==========
   const quickActions = useMemo(() => {
@@ -642,36 +658,49 @@ export default function DashboardPage() {
       {/* BÖLÜM 3: MINI CARDS */}
       <div className="mini-card-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 20 }}>
         {/* Bu Ay vs Geçen Ay */}
-        <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.8s forwards' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Bu Ay vs Geçen Ay</div>
-          {miniCompare('Satış', cur.sales, prev.sales)}
-          {miniCompare('Net Kâr', curNetProfit, prevNetProfit)}
+        <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.8s forwards', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1, #818cf8)', opacity: 0.06 }} />
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 3, height: 16, borderRadius: 2, background: '#6366f1', display: 'inline-block' }} />
+            Bu Ay vs Ge\u00e7en Ay
+          </div>
+          {miniCompare('Sat\u0131\u015f', cur.sales, prev.sales)}
+          {miniCompare('Net K\u00e2r', curNetProfit, prevNetProfit)}
           {miniCompare('Birim', cur.units, prev.units)}
           {miniCompare('Reklam', displayAd, displayAdPrev)}
         </div>
 
         {/* Geçen Ay vs 2 Ay Önce */}
-        <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.85s forwards' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>Geçen Ay vs 2 Ay Önce</div>
-          {miniCompare('Satış', prev.sales, prevPrev.sales)}
-          {miniCompare('Net Kâr', prevNetProfit, prevPrevNetProfit)}
+        <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.85s forwards', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg, #a78bfa, #c4b5fd)', opacity: 0.06 }} />
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 3, height: 16, borderRadius: 2, background: '#a78bfa', display: 'inline-block' }} />
+            Ge\u00e7en Ay vs 2 Ay \u00d6nce
+          </div>
+          {miniCompare('Sat\u0131\u015f', prev.sales, prevPrev.sales)}
+          {miniCompare('Net K\u00e2r', prevNetProfit, prevPrevNetProfit)}
           {miniCompare('Birim', prev.units, prevPrev.units)}
-          {miniCompare('İade', prev.refunds, prevPrev.refunds)}
+          {miniCompare('\u0130ade', prev.refunds, prevPrev.refunds)}
         </div>
 
         {/* En Çok Satan Ürünler */}
-        <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.9s forwards' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>{'\uD83C\uDFC6'} En Çok Satan Ürünler</div>
+        <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.9s forwards', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg, #10b981, #34d399)', opacity: 0.06 }} />
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 3, height: 16, borderRadius: 2, background: '#10b981', display: 'inline-block' }} />
+            {'\uD83C\uDFC6'} En \u00c7ok Satan \u00dcr\u00fcnler
+          </div>
           {topProducts.length > 0 ? topProducts.map((p, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: i < topProducts.length - 1 ? '1px solid var(--border-color)' : 'none', gap: 8 }}>
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 8px', marginBottom: 4, borderRadius: 8, background: i === 0 ? 'rgba(16,185,129,0.06)' : 'transparent', gap: 8, transition: 'background 0.15s' }}>
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: 11.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title.substring(0, 35)}</div>
-                <div style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>{p.units.toLocaleString('de-DE')} adet</div>
+                <div style={{ fontSize: 10, color: '#6366f1', fontWeight: 600, marginBottom: 1 }}>{p.sku}</div>
+                <div style={{ fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title.substring(0, 30)}</div>
+                <div style={{ fontSize: 9.5, color: 'var(--text-muted)', marginTop: 1 }}>{p.units.toLocaleString('de-DE')} adet</div>
               </div>
-              <span style={{ fontSize: 12, fontWeight: 600, flexShrink: 0 }}>{fmtNum(p.sales)}</span>
+              <span style={{ fontSize: 13, fontWeight: 700, flexShrink: 0, color: '#10b981' }}>{fmtNum(p.sales)}</span>
             </div>
           )) : topSellersMp.map((mp, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: i < topSellersMp.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: i < topSellersMp.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
               <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{MARKETPLACE_FLAG_MAP[mp.marketplace] || ''} {mp.marketplace.replace('Amazon.', '')}</span>
               <span style={{ fontSize: 12, fontWeight: 600 }}>{fmtNum(mp.sales)}</span>
             </div>
@@ -679,21 +708,29 @@ export default function DashboardPage() {
         </div>
 
         {/* En Çok İade Ürünler */}
-        <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.95s forwards' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>{'⚠️'} En Çok İade Ürünler</div>
+        <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.95s forwards', position: 'relative', overflow: 'hidden' }}>
+          <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg, #ef4444, #f87171)', opacity: 0.06 }} />
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span style={{ width: 3, height: 16, borderRadius: 2, background: '#ef4444', display: 'inline-block' }} />
+            {'\u26A0\uFE0F'} En \u00c7ok \u0130ade \u00dcr\u00fcnler
+          </div>
           {topRefundProducts.length > 0 ? topRefundProducts.map((p, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: i < topRefundProducts.length - 1 ? '1px solid var(--border-color)' : 'none', gap: 8 }}>
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 8px', marginBottom: 4, borderRadius: 8, background: i === 0 ? 'rgba(239,68,68,0.06)' : 'transparent', gap: 8 }}>
               <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: 10, color: '#6366f1', fontWeight: 600 }}>{p.sku}</div>
-                <div style={{ fontSize: 11.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title.substring(0, 35)}</div>
+                <div style={{ fontSize: 10, color: '#6366f1', fontWeight: 600, marginBottom: 1 }}>{p.sku}</div>
+                <div style={{ fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title.substring(0, 30)}</div>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <span style={{ fontSize: 12, fontWeight: 600, color: '#ef4444' }}>{fmtNum(p.refunds)}</span>
-                <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 4 }}>%{p.refundRate.toFixed(1)}</span>
+                <div style={{ fontSize: 13, fontWeight: 700, color: '#ef4444' }}>{fmtNum(p.refunds)}</div>
+                <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>%{p.refundRate.toFixed(1)}</div>
               </div>
             </div>
           )) : (
-            <div style={{ padding: 10, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>İade verisi bulunamadı</div>
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px 10px', color: 'var(--text-muted)' }}>
+              <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>{'\u2705'}</div>
+              <div style={{ fontSize: 12, fontWeight: 500 }}>\u0130ade verisi bulunamad\u0131</div>
+              <div style={{ fontSize: 10, marginTop: 4 }}>Bu d\u00f6nemde iade kayd\u0131 yok</div>
+            </div>
           )}
         </div>
       </div>
