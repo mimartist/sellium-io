@@ -110,11 +110,10 @@ const n = (v: any) => Number(v) || 0
 
 const fmtEur = (v: number | null | undefined, dec = 2) => {
   const val = n(v)
-  if (val < 0) return `-${Math.abs(val).toLocaleString('de-DE', { minimumFractionDigits: dec, maximumFractionDigits: dec })} €`
-  return `${val.toLocaleString('de-DE', { minimumFractionDigits: dec, maximumFractionDigits: dec })} €`
+  if (val < 0) return `-${Math.abs(val).toLocaleString('de-DE', { minimumFractionDigits: dec, maximumFractionDigits: dec })} \u20AC`
+  return `${val.toLocaleString('de-DE', { minimumFractionDigits: dec, maximumFractionDigits: dec })} \u20AC`
 }
 const fmtPct = (v: number | null | undefined) => `%${n(v).toFixed(1)}`
-const fmtOrDash = (v: number | null | undefined, hasData: boolean) => hasData ? fmtEur(v) : '—'
 
 function getCommissionRate(price: number): number {
   return price < 20 ? 0.10 : 0.15
@@ -184,20 +183,28 @@ export default function COGSPage() {
         .gte('date', startDate)
         .lte('date', endDate)
 
+      // Also fetch monthly_pl for fallback fee estimation
+      let plQ = supabase
+        .from('monthly_pl')
+        .select('marketplace, units, sales, commission, fba, storage, return_mgmt, digital_fba, digital_sell')
+        .eq('report_month', selectedMonth)
+
       const parentQ = supabase
         .from('parent_asin_map')
         .select('parent_asin, child_asin, sku, title')
 
       // Fetch all in parallel (with pagination for large tables)
-      const [orders, econ, cogs, ads, parentMapRes] = await Promise.all([
+      const [orders, econ, cogs, ads, parentMapRes, plRes] = await Promise.all([
         fetchAll(ordersQ),
         fetchAll(econQ),
         fetchAll(cogsQ),
         fetchAll(adsQ),
         supabase.from('parent_asin_map').select('parent_asin, child_asin, sku, title'),
+        plQ,
       ])
 
       const parentMap = parentMapRes.data || []
+      const plData = plRes.data || []
 
       // --- SKU to parent ASIN mapping ---
       const skuToParent: Record<string, { parentAsin: string; title: string }> = {}
@@ -238,6 +245,23 @@ export default function COGSPage() {
         econMap[sku].totalDigital += n(e.digital_fba) + n(e.digital_sell)
       })
 
+      // --- Fallback: estimate per-unit Amazon fees from monthly_pl ---
+      let plTotalUnits = 0, plTotalComm = 0, plTotalFba = 0, plTotalStorage = 0, plTotalReturn = 0, plTotalDigital = 0
+      plData.forEach((r: any) => {
+        if (selectedMarketplace !== 'all' && r.marketplace !== selectedMarketplace) return
+        plTotalUnits += n(r.units)
+        plTotalComm += n(r.commission)
+        plTotalFba += n(r.fba)
+        plTotalStorage += n(r.storage)
+        plTotalReturn += n(r.return_mgmt)
+        plTotalDigital += n(r.digital_fba) + n(r.digital_sell)
+      })
+      const fallbackCommPerUnit = plTotalUnits > 0 ? plTotalComm / plTotalUnits : 0
+      const fallbackFbaPerUnit = plTotalUnits > 0 ? plTotalFba / plTotalUnits : 0
+      const fallbackStoragePerUnit = plTotalUnits > 0 ? plTotalStorage / plTotalUnits : 0
+      const fallbackReturnPerUnit = plTotalUnits > 0 ? plTotalReturn / plTotalUnits : 0
+      const fallbackDigitalPerUnit = plTotalUnits > 0 ? plTotalDigital / plTotalUnits : 0
+
       // --- COGS: valid record for month ---
       const cogsMap: Record<string, { packCost: number; otherCost: number }> = {}
       cogs.forEach((c: any) => {
@@ -267,7 +291,7 @@ export default function COGSPage() {
         // Parent ASIN
         const parentInfo = skuToParent[sku] || { parentAsin: skuGroup, title: '' }
 
-        // Economics
+        // Economics - use sku_economics if available, otherwise fallback to monthly_pl estimates
         const ec = econMap[sku]
         const hasEconData = !!(ec && ec.totalUnits > 0)
         let commPerUnit = 0, fbaPerUnit = 0, storagePerUnit = 0, returnPerUnit = 0, digitalPerUnit = 0
@@ -278,7 +302,12 @@ export default function COGSPage() {
           returnPerUnit = ec.totalReturn / ec.totalUnits
           digitalPerUnit = ec.totalDigital / ec.totalUnits
         } else {
-          commPerUnit = avgPrice * getCommissionRate(avgPrice)
+          // Fallback: use monthly_pl average per unit
+          commPerUnit = fallbackCommPerUnit > 0 ? fallbackCommPerUnit : avgPrice * getCommissionRate(avgPrice)
+          fbaPerUnit = fallbackFbaPerUnit
+          storagePerUnit = fallbackStoragePerUnit
+          returnPerUnit = fallbackReturnPerUnit
+          digitalPerUnit = fallbackDigitalPerUnit
         }
 
         // COGS
@@ -366,23 +395,21 @@ export default function COGSPage() {
     })
 
     // Step 2: Group color groups into parent ASINs
-    const parentMap: Record<string, ParentGroup> = {}
+    const parentMap2: Record<string, ParentGroup> = {}
     Object.values(colorMap).forEach(cg => {
-      // Find parent ASIN from first row
       const firstRow = cg.rows[0]
       const pAsin = firstRow?.parentAsin || cg.skuGroup
       const pTitle = firstRow?.parentTitle || ''
-      if (!parentMap[pAsin]) {
-        parentMap[pAsin] = { parentAsin: pAsin, title: pTitle, colorGroups: [], totalUnits: 0, avgPrice: 0, totalCost: 0, profitPerUnit: 0, margin: 0 }
+      if (!parentMap2[pAsin]) {
+        parentMap2[pAsin] = { parentAsin: pAsin, title: pTitle, colorGroups: [], totalUnits: 0, avgPrice: 0, totalCost: 0, profitPerUnit: 0, margin: 0 }
       }
-      parentMap[pAsin].colorGroups.push(cg)
-      parentMap[pAsin].totalUnits += cg.totalUnits
-      // Use first title we find
-      if (!parentMap[pAsin].title && pTitle) parentMap[pAsin].title = pTitle
+      parentMap2[pAsin].colorGroups.push(cg)
+      parentMap2[pAsin].totalUnits += cg.totalUnits
+      if (!parentMap2[pAsin].title && pTitle) parentMap2[pAsin].title = pTitle
     })
 
     // Weighted averages for parent
-    Object.values(parentMap).forEach(pg => {
+    Object.values(parentMap2).forEach(pg => {
       if (pg.totalUnits === 0) return
       let tSales = 0, tCost = 0
       pg.colorGroups.forEach(cg => {
@@ -395,9 +422,13 @@ export default function COGSPage() {
       pg.margin = pg.avgPrice > 0 ? (pg.profitPerUnit / pg.avgPrice) * 100 : 0
     })
 
-    // Sort by sortKey (use totalUnits for parent level)
-    const sorted = Object.values(parentMap)
-    sorted.sort((a, b) => sortDir === 'asc' ? a.totalUnits - b.totalUnits : b.totalUnits - a.totalUnits)
+    // Sort
+    const sorted = Object.values(parentMap2)
+    sorted.sort((a, b) => {
+      const aVal = sortKey === 'units' ? a.totalUnits : sortKey === 'avgPrice' ? a.avgPrice : sortKey === 'totalCost' ? a.totalCost : sortKey === 'profitPerUnit' ? a.profitPerUnit : sortKey === 'margin' ? a.margin : a.totalUnits
+      const bVal = sortKey === 'units' ? b.totalUnits : sortKey === 'avgPrice' ? b.avgPrice : sortKey === 'totalCost' ? b.totalCost : sortKey === 'profitPerUnit' ? b.profitPerUnit : sortKey === 'margin' ? b.margin : b.totalUnits
+      return sortDir === 'asc' ? aVal - bVal : bVal - aVal
+    })
     return sorted
   }, [skuRows, sortKey, sortDir])
 
@@ -425,18 +456,28 @@ export default function COGSPage() {
   // ========== Selected SKU ==========
   const sel = useMemo(() => skuRows.find(r => r.sku === selectedSku) || null, [skuRows, selectedSku])
 
+  // ========== SKU list for dropdown ==========
+  const skuOptions = useMemo(() => {
+    return [...skuRows].sort((a, b) => b.units - a.units).map(r => ({
+      sku: r.sku,
+      label: r.parentTitle
+        ? `${r.parentTitle.substring(0, 40)} (${r.sku})`
+        : r.sku
+    }))
+  }, [skuRows])
+
   // ========== Waterfall ==========
   const waterfallData = useMemo(() => {
     if (!sel) return []
     return [
-      { name: 'Satış Fiyatı', value: sel.avgPrice, fill: '#22c55e' },
+      { name: 'Sat\u0131\u015F Fiyat\u0131', value: sel.avgPrice, fill: '#22c55e' },
       { name: 'COGS', value: -sel.cogs, fill: '#ef4444' },
       { name: 'Komisyon', value: -sel.commission, fill: '#ef4444' },
-      { name: 'FBA', value: -sel.fba, fill: '#ef4444' },
+      { name: 'FBA Kargo', value: -sel.fba, fill: '#ef4444' },
       { name: 'Depolama', value: -sel.storage, fill: '#f59e0b' },
-      { name: 'İade+Digital', value: -(sel.returnMgmt + sel.digital), fill: '#f59e0b' },
+      { name: '\u0130ade+Digital', value: -(sel.returnMgmt + sel.digital), fill: '#f59e0b' },
       { name: 'Reklam', value: -sel.adSpend, fill: '#f59e0b' },
-      { name: 'Net Kâr', value: sel.profitPerUnit, fill: sel.profitPerUnit >= 0 ? '#3b82f6' : '#ef4444' },
+      { name: 'Net K\u00E2r', value: sel.profitPerUnit, fill: sel.profitPerUnit >= 0 ? '#3b82f6' : '#ef4444' },
     ]
   }, [sel])
 
@@ -450,10 +491,10 @@ export default function COGSPage() {
       const nonCommCost = sel.cogs + sel.fba + sel.storage + sel.returnMgmt + sel.digital + sel.adSpend
       const newProfit = newPrice - nonCommCost - newComm
       const newMargin = newPrice > 0 ? (newProfit / newPrice) * 100 : 0
-      let status = '✅'
-      if (newMargin < 0) status = '❌'
-      else if (newMargin < 10) status = '⚠️'
-      const commNote = (sel.avgPrice >= 20 && newPrice < 20) ? '💡 %10' : ''
+      let status = '\u2705'
+      if (newMargin < 0) status = '\u274C'
+      else if (newMargin < 10) status = '\u26A0\uFE0F'
+      const commNote = (sel.avgPrice >= 20 && newPrice < 20) ? '\uD83D\uDCA1 %10' : ''
       steps.push({ pct, newPrice, profit: newProfit, margin: newMargin, status, commNote })
     }
     return steps
@@ -497,7 +538,7 @@ export default function COGSPage() {
       await supabase.from('sku_cogs').insert({
         sku_prefix: skuPrefix, pack_cost_eur: newPackCost, other_cost_eur: newOtherCost,
         unit_cost_eur: newPackCost, valid_from: today, valid_to: null,
-        notes: `Manuel güncelleme - ${today}`,
+        notes: `Manuel g\u00FCncelleme - ${today}`,
       })
       setEditingGroup(null)
       fetchData()
@@ -511,7 +552,7 @@ export default function COGSPage() {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setSortKey(key); setSortDir('desc') }
   }
-  const sortIcon = (key: SortKey) => sortKey !== key ? ' ⇅' : sortDir === 'asc' ? ' ↑' : ' ↓'
+  const sortIcon = (key: SortKey) => sortKey !== key ? ' \u21C5' : sortDir === 'asc' ? ' \u2191' : ' \u2193'
 
   const marginBadge = (margin: number) => {
     let bg = '#22c55e20', color = '#22c55e'
@@ -523,8 +564,8 @@ export default function COGSPage() {
   // ========== Styles ==========
   const cardStyle: React.CSSProperties = { background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: 20 }
   const selectStyle: React.CSSProperties = { background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '7px 14px', fontSize: 12.5, color: 'var(--text-primary)', cursor: 'pointer', outline: 'none' }
-  const th: React.CSSProperties = { padding: '10px 8px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: 11, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }
-  const td: React.CSSProperties = { padding: '8px', fontSize: 12, fontFamily: 'monospace' }
+  const th: React.CSSProperties = { padding: '8px 6px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: 10.5, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }
+  const td: React.CSSProperties = { padding: '6px', fontSize: 11.5, fontFamily: 'monospace' }
   const tooltipStyle = { contentStyle: { background: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)', borderRadius: 8, fontSize: 12, color: 'var(--text-primary)' }, labelStyle: { color: 'var(--text-secondary)' } }
   const btnStyle: React.CSSProperties = { padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', minHeight: 44 }
 
@@ -534,7 +575,7 @@ export default function COGSPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ width: 36, height: 36, border: '3px solid var(--border-color)', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Veriler yükleniyor...</div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Veriler y\u00FCkleniyor...</div>
           </div>
         </div>
       </DashboardShell>
@@ -544,10 +585,10 @@ export default function COGSPage() {
   return (
     <DashboardShell sidebar={<Sidebar />}>
       {/* Header */}
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>💰 COGS & Karlılık</h1>
-          <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '3px 0 0' }}>SKU bazlı maliyet ve kârlılık analizi · {selectedMonth}</p>
+          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>COGS & Karl\u0131l\u0131k</h1>
+          <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '3px 0 0' }}>SKU bazl\u0131 maliyet ve k\u00E2rl\u0131l\u0131k analizi \u00B7 {selectedMonth}</p>
         </div>
         <div className="header-controls" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} style={selectStyle}>
@@ -560,44 +601,45 @@ export default function COGSPage() {
       </div>
 
       {/* KPIs */}
-      <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
-        <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0s forwards' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>ORT. MARJ</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: avgMargin >= 0 ? '#22c55e' : '#ef4444' }}>{fmtPct(avgMargin)}</div>
+      <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 }}>
+        <div style={{ ...cardStyle, padding: '14px 16px', opacity: 0, animation: 'fadeInUp 0.5s ease-out 0s forwards' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>ORT. MARJ</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: avgMargin >= 0 ? '#22c55e' : '#ef4444' }}>{fmtPct(avgMargin)}</div>
         </div>
-        <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.1s forwards' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>ZARAR EDEN SKU</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: lossMakingSkus.length > 0 ? '#ef4444' : '#22c55e' }}>{lossMakingSkus.length}</div>
-          {lossMakingSkus.length > 0 && <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>{lossMakingSkus.slice(0, 3).map(s => s.sku.substring(0, 10)).join(', ')}</div>}
+        <div style={{ ...cardStyle, padding: '14px 16px', opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.1s forwards' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>ZARAR EDEN SKU</div>
+          <div style={{ fontSize: 20, fontWeight: 700, color: lossMakingSkus.length > 0 ? '#ef4444' : '#22c55e' }}>{lossMakingSkus.length}</div>
         </div>
-        <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.2s forwards' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>EN KÂRLI ÜRÜN</div>
+        <div style={{ ...cardStyle, padding: '14px 16px', opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.2s forwards' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>EN K\u00C2RLI \u00DCR\u00DCN</div>
           {bestSku ? (
             <>
-              <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{bestSku.sku}</div>
-              <div style={{ fontSize: 12, color: '#22c55e' }}>{fmtEur(bestSku.profitPerUnit)}/birim · {fmtPct(bestSku.margin)}</div>
+              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                {bestSku.parentTitle ? bestSku.parentTitle.substring(0, 30) : bestSku.sku}
+              </div>
+              <div style={{ fontSize: 11, color: '#22c55e' }}>{fmtEur(bestSku.profitPerUnit)}/birim \u00B7 {fmtPct(bestSku.margin)}</div>
             </>
-          ) : <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>—</div>}
+          ) : <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>\u2014</div>}
         </div>
-        <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.3s forwards' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>ORT. BREAKEVEN</div>
-          <div style={{ fontSize: 22, fontWeight: 700 }}>{fmtEur(avgBreakeven)}</div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Maks indirim: {fmtPct(avgMaxDiscount)}</div>
+        <div style={{ ...cardStyle, padding: '14px 16px', opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.3s forwards' }}>
+          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>ORT. BREAKEVEN</div>
+          <div style={{ fontSize: 20, fontWeight: 700 }}>{fmtEur(avgBreakeven)}</div>
+          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Maks indirim: {fmtPct(avgMaxDiscount)}</div>
         </div>
       </div>
 
       {/* 3-Level Table */}
-      <div style={{ ...cardStyle, marginBottom: 20, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.4s forwards' }}>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Ürün Karlılık Tablosu</div>
+      <div style={{ ...cardStyle, marginBottom: 16, padding: 16, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.4s forwards' }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>\u00DCr\u00FCn Karl\u0131l\u0131k Tablosu</div>
         <div className="pl-table-wrap" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 1000 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
-                <th style={{ ...th, textAlign: 'left', minWidth: 220 }}>Ürün</th>
+                <th style={{ ...th, textAlign: 'left', minWidth: 200 }}>\u00DCr\u00FCn</th>
                 {([
                   ['units', 'Adet'], ['avgPrice', 'Ort.Fiyat'], ['cogs', 'COGS'], ['commission', 'Komisyon'],
                   ['fba', 'FBA'], ['storage', 'Depolama'], ['totalCost', 'Top.Maliyet'], ['breakeven', 'Breakeven'],
-                  ['profitPerUnit', 'Kâr/birim'], ['margin', 'Marj%'], ['maxDiscount', 'Maks İnd.%'],
+                  ['profitPerUnit', 'K\u00E2r/birim'], ['margin', 'Marj%'], ['maxDiscount', 'Maks \u0130nd.%'],
                 ] as const).map(([key, label]) => (
                   <th key={key} onClick={() => handleSort(key as SortKey)} style={{ ...th, textAlign: 'right', color: sortKey === key ? '#6366f1' : 'var(--text-secondary)' }}>
                     {label}{sortIcon(key as SortKey)}
@@ -609,7 +651,10 @@ export default function COGSPage() {
               {parentGroups.map(pg => {
                 const isParentExpanded = expandedParents.has(pg.parentAsin)
                 const skuCount = pg.colorGroups.reduce((s, cg) => s + cg.rows.length, 0)
-                const displayTitle = pg.title ? pg.title.substring(0, 35) : pg.parentAsin
+                // Show title, not ASIN/SKU code
+                const displayTitle = pg.title
+                  ? (pg.title.length > 50 ? pg.title.substring(0, 50) + '...' : pg.title)
+                  : pg.parentAsin
 
                 return (
                   <React.Fragment key={pg.parentAsin}>
@@ -630,16 +675,20 @@ export default function COGSPage() {
                       onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.06)'}
                       onMouseLeave={e => e.currentTarget.style.background = 'rgba(99,102,241,0.02)'}
                     >
-                      <td style={{ ...td, fontWeight: 700, fontSize: 13 }}>
-                        <span style={{ marginRight: 6, fontSize: 10 }}>{isParentExpanded ? '▼' : '▶'}</span>
-                        {displayTitle}
-                        <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 8 }}>{skuCount} SKU · {pg.totalUnits.toLocaleString('de-DE')} adet</span>
+                      <td style={{ ...td, fontWeight: 600, fontSize: 12 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                          <span style={{ fontSize: 9, color: 'var(--text-muted)', flexShrink: 0 }}>{isParentExpanded ? '\u25BC' : '\u25B6'}</span>
+                          <div style={{ minWidth: 0 }}>
+                            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayTitle}</div>
+                            <div style={{ fontSize: 9.5, color: 'var(--text-muted)', fontWeight: 400, marginTop: 1 }}>{skuCount} SKU \u00B7 {pg.totalUnits.toLocaleString('de-DE')} adet</div>
+                          </div>
+                        </div>
                       </td>
-                      <td style={{ ...td, textAlign: 'right', fontWeight: 700 }}>{pg.totalUnits.toLocaleString('de-DE')}</td>
+                      <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>{pg.totalUnits.toLocaleString('de-DE')}</td>
                       <td style={{ ...td, textAlign: 'right' }}>{fmtEur(pg.avgPrice)}</td>
                       <td colSpan={5} />
                       <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>{fmtEur(pg.totalCost)}</td>
-                      <td style={{ ...td, textAlign: 'right', color: pg.profitPerUnit >= 0 ? '#22c55e' : '#ef4444', fontWeight: 700 }}>{fmtEur(pg.profitPerUnit)}</td>
+                      <td style={{ ...td, textAlign: 'right', color: pg.profitPerUnit >= 0 ? '#22c55e' : '#ef4444', fontWeight: 600 }}>{fmtEur(pg.profitPerUnit)}</td>
                       <td style={{ ...td, textAlign: 'right' }}>{marginBadge(pg.margin)}</td>
                       <td />
                     </tr>
@@ -666,20 +715,20 @@ export default function COGSPage() {
                             onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.04)'}
                             onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-sub-row)'}
                           >
-                            <td style={{ ...td, paddingLeft: 28, fontWeight: 600, fontSize: 12.5 }}>
-                              {hasMultipleSizes && <span style={{ marginRight: 6, fontSize: 9 }}>{isGroupExpanded ? '▼' : '▶'}</span>}
+                            <td style={{ ...td, paddingLeft: 24, fontWeight: 500, fontSize: 11.5 }}>
+                              {hasMultipleSizes && <span style={{ marginRight: 5, fontSize: 8 }}>{isGroupExpanded ? '\u25BC' : '\u25B6'}</span>}
                               {cg.skuGroup}
-                              {hasMultipleSizes && <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 6 }}>({cg.rows.length} beden)</span>}
+                              {hasMultipleSizes && <span style={{ fontSize: 9.5, color: 'var(--text-muted)', marginLeft: 6 }}>({cg.rows.length} beden)</span>}
                             </td>
-                            <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>{cg.totalUnits.toLocaleString('de-DE')}</td>
+                            <td style={{ ...td, textAlign: 'right', fontWeight: 500 }}>{cg.totalUnits.toLocaleString('de-DE')}</td>
                             <td style={{ ...td, textAlign: 'right' }}>{fmtEur(cg.avgPrice)}</td>
                             <td style={{ ...td, textAlign: 'right' }}>{fmtEur(cg.cogs)}</td>
-                            <td style={{ ...td, textAlign: 'right' }}>{fmtOrDash(cg.commission, cg.hasEconData)}</td>
-                            <td style={{ ...td, textAlign: 'right' }}>{fmtOrDash(cg.fba, cg.hasEconData)}</td>
-                            <td style={{ ...td, textAlign: 'right' }}>{fmtOrDash(cg.storage, cg.hasEconData)}</td>
-                            <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>{fmtEur(cg.totalCost)}</td>
+                            <td style={{ ...td, textAlign: 'right' }}>{fmtEur(cg.commission)}</td>
+                            <td style={{ ...td, textAlign: 'right' }}>{fmtEur(cg.fba)}</td>
+                            <td style={{ ...td, textAlign: 'right' }}>{fmtEur(cg.storage)}</td>
+                            <td style={{ ...td, textAlign: 'right', fontWeight: 500 }}>{fmtEur(cg.totalCost)}</td>
                             <td style={{ ...td, textAlign: 'right', color: '#f59e0b' }}>{fmtEur(cg.breakeven)}</td>
-                            <td style={{ ...td, textAlign: 'right', color: cg.profitPerUnit >= 0 ? '#22c55e' : '#ef4444', fontWeight: 600 }}>{fmtEur(cg.profitPerUnit)}</td>
+                            <td style={{ ...td, textAlign: 'right', color: cg.profitPerUnit >= 0 ? '#22c55e' : '#ef4444', fontWeight: 500 }}>{fmtEur(cg.profitPerUnit)}</td>
                             <td style={{ ...td, textAlign: 'right' }}>{marginBadge(cg.margin)}</td>
                             <td style={{ ...td, textAlign: 'right', color: 'var(--text-secondary)' }}>{fmtPct(cg.maxDiscount)}</td>
                           </tr>
@@ -691,20 +740,20 @@ export default function COGSPage() {
                               style={{ borderBottom: '1px solid var(--border-color)', background: selectedSku === row.sku ? 'rgba(99,102,241,0.08)' : 'transparent', cursor: 'pointer' }}
                               onClick={e => { e.stopPropagation(); setSelectedSku(row.sku); setDiscountPct(0) }}
                             >
-                              <td style={{ ...td, paddingLeft: 52, fontSize: 11, color: selectedSku === row.sku ? '#6366f1' : 'var(--text-secondary)' }}>
-                                {selectedSku === row.sku && '● '}{row.sku}
+                              <td style={{ ...td, paddingLeft: 44, fontSize: 10.5, color: selectedSku === row.sku ? '#6366f1' : 'var(--text-secondary)' }}>
+                                {selectedSku === row.sku && '\u25CF '}{row.sku}
                               </td>
-                              <td style={{ ...td, textAlign: 'right', fontSize: 11 }}>{row.units.toLocaleString('de-DE')}</td>
-                              <td style={{ ...td, textAlign: 'right', fontSize: 11 }}>{fmtEur(row.avgPrice)}</td>
-                              <td style={{ ...td, textAlign: 'right', fontSize: 11 }}>{fmtEur(row.cogs)}</td>
-                              <td style={{ ...td, textAlign: 'right', fontSize: 11 }}>{fmtOrDash(row.commission, row.hasEconData)}</td>
-                              <td style={{ ...td, textAlign: 'right', fontSize: 11 }}>{fmtOrDash(row.fba, row.hasEconData)}</td>
-                              <td style={{ ...td, textAlign: 'right', fontSize: 11 }}>{fmtOrDash(row.storage, row.hasEconData)}</td>
-                              <td style={{ ...td, textAlign: 'right', fontSize: 11 }}>{fmtEur(row.totalCost)}</td>
-                              <td style={{ ...td, textAlign: 'right', fontSize: 11, color: '#f59e0b' }}>{fmtEur(row.breakeven)}</td>
-                              <td style={{ ...td, textAlign: 'right', fontSize: 11, color: row.profitPerUnit >= 0 ? '#22c55e' : '#ef4444' }}>{fmtEur(row.profitPerUnit)}</td>
+                              <td style={{ ...td, textAlign: 'right', fontSize: 10.5 }}>{row.units.toLocaleString('de-DE')}</td>
+                              <td style={{ ...td, textAlign: 'right', fontSize: 10.5 }}>{fmtEur(row.avgPrice)}</td>
+                              <td style={{ ...td, textAlign: 'right', fontSize: 10.5 }}>{fmtEur(row.cogs)}</td>
+                              <td style={{ ...td, textAlign: 'right', fontSize: 10.5 }}>{fmtEur(row.commission)}</td>
+                              <td style={{ ...td, textAlign: 'right', fontSize: 10.5 }}>{fmtEur(row.fba)}</td>
+                              <td style={{ ...td, textAlign: 'right', fontSize: 10.5 }}>{fmtEur(row.storage)}</td>
+                              <td style={{ ...td, textAlign: 'right', fontSize: 10.5 }}>{fmtEur(row.totalCost)}</td>
+                              <td style={{ ...td, textAlign: 'right', fontSize: 10.5, color: '#f59e0b' }}>{fmtEur(row.breakeven)}</td>
+                              <td style={{ ...td, textAlign: 'right', fontSize: 10.5, color: row.profitPerUnit >= 0 ? '#22c55e' : '#ef4444' }}>{fmtEur(row.profitPerUnit)}</td>
                               <td style={{ ...td, textAlign: 'right' }}>{marginBadge(row.margin)}</td>
-                              <td style={{ ...td, textAlign: 'right', fontSize: 11, color: 'var(--text-secondary)' }}>{fmtPct(row.maxDiscount)}</td>
+                              <td style={{ ...td, textAlign: 'right', fontSize: 10.5, color: 'var(--text-secondary)' }}>{fmtPct(row.maxDiscount)}</td>
                             </tr>
                           ))}
                         </React.Fragment>
@@ -714,24 +763,42 @@ export default function COGSPage() {
                 )
               })}
               {parentGroups.length === 0 && (
-                <tr><td colSpan={12} style={{ padding: 30, textAlign: 'center', color: 'var(--text-secondary)' }}>Bu ay için veri bulunamadı</td></tr>
+                <tr><td colSpan={12} style={{ padding: 30, textAlign: 'center', color: 'var(--text-secondary)' }}>Bu ay i\u00E7in veri bulunamad\u0131</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* Waterfall + Maliyet Düzenleme */}
+      {/* SKU Selector for detail sections */}
+      {skuRows.length > 0 && (
+        <div style={{ marginBottom: 16 }}>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Detay g\u00F6r\u00FCnt\u00FClemek i\u00E7in SKU se\u00E7in:</div>
+          <select
+            value={selectedSku || ''}
+            onChange={e => { setSelectedSku(e.target.value); setDiscountPct(0) }}
+            style={{ ...selectStyle, width: '100%', maxWidth: 500, padding: '10px 14px', fontSize: 13 }}
+          >
+            {skuOptions.map(opt => (
+              <option key={opt.sku} value={opt.sku}>{opt.label}</option>
+            ))}
+          </select>
+        </div>
+      )}
+
+      {/* Waterfall + Maliyet D\u00FCzenleme */}
       {sel && (
-        <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
-          <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.5s forwards' }}>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Maliyet Kırılımı</div>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 16 }}>{sel.sku} · Fiyattan kâra giden yol</div>
+        <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
+          <div style={{ ...cardStyle, padding: 16, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.5s forwards' }}>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Maliyet K\u0131r\u0131l\u0131m\u0131</div>
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 12 }}>
+              {sel.parentTitle ? sel.parentTitle.substring(0, 35) : sel.sku} \u00B7 Fiyattan k\u00E2ra giden yol
+            </div>
             <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={waterfallData} layout="vertical" margin={{ left: 80, right: 20 }}>
+              <BarChart data={waterfallData} layout="vertical" margin={{ left: 10, right: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" horizontal={false} />
                 <XAxis type="number" tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => fmtEur(v, 0)} />
-                <YAxis type="category" dataKey="name" tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} width={75} />
+                <YAxis type="category" dataKey="name" tick={{ fill: 'var(--text-secondary)', fontSize: 10.5 }} axisLine={false} tickLine={false} width={72} />
                 <Tooltip {...tooltipStyle} formatter={(value: any) => [fmtEur(Math.abs(n(value))), '']} />
                 <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                   {waterfallData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
@@ -740,61 +807,67 @@ export default function COGSPage() {
             </ResponsiveContainer>
             <div style={{ marginTop: 8, padding: '8px 12px', background: 'var(--bg-elevated)', borderRadius: 8, fontSize: 12 }}>
               <span style={{ color: '#f59e0b', fontWeight: 600 }}>Breakeven: {fmtEur(sel.breakeven)}</span>
-              <span style={{ color: 'var(--text-muted)', marginLeft: 12 }}>Bu fiyatın altında zarar</span>
+              <span style={{ color: 'var(--text-muted)', marginLeft: 12 }}>Bu fiyat\u0131n alt\u0131nda zarar</span>
             </div>
           </div>
 
-          <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.55s forwards' }}>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Maliyet Düzenleme</div>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 16 }}>{sel.skuGroup} · COGS güncelle</div>
+          <div style={{ ...cardStyle, padding: 16, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.55s forwards' }}>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Maliyet D\u00FCzenleme</div>
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 12 }}>
+              {sel.parentTitle ? sel.parentTitle.substring(0, 35) : sel.skuGroup} \u00B7 COGS g\u00FCncelle
+            </div>
 
             {editingGroup === sel.skuGroup ? (
               <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <div>
-                  <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Paketleme Maliyeti (€)</label>
+                  <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Paketleme Maliyeti (\u20AC)</label>
                   <input type="number" step="0.01" value={editPackCost} onChange={e => setEditPackCost(e.target.value)} style={{ ...selectStyle, width: '100%' }} />
                 </div>
                 <div>
-                  <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Diğer Maliyet (€)</label>
+                  <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Di\u011Fer Maliyet (\u20AC)</label>
                   <input type="number" step="0.01" value={editOtherCost} onChange={e => setEditOtherCost(e.target.value)} style={{ ...selectStyle, width: '100%' }} />
                 </div>
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button onClick={() => saveCost(sel.skuGroup)} style={{ ...btnStyle, background: '#6366f1', color: 'white', flex: 1 }}>Kaydet</button>
-                  <button onClick={() => setEditingGroup(null)} style={{ ...btnStyle, background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', flex: 1 }}>İptal</button>
+                  <button onClick={() => setEditingGroup(null)} style={{ ...btnStyle, background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', flex: 1 }}>\u0130ptal</button>
                 </div>
               </div>
             ) : (
               <div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 16 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginBottom: 14 }}>
                   {[
-                    ['COGS/birim', sel.cogs], ['Komisyon/birim', sel.commission], ['FBA/birim', sel.fba],
-                    ['Depolama/birim', sel.storage], ['İade+Digital/birim', sel.returnMgmt + sel.digital],
+                    ['COGS/birim', sel.cogs], ['Komisyon/birim', sel.commission], ['FBA Kargo/birim', sel.fba],
+                    ['Depolama/birim', sel.storage], ['\u0130ade+Digital/birim', sel.returnMgmt + sel.digital],
                     ['Reklam/birim', sel.adSpend], ['Toplam Maliyet', sel.totalCost],
                   ].map(([label, val], i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid var(--border-color)' }}>
+                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border-color)' }}>
                       <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{label as string}</span>
-                      <span style={{ fontSize: 13, fontWeight: i === 6 ? 700 : 600 }}>{fmtEur(val as number)}</span>
+                      <span style={{ fontSize: 12.5, fontWeight: i === 6 ? 700 : 500, fontFamily: 'monospace' }}>{fmtEur(val as number)}</span>
                     </div>
                   ))}
                 </div>
                 <button onClick={() => { setEditingGroup(sel.skuGroup); setEditPackCost(sel.cogs.toFixed(2)); setEditOtherCost('0') }} style={{ ...btnStyle, background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', width: '100%' }}>
-                  Maliyeti Düzenle
+                  Maliyeti D\u00FCzenle
                 </button>
-                <div style={{ marginTop: 10, fontSize: 10, color: 'var(--text-muted)', padding: '8px', background: 'var(--bg-elevated)', borderRadius: 6 }}>
-                  Komisyon kuralı: Satış &lt; 20€ → %10 | Satış ≥ 20€ → %15
-                </div>
+                {!sel.hasEconData && (
+                  <div style={{ marginTop: 8, fontSize: 10, color: '#f59e0b', padding: '6px 8px', background: 'rgba(245,158,11,0.08)', borderRadius: 6 }}>
+                    Amazon \u00FCcretleri ayl\u0131k P&L verilerinden tahmini hesaplanm\u0131\u015Ft\u0131r.
+                  </div>
+                )}
               </div>
             )}
           </div>
         </div>
       )}
 
-      {/* İndirim Simülatörü */}
+      {/* \u0130ndirim Sim\u00FClat\u00F6r\u00FC */}
       {sel && (
-        <div style={{ ...cardStyle, marginBottom: 20, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.6s forwards' }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>İndirim Simülatörü</div>
-          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 16 }}>{sel.sku}</div>
-          <div style={{ marginBottom: 16 }}>
+        <div style={{ ...cardStyle, marginBottom: 16, padding: 16, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.6s forwards' }}>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>\u0130ndirim Sim\u00FClat\u00F6r\u00FC</div>
+          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 14 }}>
+            {sel.parentTitle ? sel.parentTitle.substring(0, 40) : sel.sku}
+          </div>
+          <div style={{ marginBottom: 14 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
               <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>%0</span>
               <span style={{ fontSize: 14, fontWeight: 700, color: discountPct > sel.maxDiscount ? '#ef4444' : '#6366f1' }}>%{discountPct} indirim</span>
@@ -807,7 +880,7 @@ export default function COGSPage() {
             {selectedDiscountRow && (
               <div style={{ display: 'flex', gap: 20, marginTop: 10, padding: '10px 14px', background: 'var(--bg-elevated)', borderRadius: 8 }}>
                 <div><span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Yeni Fiyat</span><div style={{ fontSize: 14, fontWeight: 700 }}>{fmtEur(selectedDiscountRow.newPrice)}</div></div>
-                <div><span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Kâr/birim</span><div style={{ fontSize: 14, fontWeight: 700, color: selectedDiscountRow.profit >= 0 ? '#22c55e' : '#ef4444' }}>{fmtEur(selectedDiscountRow.profit)}</div></div>
+                <div><span style={{ fontSize: 10, color: 'var(--text-muted)' }}>K\u00E2r/birim</span><div style={{ fontSize: 14, fontWeight: 700, color: selectedDiscountRow.profit >= 0 ? '#22c55e' : '#ef4444' }}>{fmtEur(selectedDiscountRow.profit)}</div></div>
                 <div><span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Marj</span><div style={{ fontSize: 14, fontWeight: 700, color: selectedDiscountRow.margin >= 0 ? '#22c55e' : '#ef4444' }}>{fmtPct(selectedDiscountRow.margin)}</div></div>
               </div>
             )}
@@ -816,9 +889,9 @@ export default function COGSPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                  <th style={{ ...th, textAlign: 'left', cursor: 'default' }}>İndirim</th>
+                  <th style={{ ...th, textAlign: 'left', cursor: 'default' }}>\u0130ndirim</th>
                   <th style={{ ...th, textAlign: 'right', cursor: 'default' }}>Yeni Fiyat</th>
-                  <th style={{ ...th, textAlign: 'right', cursor: 'default' }}>Kâr/birim</th>
+                  <th style={{ ...th, textAlign: 'right', cursor: 'default' }}>K\u00E2r/birim</th>
                   <th style={{ ...th, textAlign: 'right', cursor: 'default' }}>Marj%</th>
                   <th style={{ ...th, textAlign: 'center', cursor: 'default' }}>Durum</th>
                   <th style={{ ...th, textAlign: 'center', cursor: 'default' }}>Not</th>
@@ -839,18 +912,18 @@ export default function COGSPage() {
             </table>
           </div>
           <div style={{ marginTop: 10, fontSize: 11, color: 'var(--text-muted)' }}>
-            Bu ürün maksimum <strong style={{ color: '#f59e0b' }}>%{sel.maxDiscount.toFixed(0)}</strong> indirim kaldırır.
+            Bu \u00FCr\u00FCn maksimum <strong style={{ color: '#f59e0b' }}>%{sel.maxDiscount.toFixed(0)}</strong> indirim kald\u0131r\u0131r.
             {sel.avgPrice >= 20 && sel.avgPrice * (1 - sel.maxDiscount / 100) < 20 && (
-              <span style={{ color: '#06b6d4', marginLeft: 6 }}>Fiyat 20€ altına düşerse komisyon %15→%10 avantajı devreye girer.</span>
+              <span style={{ color: '#06b6d4', marginLeft: 6 }}>Fiyat 20\u20AC alt\u0131na d\u00FC\u015Ferse komisyon %15\u2192%10 avantaj\u0131 devreye girer.</span>
             )}
           </div>
         </div>
       )}
 
       {/* Scatter */}
-      <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.7s forwards' }}>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Karlılık Haritası</div>
-        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 16 }}>X: Satış adedi · Y: Marj% · Boyut: Toplam kâr</div>
+      <div style={{ ...cardStyle, padding: 16, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.7s forwards' }}>
+        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Karl\u0131l\u0131k Haritas\u0131</div>
+        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 16 }}>X: Sat\u0131\u015F adedi \u00B7 Y: Marj% \u00B7 Boyut: Toplam k\u00E2r</div>
         <ResponsiveContainer width="100%" height={350}>
           <ScatterChart margin={{ top: 20, right: 30, bottom: 20, left: 20 }}>
             <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
@@ -865,7 +938,7 @@ export default function COGSPage() {
                   <div style={{ fontWeight: 600, marginBottom: 4 }}>{d.name}</div>
                   <div>Adet: {n(d.x).toLocaleString('de-DE')}</div>
                   <div>Marj: {fmtPct(d.y)}</div>
-                  <div>Toplam Kâr: {fmtEur(d.profit, 0)}</div>
+                  <div>Toplam K\u00E2r: {fmtEur(d.profit, 0)}</div>
                 </div>
               )
             }} />
@@ -883,10 +956,10 @@ export default function COGSPage() {
         </ResponsiveContainer>
         <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 8 }}>
           {[
-            { color: '#22c55e', label: '⭐ Yıldız' },
-            { color: '#3b82f6', label: '💤 Niş' },
-            { color: '#f59e0b', label: '⚠️ Hacim' },
-            { color: '#ef4444', label: '❌ Sorunlu' },
+            { color: '#22c55e', label: 'Y\u0131ld\u0131z' },
+            { color: '#3b82f6', label: 'Ni\u015F' },
+            { color: '#f59e0b', label: 'Hacim' },
+            { color: '#ef4444', label: 'Sorunlu' },
           ].map(item => (
             <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
               <div style={{ width: 10, height: 10, borderRadius: '50%', background: item.color }} />
