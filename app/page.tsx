@@ -343,6 +343,62 @@ export default function DashboardPage() {
     return [...mpGrouped].sort((a, b) => b.refunds - a.refunds).slice(0, 5)
   }, [mpGrouped])
 
+  // ========== Top products ==========
+  const [topProducts, setTopProducts] = useState<{ title: string; sku: string; units: number; sales: number }[]>([])
+  const [topRefundProducts, setTopRefundProducts] = useState<{ title: string; sku: string; refunds: number; refundRate: number }[]>([])
+
+  useEffect(() => {
+    async function fetchTopProducts() {
+      const { startDate, endDate } = getMonthRange(selectedMonth)
+      let q = supabase
+        .from('all_orders')
+        .select('sku, quantity, item_price, order_status')
+        .gte('purchase_date', startDate)
+        .lte('purchase_date', endDate)
+      if (selectedMarketplace !== 'all') q = q.eq('marketplace', selectedMarketplace)
+
+      const { data: orders } = await q.limit(5000)
+      const { data: parentMap } = await supabase.from('parent_asin_map').select('sku, title')
+
+      const skuTitle: Record<string, string> = {}
+      parentMap?.forEach((p: any) => { if (p.sku && p.title) skuTitle[p.sku] = p.title })
+
+      const skuSales: Record<string, { units: number; sales: number; refunds: number }> = {}
+      orders?.forEach((o: any) => {
+        const sku = o.sku || ''
+        if (!sku) return
+        if (!skuSales[sku]) skuSales[sku] = { units: 0, sales: 0, refunds: 0 }
+        if (o.order_status === 'Shipped') {
+          skuSales[sku].units += Number(o.quantity) || 0
+          skuSales[sku].sales += Number(o.item_price) || 0
+        }
+        if (o.order_status === 'Refunded' || o.order_status === 'Return') {
+          skuSales[sku].refunds += Number(o.item_price) || 0
+        }
+      })
+
+      const allSkus = Object.entries(skuSales)
+      const topSellers = allSkus
+        .sort((a, b) => b[1].units - a[1].units)
+        .slice(0, 5)
+        .map(([sku, d]) => ({ title: skuTitle[sku] || sku, sku, units: d.units, sales: d.sales }))
+      setTopProducts(topSellers)
+
+      const topRefunds = allSkus
+        .filter(([, d]) => d.refunds > 0)
+        .sort((a, b) => b[1].refunds - a[1].refunds)
+        .slice(0, 5)
+        .map(([sku, d]) => ({
+          title: skuTitle[sku] || sku,
+          sku,
+          refunds: d.refunds,
+          refundRate: d.sales > 0 ? (d.refunds / d.sales) * 100 : 0,
+        }))
+      setTopRefundProducts(topRefunds)
+    }
+    if (!loading) fetchTopProducts()
+  }, [selectedMonth, selectedMarketplace, loading])
+
   // ========== AI Insights ==========
   const aiInsights = useMemo(() => {
     const insights: { icon: string; type: string; color: string; title: string; desc: string }[] = []
@@ -351,27 +407,37 @@ export default function DashboardPage() {
     const refundRate = cur.sales > 0 ? (cur.refunds / cur.sales) * 100 : 0
     const prevRefundRate = prev.sales > 0 ? (prev.refunds / prev.sales) * 100 : 0
     if (refundRate > prevRefundRate + 1) {
-      insights.push({ icon: '⚠️', type: 'İade Uyarısı', color: '#ef4444', title: 'İade oranı arttı', desc: `Bu ay %${refundRate.toFixed(1)} iade oranı, geçen ay %${prevRefundRate.toFixed(1)} idi. Ürün kalite kontrolü önerilir.` })
+      insights.push({ icon: '\u26A0\uFE0F', type: '\u0130ade Uyar\u0131s\u0131', color: '#ef4444', title: '\u0130ade oran\u0131 artt\u0131', desc: 'Bu ay %' + refundRate.toFixed(1) + ' iade oran\u0131, ge\u00E7en ay %' + prevRefundRate.toFixed(1) + ' idi. \u00DCr\u00FCn kalite kontrol\u00FC \u00F6nerilir.' })
     }
 
     // Ad spend efficiency
     if (curAcos > 35) {
-      insights.push({ icon: '��', type: 'Reklam Optimizasyonu', color: '#f59e0b', title: 'ACoS yüksek', desc: `ACoS %${curAcos.toFixed(1)} seviyesinde. Düşük performanslı kampanyaları duraklatın veya bid’leri düşürün.` })
+      insights.push({ icon: '\uD83D\uDCCA', type: 'Reklam Optimizasyonu', color: '#f59e0b', title: 'TCoS y\u00FCksek', desc: 'TCoS %' + curAcos.toFixed(1) + ' seviyesinde. D\u00FC\u015F\u00FCk performansl\u0131 kampanyalar\u0131 duraklatarak bid d\u00FC\u015F\u00FCr\u00FCn.' })
     } else if (curAcos < 20 && displayAd > 0) {
-      insights.push({ icon: '��', type: 'Fırsat', color: '#10b981', title: 'Reklam bütçesi artırılabilir', desc: `ACoS %${curAcos.toFixed(1)} ile çok verimli. Bütçe artışı değerlendirilmeli.` })
+      insights.push({ icon: '\uD83D\uDCA1', type: 'F\u0131rsat', color: '#10b981', title: 'Reklam b\u00FCt\u00E7esi art\u0131r\u0131labilir', desc: 'TCoS %' + curAcos.toFixed(1) + ' ile \u00E7ok verimli. B\u00FCt\u00E7e art\u0131\u015F\u0131 de\u011Ferlendirilmeli.' })
     }
 
     // Margin trend
     if (curMargin < prevMargin - 3) {
-      insights.push({ icon: '��', type: 'Trend', color: '#ef4444', title: 'Marj düşüşte', desc: `Marj %${prevMargin.toFixed(1)}’den %${curMargin.toFixed(1)}’e geriledi. Maliyet analizi yapın.` })
+      insights.push({ icon: '\uD83D\uDCC9', type: 'Trend', color: '#ef4444', title: 'Marj d\u00FC\u015F\u00FC\u015Fte', desc: 'Marj %' + prevMargin.toFixed(1) + ' dan %' + curMargin.toFixed(1) + ' e geriledi. Maliyet analizi yap\u0131n.' })
     } else if (curMargin > prevMargin + 3) {
-      insights.push({ icon: '��', type: 'Trend', color: '#10b981', title: 'Marj yükseldi', desc: `Marj %${prevMargin.toFixed(1)}’den %${curMargin.toFixed(1)}’e çıktı. Başarılı optimizasyon!` })
+      insights.push({ icon: '\uD83D\uDCC8', type: 'Trend', color: '#10b981', title: 'Marj y\u00FCkseldi', desc: 'Marj %' + prevMargin.toFixed(1) + ' den %' + curMargin.toFixed(1) + ' e \u00E7\u0131kt\u0131. Ba\u015Far\u0131l\u0131 optimizasyon!' })
     }
 
     // FBA cost increase
     const fbaChange = pctChange(cur.fba, prev.fba)
     if (fbaChange > 15) {
-      insights.push({ icon: '��', type: 'FBA Maliyet', color: '#f59e0b', title: 'FBA maliyetleri arttı', desc: `FBA ücretleri %${fbaChange.toFixed(0)} arttı. Boyut/ağırlık optimizasyonu değerlendirilmeli.` })
+      insights.push({ icon: '\uD83D\uDCE6', type: 'FBA Maliyet', color: '#f59e0b', title: 'FBA maliyetleri artt\u0131', desc: 'FBA \u00FCcretleri %' + fbaChange.toFixed(0) + ' artt\u0131. Boyut/a\u011F\u0131rl\u0131k optimizasyonu de\u011Ferlendirilmeli.' })
+    }
+
+    // COGS warning
+    if (cur.cogs > prev.cogs * 1.15 && prev.cogs > 0) {
+      insights.push({ icon: '\uD83D\uDCB0', type: 'Maliyet Uyar\u0131s\u0131', color: '#f59e0b', title: '\u00DCr\u00FCn maliyetleri artt\u0131', desc: 'COGS %' + pctChange(cur.cogs, prev.cogs).toFixed(0) + ' artt\u0131. Tedarik\u00E7i fiyatlar\u0131n\u0131 veya alternatifleri g\u00F6zden ge\u00E7irin.' })
+    }
+
+    // Storage optimization
+    if (cur.storage > cur.sales * 0.03 && cur.storage > 0) {
+      insights.push({ icon: '\uD83C\uDFE0', type: 'Depolama', color: '#6366f1', title: 'Depolama maliyeti y\u00FCksek', desc: 'Depolama \u00FCcretleri sat\u0131\u015F\u0131n %' + (cur.storage / cur.sales * 100).toFixed(1) + ' i. D\u00FC\u015F\u00FCk stoklu \u00FCr\u00FCnleri de\u011Ferlendirin.' })
     }
 
     // Growing marketplace
@@ -382,7 +448,7 @@ export default function DashboardPage() {
     })
     if (growingMps.length > 0) {
       const mp = growingMps[0]
-      insights.push({ icon: '��', type: 'Büyüme Fırsatı', color: '#6366f1', title: `${mp.marketplace} büyüyor`, desc: `${mp.marketplace}’da satışlar güçlü büyüme gösteriyor. Stok ve reklam bütçesini artırmayı düşünün.` })
+      insights.push({ icon: '\uD83D\uDE80', type: 'B\u00FCy\u00FCme F\u0131rsat\u0131', color: '#6366f1', title: mp.marketplace + ' b\u00FCy\u00FCyor', desc: mp.marketplace + ' da sat\u0131\u015Flar g\u00FC\u00E7l\u00FC b\u00FCy\u00FCme g\u00F6steriyor. Stok ve reklam b\u00FCt\u00E7esini art\u0131rmay\u0131 d\u00FC\u015F\u00FCn\u00FCn.' })
     }
 
     if (insights.length === 0) {
@@ -400,7 +466,7 @@ export default function DashboardPage() {
     if (cur.refunds > prev.refunds * 1.2 && prev.refunds > 0) actions.push({ status: 'Acil', statusColor: '#ef4444', label: 'İade artışını incele' })
 
     const lowStockMps = mpGrouped.filter(mp => mp.sales > 500 && mp.margin < 5)
-    if (lowStockMps.length > 0) actions.push({ status: 'Planlı', statusColor: '#6366f1', label: `${lowStockMps[0].marketplace} marjını iyileştir` })
+    if (lowStockMps.length > 0) actions.push({ status: 'Planl\u0131', statusColor: '#6366f1', label: lowStockMps[0].marketplace + ' marj\u0131n\u0131 iyile\u015Ftir' })
 
     if (displayAd > 0 && curAcos < 25) actions.push({ status: 'Planlı', statusColor: '#6366f1', label: 'SB bütçesini artır' })
     if (curMargin > prevMargin) actions.push({ status: 'Tamamlandı', statusColor: '#10b981', label: 'Marj optimizasyonu başarılı' })
@@ -423,25 +489,25 @@ export default function DashboardPage() {
     { label: 'NET KÂR', value: fmtNum(curNetProfit), change: pctChange(curNetProfit, prevNetProfit), color: curNetProfit >= 0 ? '#10b981' : '#ef4444' },
     { label: 'MARJ', value: fmtPct(curMargin), change: curMargin - prevMargin, color: curMargin >= 0 ? '#10b981' : '#ef4444' },
     { label: 'REKLAM', value: fmtNum(displayAd), change: pctChange(displayAd, displayAdPrev), color: '#f59e0b' },
-    { label: 'ACOS', value: fmtPct(curAcos), change: curAcos - prevAcos, color: curAcos < 25 ? '#10b981' : curAcos < 40 ? '#f59e0b' : '#ef4444' },
+    { label: 'TCOS', value: fmtPct(curAcos), change: curAcos - prevAcos, color: curAcos < 25 ? '#10b981' : curAcos < 40 ? '#f59e0b' : '#ef4444' },
   ]
 
   // ========== Styles ==========
   const tooltipStyle = { contentStyle: { background: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)', borderRadius: 8, fontSize: 12, color: 'var(--text-primary)' }, labelStyle: { color: 'var(--text-secondary)' } }
   const selectStyle: React.CSSProperties = { background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '7px 14px', fontSize: 12.5, color: 'var(--text-primary)', cursor: 'pointer', outline: 'none' }
   const rangeBtn = (active: boolean): React.CSSProperties => ({ padding: '5px 12px', fontSize: 11, borderRadius: 6, border: '1px solid', borderColor: active ? '#6366f1' : 'var(--border-color)', background: active ? 'rgba(99,102,241,0.15)' : 'transparent', color: active ? '#6366f1' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: active ? 600 : 400, minHeight: 44 })
-  const thStyle = (align: string): React.CSSProperties => ({ textAlign: align as any, padding: '10px 12px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: 12 })
+  const thStyle = (align: string): React.CSSProperties => ({ textAlign: align as any, padding: '8px 8px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: 12, whiteSpace: 'nowrap' })
   const cardStyle: React.CSSProperties = { background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: 20 }
 
   const plCell = (val: number) => {
     const color = val >= 0 ? '#10b981' : '#ef4444'
-    return <td style={{ padding: '10px 12px', textAlign: 'right', color, fontWeight: 600 }}>{fmtNum(val)}</td>
+    return <td style={{ padding: '8px', textAlign: 'right', color, fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtNum(val)}</td>
   }
-  const plPrevCell = (val: number) => <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-secondary)' }}>{fmtNum(val)}</td>
+  const plPrevCell = (val: number) => <td style={{ padding: '8px', textAlign: 'right', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{fmtNum(val)}</td>
   const plChangeCell = (c: number, p: number, invertColor?: boolean) => {
     const change = pctChange(c, p)
     const arrow = changeArrow(invertColor ? -change : change)
-    return <td style={{ padding: '10px 12px', textAlign: 'right', color: arrow.color, fontSize: 12 }}>{arrow.symbol} {Math.abs(change).toFixed(1)}%</td>
+    return <td style={{ padding: '8px', textAlign: 'right', color: arrow.color, fontSize: 12, whiteSpace: 'nowrap' }}>{arrow.symbol} {Math.abs(change).toFixed(1)}%</td>
   }
 
   // ========== Mini card comparison helper ==========
@@ -596,10 +662,18 @@ export default function DashboardPage() {
           {miniCompare('İade', prev.refunds, prevPrev.refunds)}
         </div>
 
-        {/* En Çok Satan Top 5 */}
+        {/* En \u00C7ok Satan \u00DCr\u00FCnler */}
         <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.9s forwards' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>�� En Çok Satan</div>
-          {topSellersMp.map((mp, i) => (
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>{'\uD83C\uDFC6'} En \u00C7ok Satan \u00DCr\u00FCnler</div>
+          {topProducts.length > 0 ? topProducts.map((p, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: i < topProducts.length - 1 ? '1px solid var(--border-color)' : 'none', gap: 8 }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 11.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title.substring(0, 35)}</div>
+                <div style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>{p.units.toLocaleString('de-DE')} adet</div>
+              </div>
+              <span style={{ fontSize: 12, fontWeight: 600, flexShrink: 0 }}>{fmtNum(p.sales)}</span>
+            </div>
+          )) : topSellersMp.map((mp, i) => (
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: i < topSellersMp.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
               <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{MARKETPLACE_FLAG_MAP[mp.marketplace] || ''} {mp.marketplace.replace('Amazon.', '')}</span>
               <span style={{ fontSize: 12, fontWeight: 600 }}>{fmtNum(mp.sales)}</span>
@@ -607,10 +681,20 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* En Çok İade Alan */}
+        {/* En \u00C7ok \u0130ade \u00DCr\u00FCnler */}
         <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.95s forwards' }}>
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>⚠️ En Çok İade</div>
-          {topRefundsMp.map((mp, i) => {
+          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 10 }}>{'\u26A0\uFE0F'} En \u00C7ok \u0130ade \u00DCr\u00FCnler</div>
+          {topRefundProducts.length > 0 ? topRefundProducts.map((p, i) => (
+            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: i < topRefundProducts.length - 1 ? '1px solid var(--border-color)' : 'none', gap: 8 }}>
+              <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 11.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title.substring(0, 35)}</div>
+              </div>
+              <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                <span style={{ fontSize: 12, fontWeight: 600, color: '#ef4444' }}>{fmtNum(p.refunds)}</span>
+                <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 4 }}>%{p.refundRate.toFixed(1)}</span>
+              </div>
+            </div>
+          )) : topRefundsMp.map((mp, i) => {
             const refRate = mp.sales > 0 ? (mp.refunds / mp.sales * 100) : 0
             return (
               <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: i < topRefundsMp.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
@@ -630,7 +714,7 @@ export default function DashboardPage() {
         {/* AI Öneriler */}
         <div style={{ ...cardStyle, background: 'var(--ai-gradient)', border: '1px solid var(--border-color)', opacity: 0, animation: 'fadeInUp 0.6s ease-out 1s forwards' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <span style={{ fontSize: 18 }}>��</span>
+            <span style={{ fontSize: 18 }}>{'\uD83E\uDD16'}</span>
             <div>
               <div style={{ fontSize: 14, fontWeight: 600 }}>AI Öneriler</div>
               <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Yapay zeka tabanlı içgörüler</div>
@@ -682,26 +766,26 @@ export default function DashboardPage() {
             </thead>
             <tbody>
               <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <td style={{ padding: '10px 12px' }}>Sales</td>
+                <td style={{ padding: '8px' }}>Sales</td>
                 {plCell(cur.sales)}
                 {hasPrev && plPrevCell(prev.sales)}
                 {plChangeCell(cur.sales, prev.sales)}
               </tr>
               <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <td style={{ padding: '10px 12px' }}>Promo</td>
+                <td style={{ padding: '8px' }}>Promo</td>
                 {plCell(-cur.promo)}
                 {hasPrev && plPrevCell(-prev.promo)}
                 {plChangeCell(cur.promo, prev.promo, true)}
               </tr>
               <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <td style={{ padding: '10px 12px' }}>Refunds</td>
+                <td style={{ padding: '8px' }}>Refunds</td>
                 {plCell(-cur.refunds)}
                 {hasPrev && plPrevCell(-prev.refunds)}
                 {plChangeCell(cur.refunds, prev.refunds, true)}
               </tr>
               {/* Amazon Fees - expandable */}
               <tr style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer' }} onClick={() => setFeesExpanded(!feesExpanded)}>
-                <td style={{ padding: '10px 12px' }}>{feesExpanded ? '▼' : '▶'} Amazon Fees</td>
+                <td style={{ padding: '8px' }}>{feesExpanded ? '\u25BC' : '\u25B6'} Amazon Fees</td>
                 {plCell(-curTotalFees)}
                 {hasPrev && plPrevCell(-prevTotalFees)}
                 {plChangeCell(curTotalFees, prevTotalFees, true)}
@@ -725,20 +809,20 @@ export default function DashboardPage() {
                 </>
               )}
               <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <td style={{ padding: '10px 12px' }}>COGS</td>
+                <td style={{ padding: '8px' }}>COGS</td>
                 {plCell(-cur.cogs)}
                 {hasPrev && plPrevCell(-prev.cogs)}
                 {plChangeCell(cur.cogs, prev.cogs, true)}
               </tr>
               <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <td style={{ padding: '10px 12px' }}>Subscription</td>
+                <td style={{ padding: '8px' }}>Subscription</td>
                 {plCell(-cur.subscription)}
                 {hasPrev && plPrevCell(-prev.subscription)}
                 {plChangeCell(cur.subscription, prev.subscription, true)}
               </tr>
               {/* Advertising - expandable */}
               <tr style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer' }} onClick={() => setAdsExpanded(!adsExpanded)}>
-                <td style={{ padding: '10px 12px' }}>{adsExpanded ? '▼' : '▶'} Advertising (SP + SB)</td>
+                <td style={{ padding: '8px' }}>{adsExpanded ? '\u25BC' : '\u25B6'} Advertising (SP + SB)</td>
                 {plCell(-displayAd)}
                 {hasPrev && plPrevCell(-displayAdPrev)}
                 {plChangeCell(displayAd, displayAdPrev, true)}
