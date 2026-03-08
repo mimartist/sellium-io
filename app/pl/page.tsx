@@ -122,30 +122,43 @@ export default function PLPage() {
     fetchData()
   }, [])
 
-  // ========== 2. REKLAM VERİSİ — AYRI SORGU ==========
+  // ========== 2. REKLAM VERİSİ — AYRI SORGU (pagination ile) ==========
   useEffect(() => {
-    async function fetchAdSpend() {
-      // Seçili ay tarih aralığı
-      const { startDate: curStart, endDate: curEnd } = getMonthRange(selectedMonth)
+    // Supabase 1000 satır limiti var, tüm veriyi çekmek için paginate et
+    async function fetchAllSpend(table: string, startDate: string, endDate: string): Promise<number> {
+      const PAGE = 1000
+      let total = 0
+      let offset = 0
+      let totalRows = 0
+      while (true) {
+        const { data } = await supabase
+          .from(table)
+          .select('spend')
+          .gte('date', startDate)
+          .lte('date', endDate)
+          .range(offset, offset + PAGE - 1)
+        if (!data || data.length === 0) break
+        total += data.reduce((s: number, r: any) => s + (Number(r.spend) || 0), 0)
+        totalRows += data.length
+        if (data.length < PAGE) break
+        offset += PAGE
+      }
+      console.log(`  ${table} [${startDate}~${endDate}]: ${totalRows} rows, €${total.toFixed(2)}`)
+      return total
+    }
 
-      // Önceki ay tarih aralığı
+    async function fetchAdSpend() {
+      const { startDate: curStart, endDate: curEnd } = getMonthRange(selectedMonth)
       const prevMonthStr = getPrevMonth(selectedMonth)
       const { startDate: prevStart, endDate: prevEnd } = getMonthRange(prevMonthStr)
 
-      // 4 paralel sorgu
-      // Supabase varsayılan limiti 1000 satır — bunu aşmak için büyük limit koy
-      const LIMIT = 100000
-      const [spCurRes, sbCurRes, spPrvRes, sbPrvRes] = await Promise.all([
-        supabase.from('ad_product_performance').select('spend').gte('date', curStart).lte('date', curEnd).limit(LIMIT),
-        supabase.from('ad_brand_performance').select('spend').gte('date', curStart).lte('date', curEnd).limit(LIMIT),
-        supabase.from('ad_product_performance').select('spend').gte('date', prevStart).lte('date', prevEnd).limit(LIMIT),
-        supabase.from('ad_brand_performance').select('spend').gte('date', prevStart).lte('date', prevEnd).limit(LIMIT),
+      console.log('=== FETCHING AD SPEND (paginated) ===')
+      const [curSp, curSb, prvSp, prvSb] = await Promise.all([
+        fetchAllSpend('ad_product_performance', curStart, curEnd),
+        fetchAllSpend('ad_brand_performance', curStart, curEnd),
+        fetchAllSpend('ad_product_performance', prevStart, prevEnd),
+        fetchAllSpend('ad_brand_performance', prevStart, prevEnd),
       ])
-
-      const curSp = (spCurRes.data || []).reduce((s: number, r: any) => s + (Number(r.spend) || 0), 0)
-      const curSb = (sbCurRes.data || []).reduce((s: number, r: any) => s + (Number(r.spend) || 0), 0)
-      const prvSp = (spPrvRes.data || []).reduce((s: number, r: any) => s + (Number(r.spend) || 0), 0)
-      const prvSb = (sbPrvRes.data || []).reduce((s: number, r: any) => s + (Number(r.spend) || 0), 0)
 
       const result = {
         currentSp: curSp, currentSb: curSb, currentTotal: curSp + curSb,
@@ -157,7 +170,6 @@ export default function PLPage() {
         currentSp: curSp.toFixed(2), currentSb: curSb.toFixed(2), currentTotal: (curSp + curSb).toFixed(2),
         prevMonth: prevMonthStr,
         prevSp: prvSp.toFixed(2), prevSb: prvSb.toFixed(2), prevTotal: (prvSp + prvSb).toFixed(2),
-        rowCounts: { spCur: (spCurRes.data || []).length, sbCur: (sbCurRes.data || []).length, spPrv: (spPrvRes.data || []).length, sbPrv: (sbPrvRes.data || []).length },
       })
 
       setAdSpend(result)
