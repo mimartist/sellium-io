@@ -204,15 +204,26 @@ export default function PLPage() {
     return Object.values(monthMap).sort((a, b) => b.report_month.localeCompare(a.report_month))
   }, [filteredRaw])
 
-  // Ad spend: use real totals from ad_product/brand_performance (fetched via gte/lte)
-  // For specific marketplace, use sp_spend from monthly_pl as approximation
+  // Ad spend: ALWAYS use real totals from ad_product/brand_performance
+  // For specific marketplace, distribute by sales ratio
   const getAdTotal = (month: string) => {
+    const ad = adTotals[month] || { sp: 0, sb: 0 }
+    const totalAd = ad.sp + ad.sb
+
     if (selectedMarketplace === 'all') {
-      const ad = adTotals[month] || { sp: 0, sb: 0 }
-      return ad.sp + ad.sb
+      return totalAd
     }
-    const rows = filteredRaw.filter((r: any) => r.report_month === month)
-    return rows.reduce((sum: number, r: any) => sum + (Number(r.sp_spend) || 0), 0)
+
+    // Distribute by marketplace sales ratio
+    const mpSales = rawData
+      .filter((r: any) => r.marketplace === selectedMarketplace && r.report_month === month)
+      .reduce((sum: number, r: any) => sum + (Number(r.sales) || 0), 0)
+    const allSales = rawData
+      .filter((r: any) => r.report_month === month)
+      .reduce((sum: number, r: any) => sum + (Number(r.sales) || 0), 0)
+    const ratio = allSales > 0 ? mpSales / allSales : 0
+
+    return totalAd * ratio
   }
 
   // Current & previous month
@@ -222,6 +233,8 @@ export default function PLPage() {
 
   const curAdTotal = getAdTotal(selectedMonth)
   const prevAdTotal = prev ? getAdTotal(prev.report_month) : 0
+
+  console.log('Ad Spend:', { marketplace: selectedMarketplace, month: selectedMonth, sp: (adTotals[selectedMonth]?.sp || 0).toFixed(2), sb: (adTotals[selectedMonth]?.sb || 0).toFixed(2), distributed: curAdTotal.toFixed(2) })
 
   const curNetProfit = cur.sales - cur.promo - cur.refunds - cur.amazon_fees - cur.cogs - cur.subscription - curAdTotal
   const prevNetProfit = prev ? prev.sales - prev.promo - prev.refunds - prev.amazon_fees - prev.cogs - prev.subscription - prevAdTotal : 0
