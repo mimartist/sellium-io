@@ -86,7 +86,7 @@ interface ParentGroup {
   margin: number
 }
 
-type SortKey = 'units' | 'avgPrice' | 'cogs' | 'commission' | 'fba' | 'storage' | 'totalCost' | 'breakeven' | 'profitPerUnit' | 'margin' | 'maxDiscount'
+type SortKey = 'units' | 'avgPrice' | 'cogs' | 'commission' | 'fba' | 'storage' | 'adSpend' | 'totalCost' | 'breakeven' | 'profitPerUnit' | 'margin' | 'maxDiscount'
 
 function generateMonthOptions(): string[] {
   const months: string[] = []
@@ -392,6 +392,7 @@ export default function COGSPage() {
       g.margin = g.avgPrice > 0 ? (g.profitPerUnit / g.avgPrice) * 100 : 0
       g.maxDiscount = g.avgPrice > 0 ? Math.max(0, ((g.avgPrice - g.totalCost) / g.avgPrice) * 100) : 0
       g.hasEconData = anyEcon
+      g.rows.sort((a, b) => a.sku.localeCompare(b.sku))
     })
 
     // Step 2: Group color groups into parent ASINs
@@ -406,6 +407,11 @@ export default function COGSPage() {
       parentMap2[pAsin].colorGroups.push(cg)
       parentMap2[pAsin].totalUnits += cg.totalUnits
       if (!parentMap2[pAsin].title && pTitle) parentMap2[pAsin].title = pTitle
+    })
+
+    // Sort color groups by skuGroup within each parent
+    Object.values(parentMap2).forEach(pg => {
+      pg.colorGroups.sort((a, b) => a.skuGroup.localeCompare(b.skuGroup))
     })
 
     // Weighted averages for parent
@@ -458,10 +464,10 @@ export default function COGSPage() {
 
   // ========== SKU list for dropdown ==========
   const skuOptions = useMemo(() => {
-    return [...skuRows].sort((a, b) => b.units - a.units).map(r => ({
+    return [...skuRows].sort((a, b) => a.sku.localeCompare(b.sku)).map(r => ({
       sku: r.sku,
       label: r.parentTitle
-        ? `${r.parentTitle.substring(0, 40)} (${r.sku})`
+        ? `${r.sku} - ${r.parentTitle.substring(0, 40)}`
         : r.sku
     }))
   }, [skuRows])
@@ -638,7 +644,7 @@ export default function COGSPage() {
                 <th style={{ ...th, textAlign: 'left', minWidth: 200 }}>Ürün</th>
                 {([
                   ['units', 'Adet'], ['avgPrice', 'Ort.Fiyat'], ['cogs', 'COGS'], ['commission', 'Komisyon'],
-                  ['fba', 'FBA'], ['storage', 'Depolama'], ['totalCost', 'Top.Maliyet'], ['breakeven', 'Breakeven'],
+                  ['fba', 'FBA'], ['storage', 'Depolama'], ['adSpend', 'Reklam'], ['totalCost', 'Top.Maliyet'], ['breakeven', 'Breakeven'],
                   ['profitPerUnit', 'Kâr/birim'], ['margin', 'Marj%'], ['maxDiscount', 'Maks İnd.%'],
                 ] as const).map(([key, label]) => (
                   <th key={key} onClick={() => handleSort(key as SortKey)} style={{ ...th, textAlign: 'right', color: sortKey === key ? '#6366f1' : 'var(--text-secondary)' }}>
@@ -686,7 +692,7 @@ export default function COGSPage() {
                       </td>
                       <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>{pg.totalUnits.toLocaleString('de-DE')}</td>
                       <td style={{ ...td, textAlign: 'right' }}>{fmtEur(pg.avgPrice)}</td>
-                      <td colSpan={5} />
+                      <td colSpan={6} />
                       <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>{fmtEur(pg.totalCost)}</td>
                       <td style={{ ...td, textAlign: 'right', color: pg.profitPerUnit >= 0 ? '#22c55e' : '#ef4444', fontWeight: 600 }}>{fmtEur(pg.profitPerUnit)}</td>
                       <td style={{ ...td, textAlign: 'right' }}>{marginBadge(pg.margin)}</td>
@@ -726,6 +732,7 @@ export default function COGSPage() {
                             <td style={{ ...td, textAlign: 'right' }}>{fmtEur(cg.commission)}</td>
                             <td style={{ ...td, textAlign: 'right' }}>{fmtEur(cg.fba)}</td>
                             <td style={{ ...td, textAlign: 'right' }}>{fmtEur(cg.storage)}</td>
+                            <td style={{ ...td, textAlign: 'right' }}>{fmtEur(cg.rows.reduce((s, r) => s + r.adSpend * r.units, 0) / cg.totalUnits)}</td>
                             <td style={{ ...td, textAlign: 'right', fontWeight: 500 }}>{fmtEur(cg.totalCost)}</td>
                             <td style={{ ...td, textAlign: 'right', color: '#f59e0b' }}>{fmtEur(cg.breakeven)}</td>
                             <td style={{ ...td, textAlign: 'right', color: cg.profitPerUnit >= 0 ? '#22c55e' : '#ef4444', fontWeight: 500 }}>{fmtEur(cg.profitPerUnit)}</td>
@@ -749,6 +756,7 @@ export default function COGSPage() {
                               <td style={{ ...td, textAlign: 'right', fontSize: 10.5 }}>{fmtEur(row.commission)}</td>
                               <td style={{ ...td, textAlign: 'right', fontSize: 10.5 }}>{fmtEur(row.fba)}</td>
                               <td style={{ ...td, textAlign: 'right', fontSize: 10.5 }}>{fmtEur(row.storage)}</td>
+                              <td style={{ ...td, textAlign: 'right', fontSize: 10.5 }}>{fmtEur(row.adSpend)}</td>
                               <td style={{ ...td, textAlign: 'right', fontSize: 10.5 }}>{fmtEur(row.totalCost)}</td>
                               <td style={{ ...td, textAlign: 'right', fontSize: 10.5, color: '#f59e0b' }}>{fmtEur(row.breakeven)}</td>
                               <td style={{ ...td, textAlign: 'right', fontSize: 10.5, color: row.profitPerUnit >= 0 ? '#22c55e' : '#ef4444' }}>{fmtEur(row.profitPerUnit)}</td>
@@ -763,7 +771,7 @@ export default function COGSPage() {
                 )
               })}
               {parentGroups.length === 0 && (
-                <tr><td colSpan={12} style={{ padding: 30, textAlign: 'center', color: 'var(--text-secondary)' }}>Bu ay için veri bulunamadı</td></tr>
+                <tr><td colSpan={13} style={{ padding: 30, textAlign: 'center', color: 'var(--text-secondary)' }}>Bu ay için veri bulunamadı</td></tr>
               )}
             </tbody>
           </table>

@@ -339,10 +339,6 @@ export default function DashboardPage() {
     return [...mpGrouped].sort((a, b) => b.sales - a.sales).slice(0, 5)
   }, [mpGrouped])
 
-  const topRefundsMp = useMemo(() => {
-    return [...mpGrouped].sort((a, b) => b.refunds - a.refunds).slice(0, 5)
-  }, [mpGrouped])
-
   // ========== Top products ==========
   const [topProducts, setTopProducts] = useState<{ title: string; sku: string; units: number; sales: number }[]>([])
   const [topRefundProducts, setTopRefundProducts] = useState<{ title: string; sku: string; refunds: number; refundRate: number }[]>([])
@@ -372,8 +368,9 @@ export default function DashboardPage() {
           skuSales[sku].units += Number(o.quantity) || 0
           skuSales[sku].sales += Number(o.item_price) || 0
         }
-        if (o.order_status === 'Refunded' || o.order_status === 'Return') {
-          skuSales[sku].refunds += Number(o.item_price) || 0
+        const status = (o.order_status || '').toLowerCase()
+        if (status === 'refunded' || status === 'return' || status === 'returned' || status === 'cancelled' || status.includes('refund') || status.includes('return')) {
+          skuSales[sku].refunds += Math.abs(Number(o.item_price) || 0)
         }
       })
 
@@ -687,6 +684,7 @@ export default function DashboardPage() {
           {topRefundProducts.length > 0 ? topRefundProducts.map((p, i) => (
             <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: i < topRefundProducts.length - 1 ? '1px solid var(--border-color)' : 'none', gap: 8 }}>
               <div style={{ minWidth: 0, flex: 1 }}>
+                <div style={{ fontSize: 10, color: '#6366f1', fontWeight: 600 }}>{p.sku}</div>
                 <div style={{ fontSize: 11.5, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title.substring(0, 35)}</div>
               </div>
               <div style={{ textAlign: 'right', flexShrink: 0 }}>
@@ -694,18 +692,9 @@ export default function DashboardPage() {
                 <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 4 }}>%{p.refundRate.toFixed(1)}</span>
               </div>
             </div>
-          )) : topRefundsMp.map((mp, i) => {
-            const refRate = mp.sales > 0 ? (mp.refunds / mp.sales * 100) : 0
-            return (
-              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '5px 0', borderBottom: i < topRefundsMp.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
-                <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{MARKETPLACE_FLAG_MAP[mp.marketplace] || ''} {mp.marketplace.replace('Amazon.', '')}</span>
-                <div style={{ textAlign: 'right' }}>
-                  <span style={{ fontSize: 12, fontWeight: 600, color: '#ef4444' }}>{fmtNum(mp.refunds)}</span>
-                  <span style={{ fontSize: 10, color: 'var(--text-muted)', marginLeft: 4 }}>%{refRate.toFixed(1)}</span>
-                </div>
-              </div>
-            )
-          })}
+          )) : (
+            <div style={{ padding: 10, textAlign: 'center', color: 'var(--text-muted)', fontSize: 12 }}>İade verisi bulunamadı</div>
+          )}
         </div>
       </div>
 
