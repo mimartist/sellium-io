@@ -17,17 +17,17 @@ const supabase = createClient(
 )
 
 const MARKETPLACE_OPTIONS = [
-  { value: 'all', label: 'All Marketplaces', flag: '\u{1F30D}' },
-  { value: 'Amazon.de', label: 'Amazon.de', flag: '\u{1F1E9}\u{1F1EA}' },
-  { value: 'Amazon.fr', label: 'Amazon.fr', flag: '\u{1F1EB}\u{1F1F7}' },
-  { value: 'Amazon.es', label: 'Amazon.es', flag: '\u{1F1EA}\u{1F1F8}' },
-  { value: 'Amazon.it', label: 'Amazon.it', flag: '\u{1F1EE}\u{1F1F9}' },
-  { value: 'Amazon.co.uk', label: 'Amazon.co.uk', flag: '\u{1F1EC}\u{1F1E7}' },
-  { value: 'Amazon.nl', label: 'Amazon.nl', flag: '\u{1F1F3}\u{1F1F1}' },
-  { value: 'Amazon.pl', label: 'Amazon.pl', flag: '\u{1F1F5}\u{1F1F1}' },
-  { value: 'Amazon.ie', label: 'Amazon.ie', flag: '\u{1F1EE}\u{1F1EA}' },
-  { value: 'Amazon.com.be', label: 'Amazon.com.be', flag: '\u{1F1E7}\u{1F1EA}' },
-  { value: 'Amazon.se', label: 'Amazon.se', flag: '\u{1F1F8}\u{1F1EA}' },
+  { value: 'all', label: 'All Marketplaces', flag: '🌍' },
+  { value: 'Amazon.de', label: 'Amazon.de', flag: '🇩🇪' },
+  { value: 'Amazon.fr', label: 'Amazon.fr', flag: '🇫🇷' },
+  { value: 'Amazon.es', label: 'Amazon.es', flag: '🇪🇸' },
+  { value: 'Amazon.it', label: 'Amazon.it', flag: '🇮🇹' },
+  { value: 'Amazon.co.uk', label: 'Amazon.co.uk', flag: '🇬🇧' },
+  { value: 'Amazon.nl', label: 'Amazon.nl', flag: '🇳🇱' },
+  { value: 'Amazon.pl', label: 'Amazon.pl', flag: '🇵🇱' },
+  { value: 'Amazon.ie', label: 'Amazon.ie', flag: '🇮🇪' },
+  { value: 'Amazon.com.be', label: 'Amazon.com.be', flag: '🇧🇪' },
+  { value: 'Amazon.se', label: 'Amazon.se', flag: '🇸🇪' },
 ]
 
 const MARKETPLACE_FLAG_MAP: Record<string, string> = {}
@@ -51,6 +51,8 @@ interface DailyRow {
   net_profit: number
 }
 
+type DailyRange = '7d' | '14d' | 'month' | 'custom'
+
 function generateMonthOptions(): string[] {
   const months: string[] = []
   const start = new Date(2025, 0)
@@ -63,7 +65,10 @@ function generateMonthOptions(): string[] {
   return months
 }
 
-const fmt = (v: number) => `\u20AC${v.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`
+const fmtNum = (v: number) => {
+  if (v < 0) return `-€${Math.abs(v).toLocaleString('de-DE', { maximumFractionDigits: 0 })}`
+  return `€${v.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`
+}
 const fmtPct = (v: number) => `%${v.toFixed(1)}`
 const pctChange = (cur: number, prev: number) => prev === 0 ? 0 : ((cur - prev) / Math.abs(prev)) * 100
 
@@ -75,11 +80,15 @@ export default function PLPage() {
   const [selectedMonth, setSelectedMonth] = useState(monthOptions[0])
   const [selectedMarketplace, setSelectedMarketplace] = useState('all')
   const [rawData, setRawData] = useState<any[]>([])
+  const [spRawData, setSpRawData] = useState<any[]>([])
+  const [sbRawData, setSbRawData] = useState<any[]>([])
   const [dailyData, setDailyData] = useState<DailyRow[]>([])
-  const [adData, setAdData] = useState<Record<string, { sp: number; sb: number }>>({})
   const [loading, setLoading] = useState(true)
   const [mpSortKey, setMpSortKey] = useState<SortKey>('sales')
   const [mpSortDir, setMpSortDir] = useState<SortDir>('desc')
+  const [dailyRange, setDailyRange] = useState<DailyRange>('month')
+  const [customStart, setCustomStart] = useState('')
+  const [customEnd, setCustomEnd] = useState('')
 
   // Fetch all data
   useEffect(() => {
@@ -92,25 +101,30 @@ export default function PLPage() {
       ])
 
       setRawData(mpRes.data || [])
-
-      const adMap: Record<string, { sp: number; sb: number }> = {}
-      spRes.data?.forEach((r: any) => {
-        const m = r.date?.substring(0, 7)
-        if (!m) return
-        if (!adMap[m]) adMap[m] = { sp: 0, sb: 0 }
-        adMap[m].sp += Number(r.spend) || 0
-      })
-      sbRes.data?.forEach((r: any) => {
-        const m = r.date?.substring(0, 7)
-        if (!m) return
-        if (!adMap[m]) adMap[m] = { sp: 0, sb: 0 }
-        adMap[m].sb += Number(r.spend) || 0
-      })
-      setAdData(adMap)
+      setSpRawData(spRes.data || [])
+      setSbRawData(sbRes.data || [])
       setLoading(false)
     }
     fetchData()
   }, [])
+
+  // Compute ad totals per month from raw SP/SB data
+  const adData = useMemo(() => {
+    const adMap: Record<string, { sp: number; sb: number }> = {}
+    spRawData.forEach((r: any) => {
+      const m = r.date?.substring(0, 7)
+      if (!m) return
+      if (!adMap[m]) adMap[m] = { sp: 0, sb: 0 }
+      adMap[m].sp += Number(r.spend) || 0
+    })
+    sbRawData.forEach((r: any) => {
+      const m = r.date?.substring(0, 7)
+      if (!m) return
+      if (!adMap[m]) adMap[m] = { sp: 0, sb: 0 }
+      adMap[m].sb += Number(r.spend) || 0
+    })
+    return adMap
+  }, [spRawData, sbRawData])
 
   // Fetch daily data when month or marketplace changes
   useEffect(() => {
@@ -138,6 +152,10 @@ export default function PLPage() {
       setDailyData(Object.values(dayMap).sort((a, b) => a.purchase_day.localeCompare(b.purchase_day)))
     }
     fetchDaily()
+    // Reset daily range when month changes
+    setDailyRange('month')
+    setCustomStart('')
+    setCustomEnd('')
   }, [selectedMonth, selectedMarketplace])
 
   // Filter raw data by marketplace
@@ -163,14 +181,13 @@ export default function PLPage() {
     return Object.values(monthMap).sort((a, b) => b.report_month.localeCompare(a.report_month))
   }, [filteredRaw])
 
-  // Ad spend: when marketplace selected, use sp_spend from monthly_pl (already distributed)
-  // When "all", use the separate ad tables for total
+  // Ad spend: always use real totals from SP/SB tables (not monthly_pl sp_spend)
+  // For specific marketplace, use sp_spend from monthly_pl as approximation
   const getAdTotal = (month: string) => {
     if (selectedMarketplace === 'all') {
       const ad = adData[month] || { sp: 0, sb: 0 }
       return ad.sp + ad.sb
     }
-    // For specific marketplace, sum sp_spend from filtered raw data for that month
     const rows = filteredRaw.filter((r: any) => r.report_month === month)
     return rows.reduce((sum: number, r: any) => sum + (Number(r.sp_spend) || 0), 0)
   }
@@ -201,8 +218,27 @@ export default function PLPage() {
     }
   })
 
-  // Daily chart data
-  const dailyChartData = dailyData.map(d => ({
+  // Daily chart data with range filter
+  const filteredDailyData = useMemo(() => {
+    if (dailyData.length === 0) return []
+    if (dailyRange === 'month') return dailyData
+
+    if (dailyRange === 'custom' && customStart && customEnd) {
+      return dailyData.filter(d => d.purchase_day >= customStart && d.purchase_day <= customEnd)
+    }
+
+    // Son N gün
+    const lastDay = dailyData[dailyData.length - 1]?.purchase_day
+    if (!lastDay) return dailyData
+    const lastDate = new Date(lastDay)
+    const days = dailyRange === '7d' ? 7 : 14
+    const cutoff = new Date(lastDate)
+    cutoff.setDate(cutoff.getDate() - days + 1)
+    const cutoffStr = cutoff.toISOString().substring(0, 10)
+    return dailyData.filter(d => d.purchase_day >= cutoffStr)
+  }, [dailyData, dailyRange, customStart, customEnd])
+
+  const dailyChartData = filteredDailyData.map(d => ({
     day: d.purchase_day.substring(8),
     sales: Math.round(d.sales),
     netProfit: Math.round(d.net_profit),
@@ -254,8 +290,8 @@ export default function PLPage() {
   }
 
   const sortIndicator = (key: SortKey) => {
-    if (mpSortKey !== key) return ' \u2195'
-    return mpSortDir === 'asc' ? ' \u2191' : ' \u2193'
+    if (mpSortKey !== key) return ' ⇅'
+    return mpSortDir === 'asc' ? ' ↑' : ' ↓'
   }
 
   // P&L table rows
@@ -272,17 +308,17 @@ export default function PLPage() {
   const marginRow = { label: 'Margin %', cur: curMargin, prev: prevMargin }
 
   const changeArrow = (change: number) => {
-    if (change > 0) return { symbol: '\u2191', color: '#10b981' }
-    if (change < 0) return { symbol: '\u2193', color: '#f43f5e' }
-    return { symbol: '\u2192', color: 'var(--text-secondary)' }
+    if (change > 0) return { symbol: '↑', color: '#10b981' }
+    if (change < 0) return { symbol: '↓', color: '#f43f5e' }
+    return { symbol: '→', color: 'var(--text-secondary)' }
   }
 
   const kpis = [
-    { label: 'SATI\u015E', value: fmt(cur.sales), change: pctChange(cur.sales, prev?.sales || 0), color: '#6366f1' },
-    { label: 'B\u0130R\u0130M', value: cur.units.toLocaleString('de-DE'), change: pctChange(cur.units, prev?.units || 0), color: '#a78bfa' },
-    { label: 'NET K\u00C2R', value: fmt(curNetProfit), change: pctChange(curNetProfit, prevNetProfit), color: curNetProfit >= 0 ? '#10b981' : '#f43f5e' },
+    { label: 'SATIŞ', value: fmtNum(cur.sales), change: pctChange(cur.sales, prev?.sales || 0), color: '#6366f1' },
+    { label: 'BİRİM', value: cur.units.toLocaleString('de-DE'), change: pctChange(cur.units, prev?.units || 0), color: '#a78bfa' },
+    { label: 'NET KÂR', value: fmtNum(curNetProfit), change: pctChange(curNetProfit, prevNetProfit), color: curNetProfit >= 0 ? '#10b981' : '#f43f5e' },
     { label: 'MARJ', value: fmtPct(curMargin), change: curMargin - prevMargin, color: curMargin >= 0 ? '#10b981' : '#f43f5e' },
-    { label: 'REKLAM', value: fmt(curAdTotal), change: pctChange(curAdTotal, prevAdTotal), color: '#f59e0b' },
+    { label: 'REKLAM', value: fmtNum(curAdTotal), change: pctChange(curAdTotal, prevAdTotal), color: '#f59e0b' },
     { label: 'ACOS', value: fmtPct(curAcos), change: curAcos - prevAcos, color: curAcos < 25 ? '#10b981' : curAcos < 40 ? '#f59e0b' : '#f43f5e' },
   ]
 
@@ -291,7 +327,7 @@ export default function PLPage() {
     labelStyle: { color: '#9ca3af' },
   }
 
-  const selectStyle = {
+  const selectStyle: React.CSSProperties = {
     background: 'var(--bg-card)',
     border: '1px solid var(--border-color)',
     borderRadius: 8,
@@ -302,6 +338,18 @@ export default function PLPage() {
     outline: 'none',
   }
 
+  const rangeButtonStyle = (active: boolean): React.CSSProperties => ({
+    padding: '5px 12px',
+    fontSize: 11,
+    borderRadius: 6,
+    border: '1px solid',
+    borderColor: active ? '#6366f1' : 'var(--border-color)',
+    background: active ? 'rgba(99,102,241,0.15)' : 'transparent',
+    color: active ? '#6366f1' : 'var(--text-secondary)',
+    cursor: 'pointer',
+    fontWeight: active ? 600 : 400,
+  })
+
   const sidebarContent = (
     <>
       <div style={{ padding: '0 18px 20px', borderBottom: '1px solid var(--border-color)', marginBottom: 16 }}>
@@ -309,14 +357,14 @@ export default function PLPage() {
         <div style={{ fontSize: 10, color: 'var(--text-secondary)', letterSpacing: '1.5px', textTransform: 'uppercase', marginTop: 2 }}>AI Commerce OS</div>
       </div>
       {[
-        { icon: '\u2B21', label: 'Dashboard', href: '/' },
-        { icon: '\u25C8', label: 'Karl\u0131l\u0131k', href: '/pl', active: true },
-        { icon: '\u25EB', label: 'Stok', href: '#' },
-        { icon: '\u25EC', label: 'Reklam', href: '/ads' },
-        { icon: '\u25C9', label: 'Rakip Analizi', href: '#' },
-        { icon: '\u25CC', label: '\u0130\u00E7erik', href: '#' },
-        { icon: '\u25CE', label: 'AI \u00D6neriler', href: '#' },
-        { icon: '\u25F1', label: 'Raporlar', href: '#' },
+        { icon: '⬡', label: 'Dashboard', href: '/' },
+        { icon: '◈', label: 'Karlılık', href: '/pl', active: true },
+        { icon: '◫', label: 'Stok', href: '#' },
+        { icon: '◬', label: 'Reklam', href: '/ads' },
+        { icon: '◉', label: 'Rakip Analizi', href: '#' },
+        { icon: '◌', label: 'İçerik', href: '#' },
+        { icon: '◎', label: 'AI Öneriler', href: '#' },
+        { icon: '◱', label: 'Raporlar', href: '#' },
       ].map((item, i) => (
         <div key={i}>
           <Link href={item.href} style={{ textDecoration: 'none' }}>
@@ -343,7 +391,7 @@ export default function PLPage() {
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
           <div style={{ textAlign: 'center' }}>
             <div style={{ width: 36, height: 36, border: '3px solid var(--border-color)', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Veriler y\u00FCkleniyor...</div>
+            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Veriler yükleniyor...</div>
           </div>
         </div>
       </DashboardShell>
@@ -359,8 +407,8 @@ export default function PLPage() {
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 700 }}>P&L Dashboard</h1>
           <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 3 }}>
-            K\u00E2r & Zarar Analizi \u00B7 {selectedMonth}
-            {selectedMarketplace !== 'all' && ` \u00B7 ${selectedMpOption.flag} ${selectedMpOption.label}`}
+            Kâr & Zarar Analizi · {selectedMonth}
+            {selectedMarketplace !== 'all' && ` · ${selectedMpOption.flag} ${selectedMpOption.label}`}
           </p>
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
@@ -395,7 +443,7 @@ export default function PLPage() {
               <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>{kpi.label}</div>
               <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-1px', marginBottom: 4 }}>{kpi.value}</div>
               <div style={{ fontSize: 11, color: arrow.color }}>
-                {arrow.symbol} {kpi.change >= 0 ? '+' : ''}{kpi.change.toFixed(1)}% \u00F6nceki ay
+                {arrow.symbol} {kpi.change >= 0 ? '+' : ''}{kpi.change.toFixed(1)}% önceki ay
               </div>
             </div>
           )
@@ -406,52 +454,80 @@ export default function PLPage() {
       <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
         {/* Monthly Trend */}
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.6s forwards' }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Ayl\u0131k Trend</div>
-          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16 }}>Sat\u0131\u015F vs Net K\u00E2r</div>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Aylık Trend</div>
+          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16 }}>Satış vs Net Kâr</div>
           <ResponsiveContainer width="100%" height={220}>
             <ComposedChart data={monthlyChartData}>
               <CartesianGrid strokeDasharray="3 3" stroke="#222636" />
               <XAxis dataKey="month" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `\u20AC${(v / 1000).toFixed(0)}k`} />
-              <Tooltip {...tooltipStyle} formatter={(value: any, name: any) => [fmt(Number(value)), name === 'sales' ? 'Sat\u0131\u015F' : 'Net K\u00E2r']} />
+              <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `€${(v / 1000).toFixed(0)}k`} />
+              <Tooltip {...tooltipStyle} formatter={(value: any, name: any) => [fmtNum(Number(value)), name === 'sales' ? 'Satış' : 'Net Kâr']} />
               <Bar dataKey="sales" fill="#6366f1" radius={[4, 4, 0, 0]} name="sales" />
               <Line type="monotone" dataKey="netProfit" stroke="#10b981" strokeWidth={2.5} dot={{ fill: '#10b981', r: 4 }} name="netProfit" />
             </ComposedChart>
           </ResponsiveContainer>
           <div style={{ display: 'flex', gap: 20, marginTop: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
-              <div style={{ width: 12, height: 10, background: '#6366f1', borderRadius: 2 }} />Sat\u0131\u015F
+              <div style={{ width: 12, height: 10, background: '#6366f1', borderRadius: 2 }} />Satış
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
-              <div style={{ width: 12, height: 3, background: '#10b981', borderRadius: 2 }} />Net K\u00E2r
+              <div style={{ width: 12, height: 3, background: '#10b981', borderRadius: 2 }} />Net Kâr
             </div>
           </div>
         </div>
 
         {/* Daily Trend */}
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.7s forwards' }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>G\u00FCnl\u00FCk Sat\u0131\u015F Trendi</div>
-          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16 }}>{selectedMonth}</div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+            <div>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Günlük Satış Trendi</div>
+              <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{selectedMonth}</div>
+            </div>
+          </div>
+          {/* Daily range buttons */}
+          <div style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
+            <button onClick={() => setDailyRange('7d')} style={rangeButtonStyle(dailyRange === '7d')}>Son 7 gün</button>
+            <button onClick={() => setDailyRange('14d')} style={rangeButtonStyle(dailyRange === '14d')}>Son 14 gün</button>
+            <button onClick={() => setDailyRange('month')} style={rangeButtonStyle(dailyRange === 'month')}>Bu ay</button>
+            <button onClick={() => setDailyRange('custom')} style={rangeButtonStyle(dailyRange === 'custom')}>Özel aralık</button>
+            {dailyRange === 'custom' && (
+              <>
+                <input
+                  type="date"
+                  value={customStart}
+                  onChange={e => setCustomStart(e.target.value)}
+                  style={{ ...selectStyle, padding: '4px 8px', fontSize: 11 }}
+                />
+                <span style={{ color: 'var(--text-secondary)', fontSize: 11 }}>–</span>
+                <input
+                  type="date"
+                  value={customEnd}
+                  onChange={e => setCustomEnd(e.target.value)}
+                  style={{ ...selectStyle, padding: '4px 8px', fontSize: 11 }}
+                />
+              </>
+            )}
+          </div>
           {dailyChartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={220}>
+            <ResponsiveContainer width="100%" height={190}>
               <LineChart data={dailyChartData}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#222636" />
                 <XAxis dataKey="day" tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `\u20AC${(v / 1000).toFixed(0)}k`} />
-                <Tooltip {...tooltipStyle} formatter={(value: any, name: any) => [fmt(Number(value)), name === 'sales' ? 'Sat\u0131\u015F' : 'Net K\u00E2r']} />
+                <YAxis tick={{ fill: '#6b7280', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `€${(v / 1000).toFixed(0)}k`} />
+                <Tooltip {...tooltipStyle} formatter={(value: any, name: any) => [fmtNum(Number(value)), name === 'sales' ? 'Satış' : 'Net Kâr']} />
                 <Line type="monotone" dataKey="sales" stroke="#6366f1" strokeWidth={2} dot={false} />
                 <Line type="monotone" dataKey="netProfit" stroke="#10b981" strokeWidth={2} dot={false} />
               </LineChart>
             </ResponsiveContainer>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 220, color: 'var(--text-secondary)', fontSize: 13 }}>Bu ay i\u00E7in g\u00FCnl\u00FCk veri bulunamad\u0131</div>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 190, color: 'var(--text-secondary)', fontSize: 13 }}>Bu ay için günlük veri bulunamadı</div>
           )}
           <div style={{ display: 'flex', gap: 20, marginTop: 8 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
-              <div style={{ width: 12, height: 3, background: '#6366f1', borderRadius: 2 }} />Sat\u0131\u015F
+              <div style={{ width: 12, height: 3, background: '#6366f1', borderRadius: 2 }} />Satış
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
-              <div style={{ width: 12, height: 3, background: '#10b981', borderRadius: 2 }} />Net K\u00E2r
+              <div style={{ width: 12, height: 3, background: '#10b981', borderRadius: 2 }} />Net Kâr
             </div>
           </div>
         </div>
@@ -467,7 +543,7 @@ export default function PLPage() {
                 <th style={{ textAlign: 'left', padding: '10px 12px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: 12 }}>Kalem</th>
                 <th style={{ textAlign: 'right', padding: '10px 12px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: 12 }}>{selectedMonth}</th>
                 {prev && <th style={{ textAlign: 'right', padding: '10px 12px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: 12 }}>{prev.report_month}</th>}
-                <th style={{ textAlign: 'right', padding: '10px 12px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: 12 }}>De\u011Fi\u015Fim</th>
+                <th style={{ textAlign: 'right', padding: '10px 12px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: 12 }}>Değişim</th>
               </tr>
             </thead>
             <tbody>
@@ -477,8 +553,8 @@ export default function PLPage() {
                 return (
                   <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
                     <td style={{ padding: '10px 12px', color: 'var(--text-primary)' }}>{row.label}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', color: row.cur >= 0 ? '#10b981' : '#f43f5e', fontWeight: 600 }}>{fmt(Math.abs(row.cur))}{row.cur < 0 ? ' \u2212' : ''}</td>
-                    {prev && <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-secondary)' }}>{fmt(Math.abs(row.prev))}{row.prev < 0 ? ' \u2212' : ''}</td>}
+                    <td style={{ padding: '10px 12px', textAlign: 'right', color: row.cur >= 0 ? '#10b981' : '#f43f5e', fontWeight: 600 }}>{fmtNum(row.cur)}</td>
+                    {prev && <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-secondary)' }}>{fmtNum(row.prev)}</td>}
                     <td style={{ padding: '10px 12px', textAlign: 'right', color: arrow.color, fontSize: 12 }}>
                       {arrow.symbol} {Math.abs(change).toFixed(1)}%
                     </td>
@@ -488,8 +564,8 @@ export default function PLPage() {
               {/* Net Profit Row */}
               <tr style={{ borderTop: '2px solid var(--border-color)', background: 'rgba(99,102,241,0.04)' }}>
                 <td style={{ padding: '12px 12px', fontWeight: 700 }}>{netRow.label}</td>
-                <td style={{ padding: '12px 12px', textAlign: 'right', fontWeight: 700, fontSize: 15, color: netRow.cur >= 0 ? '#10b981' : '#f43f5e' }}>{fmt(netRow.cur)}</td>
-                {prev && <td style={{ padding: '12px 12px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>{fmt(netRow.prev)}</td>}
+                <td style={{ padding: '12px 12px', textAlign: 'right', fontWeight: 700, fontSize: 15, color: netRow.cur >= 0 ? '#10b981' : '#f43f5e' }}>{fmtNum(netRow.cur)}</td>
+                {prev && <td style={{ padding: '12px 12px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>{fmtNum(netRow.prev)}</td>}
                 <td style={{ padding: '12px 12px', textAlign: 'right', color: changeArrow(pctChange(netRow.cur, netRow.prev)).color, fontSize: 12, fontWeight: 600 }}>
                   {changeArrow(pctChange(netRow.cur, netRow.prev)).symbol} {Math.abs(pctChange(netRow.cur, netRow.prev)).toFixed(1)}%
                 </td>
@@ -511,19 +587,19 @@ export default function PLPage() {
       {/* MARKETPLACE BREAKDOWN - only when "All" selected */}
       {selectedMarketplace === 'all' && (
         <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.9s forwards' }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Marketplace K\u0131r\u0131l\u0131m\u0131</div>
+          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Marketplace Kırılımı</div>
           <div style={{ overflowX: 'auto' }}>
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
                   {([
                     { key: 'marketplace' as SortKey, label: 'Marketplace', align: 'left' },
-                    { key: 'sales' as SortKey, label: 'Sat\u0131\u015F', align: 'right' },
+                    { key: 'sales' as SortKey, label: 'Satış', align: 'right' },
                     { key: 'units' as SortKey, label: 'Birim', align: 'right' },
                     { key: 'fees' as SortKey, label: 'Amazon Fees', align: 'right' },
                     { key: 'adSpend' as SortKey, label: 'Reklam', align: 'right' },
                     { key: 'cogs' as SortKey, label: 'COGS', align: 'right' },
-                    { key: 'netProfit' as SortKey, label: 'Net K\u00E2r', align: 'right' },
+                    { key: 'netProfit' as SortKey, label: 'Net Kâr', align: 'right' },
                     { key: 'margin' as SortKey, label: 'Marj', align: 'right' },
                   ]).map(h => (
                     <th
@@ -553,20 +629,20 @@ export default function PLPage() {
                     onClick={() => setSelectedMarketplace(mp.marketplace)}
                   >
                     <td style={{ padding: '10px 12px', fontWeight: 500 }}>
-                      {MARKETPLACE_FLAG_MAP[mp.marketplace] || '\u{1F30D}'} {mp.marketplace}
+                      {MARKETPLACE_FLAG_MAP[mp.marketplace] || '🌍'} {mp.marketplace}
                     </td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right' }}>{fmt(mp.sales)}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right' }}>{fmtNum(mp.sales)}</td>
                     <td style={{ padding: '10px 12px', textAlign: 'right' }}>{mp.units.toLocaleString('de-DE')}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#f43f5e' }}>{fmt(mp.fees)}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#f59e0b' }}>{fmt(mp.adSpend)}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#f43f5e' }}>{fmt(mp.cogs)}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: mp.netProfit >= 0 ? '#10b981' : '#f43f5e' }}>{fmt(mp.netProfit)}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#f43f5e' }}>{fmtNum(mp.fees)}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#f59e0b' }}>{fmtNum(mp.adSpend)}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#f43f5e' }}>{fmtNum(mp.cogs)}</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: mp.netProfit >= 0 ? '#10b981' : '#f43f5e' }}>{fmtNum(mp.netProfit)}</td>
                     <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: mp.margin >= 0 ? '#10b981' : '#f43f5e' }}>{fmtPct(mp.margin)}</td>
                   </tr>
                 ))}
                 {mpRows.length === 0 && (
                   <tr>
-                    <td colSpan={8} style={{ padding: 20, textAlign: 'center', color: 'var(--text-secondary)' }}>Bu ay i\u00E7in marketplace verisi bulunamad\u0131</td>
+                    <td colSpan={8} style={{ padding: 20, textAlign: 'center', color: 'var(--text-secondary)' }}>Bu ay için marketplace verisi bulunamadı</td>
                   </tr>
                 )}
               </tbody>
