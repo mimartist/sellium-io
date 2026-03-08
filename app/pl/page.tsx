@@ -122,43 +122,25 @@ export default function PLPage() {
     fetchData()
   }, [])
 
-  // ========== 2. REKLAM VERİSİ — AYRI SORGU (pagination ile) ==========
+  // ========== 2. REKLAM VERİSİ — RPC ile server-side SUM ==========
   useEffect(() => {
-    // Supabase 1000 satır limiti var, tüm veriyi çekmek için paginate et
-    async function fetchAllSpend(table: string, startDate: string, endDate: string): Promise<number> {
-      const PAGE = 1000
-      let total = 0
-      let offset = 0
-      let totalRows = 0
-      while (true) {
-        const { data } = await supabase
-          .from(table)
-          .select('spend')
-          .gte('date', startDate)
-          .lte('date', endDate)
-          .range(offset, offset + PAGE - 1)
-        if (!data || data.length === 0) break
-        total += data.reduce((s: number, r: any) => s + (Number(r.spend) || 0), 0)
-        totalRows += data.length
-        if (data.length < PAGE) break
-        offset += PAGE
-      }
-      console.log(`  ${table} [${startDate}~${endDate}]: ${totalRows} rows, €${total.toFixed(2)}`)
-      return total
-    }
-
     async function fetchAdSpend() {
       const { startDate: curStart, endDate: curEnd } = getMonthRange(selectedMonth)
       const prevMonthStr = getPrevMonth(selectedMonth)
       const { startDate: prevStart, endDate: prevEnd } = getMonthRange(prevMonthStr)
 
-      console.log('=== FETCHING AD SPEND (paginated) ===')
-      const [curSp, curSb, prvSp, prvSb] = await Promise.all([
-        fetchAllSpend('ad_product_performance', curStart, curEnd),
-        fetchAllSpend('ad_brand_performance', curStart, curEnd),
-        fetchAllSpend('ad_product_performance', prevStart, prevEnd),
-        fetchAllSpend('ad_brand_performance', prevStart, prevEnd),
+      const [curRes, prevRes] = await Promise.all([
+        supabase.rpc('get_ad_spend', { start_date: curStart, end_date: curEnd }),
+        supabase.rpc('get_ad_spend', { start_date: prevStart, end_date: prevEnd }),
       ])
+
+      const curRow = curRes.data?.[0] || { sp_total: 0, sb_total: 0 }
+      const prevRow = prevRes.data?.[0] || { sp_total: 0, sb_total: 0 }
+
+      const curSp = Number(curRow.sp_total) || 0
+      const curSb = Number(curRow.sb_total) || 0
+      const prvSp = Number(prevRow.sp_total) || 0
+      const prvSb = Number(prevRow.sb_total) || 0
 
       const result = {
         currentSp: curSp, currentSb: curSb, currentTotal: curSp + curSb,
