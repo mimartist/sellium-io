@@ -50,7 +50,7 @@
     display: flex !important;
   }
 
-  /* KPI grids → 2 columns */
+  /* KPI grids → 3 columns on tablet */
   .kpi-grid {
     grid-template-columns: repeat(2, 1fr) !important;
   }
@@ -63,6 +63,16 @@
     grid-template-columns: 1fr !important;
   }
   .chart-split-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Mini card grid → 2 columns */
+  .mini-card-grid {
+    grid-template-columns: repeat(2, 1fr) !important;
+  }
+
+  /* AI grid → stack */
+  .ai-grid {
     grid-template-columns: 1fr !important;
   }
 
@@ -82,6 +92,16 @@
     flex-direction: column !important;
     align-items: flex-start !important;
     gap: 12px !important;
+  }
+
+  /* Header controls → wrap */
+  .header-controls {
+    flex-wrap: wrap !important;
+    width: 100% !important;
+  }
+  .header-controls select {
+    flex: 1 !important;
+    min-width: 0 !important;
   }
 
   /* Ads header: stack tabs and date picker */
@@ -117,6 +137,11 @@
     padding-top: 58px !important;
   }
 
+  /* Mini card grid → 1 column on mobile */
+  .mini-card-grid {
+    grid-template-columns: 1fr !important;
+  }
+
   /* Table improvements */
   .table-container {
     padding: 12px !important;
@@ -134,6 +159,16 @@
   .table-container td {
     padding: 6px 8px !important;
     font-size: 11px !important;
+  }
+
+  /* P&L table mobile scroll */
+  .pl-table-wrap table {
+    min-width: 600px !important;
+  }
+
+  /* Marketplace table mobile scroll */
+  .mp-table-wrap table {
+    min-width: 700px !important;
   }
 
   /* Tab nav compact */
@@ -213,6 +248,16 @@
   .two-col-grid,
   .chart-split-grid {
     margin-bottom: 14px !important;
+  }
+
+  /* Daily range buttons */
+  .daily-range-bar {
+    gap: 4px !important;
+  }
+  .daily-range-bar button {
+    padding: 4px 8px !important;
+    font-size: 10px !important;
+    min-height: 44px !important;
   }
 }
 
