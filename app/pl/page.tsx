@@ -80,9 +80,8 @@ export default function PLPage() {
   const [selectedMonth, setSelectedMonth] = useState(monthOptions[0])
   const [selectedMarketplace, setSelectedMarketplace] = useState('all')
   const [rawData, setRawData] = useState<any[]>([])
-  const [spRawData, setSpRawData] = useState<any[]>([])
-  const [sbRawData, setSbRawData] = useState<any[]>([])
   const [dailyData, setDailyData] = useState<DailyRow[]>([])
+  const [adTotals, setAdTotals] = useState<Record<string, { sp: number; sb: number }>>({})
   const [loading, setLoading] = useState(true)
   const [mpSortKey, setMpSortKey] = useState<SortKey>('sales')
   const [mpSortDir, setMpSortDir] = useState<SortDir>('desc')
@@ -90,41 +89,66 @@ export default function PLPage() {
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
 
-  // Fetch all data
+  // Helper: get month date range
+  const getMonthRange = (month: string) => {
+    const [y, m] = month.split('-').map(Number)
+    const startDate = `${month}-01`
+    const lastDay = new Date(y, m, 0).getDate()
+    const endDate = `${month}-${String(lastDay).padStart(2, '0')}`
+    return { startDate, endDate }
+  }
+
+  // Fetch ad totals for a specific month via Supabase gte/lte
+  const fetchAdTotalsForMonth = async (month: string) => {
+    const { startDate, endDate } = getMonthRange(month)
+    const [spRes, sbRes] = await Promise.all([
+      supabase.from('ad_product_performance').select('spend').gte('date', startDate).lte('date', endDate),
+      supabase.from('ad_brand_performance').select('spend').gte('date', startDate).lte('date', endDate),
+    ])
+    const sp = (spRes.data || []).reduce((sum, r) => sum + (Number(r.spend) || 0), 0)
+    const sb = (sbRes.data || []).reduce((sum, r) => sum + (Number(r.spend) || 0), 0)
+    console.log(`[${month}] SP Total: €${sp.toFixed(2)}, SB Total: €${sb.toFixed(2)}, Total Ads: €${(sp + sb).toFixed(2)}`)
+    return { sp, sb }
+  }
+
+  // Fetch monthly_pl data (one time)
   useEffect(() => {
     async function fetchData() {
       setLoading(true)
-      const [mpRes, spRes, sbRes] = await Promise.all([
-        supabase.from('monthly_pl').select('report_month, marketplace, units, sales, promo, commission, fba, storage, return_mgmt, digital_fba, digital_sell, cogs, refunds, subscription, sp_spend'),
-        supabase.from('ad_product_performance').select('date, spend'),
-        supabase.from('ad_brand_performance').select('date, spend'),
-      ])
+      const { data } = await supabase
+        .from('monthly_pl')
+        .select('report_month, marketplace, units, sales, promo, commission, fba, storage, return_mgmt, digital_fba, digital_sell, cogs, refunds, subscription, sp_spend')
 
-      setRawData(mpRes.data || [])
-      setSpRawData(spRes.data || [])
-      setSbRawData(sbRes.data || [])
+      setRawData(data || [])
       setLoading(false)
     }
     fetchData()
   }, [])
 
-  // Compute ad totals per month from raw SP/SB data
-  const adData = useMemo(() => {
-    const adMap: Record<string, { sp: number; sb: number }> = {}
-    spRawData.forEach((r: any) => {
-      const m = r.date?.substring(0, 7)
-      if (!m) return
-      if (!adMap[m]) adMap[m] = { sp: 0, sb: 0 }
-      adMap[m].sp += Number(r.spend) || 0
-    })
-    sbRawData.forEach((r: any) => {
-      const m = r.date?.substring(0, 7)
-      if (!m) return
-      if (!adMap[m]) adMap[m] = { sp: 0, sb: 0 }
-      adMap[m].sb += Number(r.spend) || 0
-    })
-    return adMap
-  }, [spRawData, sbRawData])
+  // Fetch ad totals when selectedMonth changes
+  useEffect(() => {
+    async function fetchAds() {
+      // Find previous month
+      const [y, m] = selectedMonth.split('-').map(Number)
+      const prevDate = new Date(y, m - 2, 1)
+      const prevMonthStr = `${prevDate.getFullYear()}-${String(prevDate.getMonth() + 1).padStart(2, '0')}`
+
+      // Fetch both months in parallel, skip if already cached
+      const toFetch: string[] = []
+      if (!adTotals[selectedMonth]) toFetch.push(selectedMonth)
+      if (!adTotals[prevMonthStr]) toFetch.push(prevMonthStr)
+
+      if (toFetch.length > 0) {
+        const results = await Promise.all(toFetch.map(m => fetchAdTotalsForMonth(m)))
+        setAdTotals(prev => {
+          const updated = { ...prev }
+          toFetch.forEach((m, i) => { updated[m] = results[i] })
+          return updated
+        })
+      }
+    }
+    fetchAds()
+  }, [selectedMonth])
 
   // Fetch daily data when month or marketplace changes
   useEffect(() => {
@@ -152,7 +176,6 @@ export default function PLPage() {
       setDailyData(Object.values(dayMap).sort((a, b) => a.purchase_day.localeCompare(b.purchase_day)))
     }
     fetchDaily()
-    // Reset daily range when month changes
     setDailyRange('month')
     setCustomStart('')
     setCustomEnd('')
@@ -181,11 +204,11 @@ export default function PLPage() {
     return Object.values(monthMap).sort((a, b) => b.report_month.localeCompare(a.report_month))
   }, [filteredRaw])
 
-  // Ad spend: always use real totals from SP/SB tables (not monthly_pl sp_spend)
+  // Ad spend: use real totals from ad_product/brand_performance (fetched via gte/lte)
   // For specific marketplace, use sp_spend from monthly_pl as approximation
   const getAdTotal = (month: string) => {
     if (selectedMarketplace === 'all') {
-      const ad = adData[month] || { sp: 0, sb: 0 }
+      const ad = adTotals[month] || { sp: 0, sb: 0 }
       return ad.sp + ad.sb
     }
     const rows = filteredRaw.filter((r: any) => r.report_month === month)
