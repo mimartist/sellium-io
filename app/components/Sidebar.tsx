@@ -10,6 +10,9 @@ const MENU_ITEMS = [
   { icon: '💰', label: 'COGS & Karlılık', href: '/cogs' },
   { icon: '📢', label: 'Reklam Performansı', href: '/ads' },
   { icon: '📦', label: 'Ürün Performansı', href: '/products' },
+  { icon: '🏭', label: 'Stok Takibi', href: '/inventory', subItems: [
+    { icon: '📋', label: 'Sipariş Planlama', href: '/inventory/orders' },
+  ] },
   { icon: '🤖', label: 'AI Öneriler', href: '/ai' },
   { icon: '🌍', label: 'Platform Kıyaslama', href: '/platforms' },
 ]
@@ -33,18 +36,35 @@ export default function Sidebar() {
       {MENU_ITEMS.map((item, i) => {
         const active = isActive(item.href)
         return (
-          <Link key={i} href={item.href} style={{ textDecoration: 'none' }}>
-            <div style={{
-              display: 'flex', alignItems: 'center', gap: 8, padding: '8px 18px', fontSize: 13,
-              color: active ? '#6366f1' : 'var(--text-secondary)',
-              background: active ? 'rgba(99,102,241,0.1)' : 'transparent',
-              borderLeft: active ? '3px solid #6366f1' : '3px solid transparent',
-              marginBottom: 2, cursor: 'pointer',
-              transition: 'all 0.15s ease',
-            }}>
-              <span>{item.icon}</span><span>{item.label}</span>
-            </div>
-          </Link>
+          <div key={i}>
+            <Link href={item.href} style={{ textDecoration: 'none' }}>
+              <div style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '8px 18px', fontSize: 13,
+                color: active ? '#6366f1' : 'var(--text-secondary)',
+                background: active ? 'rgba(99,102,241,0.1)' : 'transparent',
+                borderLeft: active ? '3px solid #6366f1' : '3px solid transparent',
+                marginBottom: 2, cursor: 'pointer',
+                transition: 'all 0.15s ease',
+              }}>
+                <span>{item.icon}</span><span>{item.label}</span>
+              </div>
+            </Link>
+            {item.subItems && pathname.startsWith(item.href) && item.subItems.map((sub, j) => {
+              const subActive = pathname === sub.href
+              return (
+                <Link key={j} href={sub.href} style={{ textDecoration: 'none' }}>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 8, padding: '6px 18px 6px 38px', fontSize: 12,
+                    color: subActive ? '#6366f1' : 'var(--text-muted)',
+                    background: subActive ? 'rgba(99,102,241,0.06)' : 'transparent',
+                    cursor: 'pointer', transition: 'all 0.15s ease',
+                  }}>
+                    <span>{sub.icon}</span><span>{sub.label}</span>
+                  </div>
+                </Link>
+              )
+            })}
+          </div>
         )
       })}
       <div style={{ position: 'absolute', bottom: 0, left: 0, right: 0, padding: 12, borderTop: '1px solid var(--border-color)' }}>
