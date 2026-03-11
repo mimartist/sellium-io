@@ -104,6 +104,17 @@
     min-width: 0 !important;
   }
 
+  /* Inventory mid grid → stack */
+  .inv-mid-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Inventory slider grid → stack */
+  .inv-slider-grid {
+    grid-template-columns: 1fr !important;
+    gap: 16px !important;
+  }
+
   /* Ads header: stack tabs and date picker */
   .ads-header {
     flex-direction: column !important;
@@ -257,6 +268,11 @@
     margin-bottom: 14px !important;
   }
 
+  /* Inventory: KPI 2 columns on mobile */
+  .inv-mid-grid {
+    grid-template-columns: 1fr !important;
+  }
+
   /* Daily range buttons */
   .daily-range-bar {
     gap: 4px !important;
@@ -281,6 +297,16 @@
   .dashboard-main {
     padding: 10px !important;
     padding-top: 54px !important;
+  }
+
+  /* Inventory: single column KPI on small mobile */
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr !important;
+  }
+
+  /* Inventory slider grid single column */
+  .inv-slider-grid {
+    grid-template-columns: 1fr !important;
   }
 
   /* Topbar tighter on small mobile */
