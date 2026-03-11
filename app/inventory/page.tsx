@@ -126,6 +126,8 @@ export default function InventoryPage() {
   const [selectedRow, setSelectedRow] = useState<StockRow | null>(null)
   const [middleTab, setMiddleTab] = useState<MiddleTab>('ai')
   const [expandedInsight, setExpandedInsight] = useState<number | null>(null)
+  const [aiApiInsights, setAiApiInsights] = useState<{ type: string; title: string; description: string; action: string; color: string; priority: number }[] | null>(null)
+  const [aiApiLoading, setAiApiLoading] = useState(false)
 
   useEffect(() => {
     async function fetchData() {
@@ -154,6 +156,61 @@ export default function InventoryPage() {
     }
     fetchData()
   }, [])
+
+  // Fetch AI insights from Anthropic API
+  useEffect(() => {
+    if (data.length === 0) return
+    async function fetchAiInsights() {
+      setAiApiLoading(true)
+      try {
+        const outOfStock = data.filter(r => r.stock_status === 'out')
+        const critical = data.filter(r => r.stock_status === 'critical')
+        const overstock = data.filter(r => r.stock_status === 'overstock')
+        const dead = data.filter(r => r.stock_status === 'dead')
+        const lowCvr = data.filter(r => (r.sessions || 0) > 300 && (r.cvr || 0) < 5 && (r.cvr || 0) > 0)
+        const highCvr = data.filter(r => (r.cvr || 0) > 12 && (r.sessions || 0) > 50)
+        const totalLoss = outOfStock.reduce((s, r) => s + (r.daily_revenue_loss || 0), 0)
+
+        const sizeDist: Record<string, { sales: number; outCount: number; stock: number }> = {}
+        data.forEach(r => {
+          const sz = extractSize(r.msku)
+          if (!sizeDist[sz]) sizeDist[sz] = { sales: 0, outCount: 0, stock: 0 }
+          sizeDist[sz].sales += Number(r.sales_year || 0)
+          sizeDist[sz].stock += Number(r.current_stock || 0)
+          if (r.stock_status === 'out') sizeDist[sz].outCount++
+        })
+
+        const summary = {
+          outOfStockCount: outOfStock.length,
+          totalDailyLoss: totalLoss.toFixed(0),
+          topLossProducts: outOfStock.sort((a, b) => (b.daily_revenue_loss || 0) - (a.daily_revenue_loss || 0)).slice(0, 5).map(d => `${d.msku} (€${(d.daily_revenue_loss || 0).toFixed(0)}/gun, CVR %${(d.cvr || 0).toFixed(1)})`).join(', '),
+          criticalCount: critical.length,
+          topCriticalProducts: critical.sort((a, b) => (a.days_of_stock || 0) - (b.days_of_stock || 0)).slice(0, 5).map(d => `${d.msku} (${(d.days_of_stock || 0).toFixed(0)} gun, CVR %${(d.cvr || 0).toFixed(1)})`).join(', '),
+          overstockCount: overstock.length,
+          overstockUnits: overstock.reduce((s, d) => s + (d.current_stock || 0), 0),
+          deadCount: dead.length,
+          deadUnits: dead.reduce((s, d) => s + (d.current_stock || 0), 0),
+          lowCvrCount: lowCvr.length,
+          topLowCvr: lowCvr.slice(0, 3).map(d => `${d.msku} (${d.sessions} oturum, CVR %${(d.cvr || 0).toFixed(1)})`).join(', '),
+          highCvrCount: highCvr.length,
+          topHighCvr: highCvr.slice(0, 5).map(d => `${d.msku} (CVR %${(d.cvr || 0).toFixed(1)}, stok: ${d.current_stock})`).join(', '),
+          sizeDistribution: Object.entries(sizeDist).map(([sz, d]) => `${sz}: ${d.sales} satis, ${d.outCount} stoksuz, ${d.stock} stok`).join(' | '),
+        }
+
+        const res = await fetch('/api/stock-insights', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(summary),
+        })
+        const result = await res.json()
+        if (result.insights) setAiApiInsights(result.insights)
+      } catch {
+        // fallback to local insights
+      }
+      setAiApiLoading(false)
+    }
+    fetchAiInsights()
+  }, [data])
 
   // Status counts
   const statusCounts = useMemo(() => {
@@ -187,16 +244,24 @@ export default function InventoryPage() {
     return rows
   }, [data, statusFilter, searchQuery, sortKey, sortDir])
 
-  // Size distribution
+  // Size distribution — by yearly sales SUM, not SKU count
   const sizeDistribution = useMemo(() => {
-    const sizes: Record<string, number> = {}
+    const sizes: Record<string, { sales: number; outCount: number }> = {}
     data.forEach(r => {
       const s = extractSize(r.msku)
-      sizes[s] = (sizes[s] || 0) + 1
+      if (!sizes[s]) sizes[s] = { sales: 0, outCount: 0 }
+      sizes[s].sales += Number(r.sales_year || 0)
+      if (r.stock_status === 'out') sizes[s].outCount++
     })
-    return Object.entries(sizes)
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
+    const order = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'Diger']
+    return order
+      .filter(s => sizes[s])
+      .map(name => ({
+        name,
+        sales: Math.round(sizes[name].sales),
+        outCount: sizes[name].outCount,
+        fill: name === 'M' ? '#ef4444' : (name === 'XXL' || name === 'XXXL') ? '#3b82f6' : '#6366f1',
+      }))
   }, [data])
 
   // Low CVR products (sessions > 300, cvr < 5)
@@ -269,24 +334,15 @@ export default function InventoryPage() {
       })
     }
 
-    // 4. Beden analizi — stok ve satis hizi ile
+    // 4. Beden analizi — yillik satis ve stoksuz sayisi ile
     const sizeGroups = sizeDistribution.filter(s => s.name !== 'Diger')
     if (sizeGroups.length > 0) {
-      const topSize = sizeGroups[0]
-      // En hizli satilan beden
-      const sizeAvgSales: Record<string, { total: number; count: number }> = {}
-      data.forEach(r => {
-        const sz = extractSize(r.msku)
-        if (sz === 'Diger') return
-        if (!sizeAvgSales[sz]) sizeAvgSales[sz] = { total: 0, count: 0 }
-        sizeAvgSales[sz].total += (r.avg_daily_sales || 0)
-        sizeAvgSales[sz].count++
-      })
-      const bestSellSize = Object.entries(sizeAvgSales).sort((a, b) => b[1].total - a[1].total)[0]
+      const topSaleSize = [...sizeGroups].sort((a, b) => b.sales - a.sales)[0]
+      const mostOutSize = [...sizeGroups].sort((a, b) => b.outCount - a.outCount)[0]
       insights.push({
-        type: 'Beden Analizi', title: `En yaygin beden: ${topSize.name} (${topSize.count} SKU)`,
-        desc: `En hizli satilan beden: ${bestSellSize ? `${bestSellSize[0]} (toplam ${fmtDec(bestSellSize[1].total)} adet/gun)` : topSize.name}.`,
-        detail: `Beden dagilimi: ${sizeGroups.slice(0, 6).map(s => `${s.name}: ${s.count}`).join(', ')}. Satis hizina gore beden bazli siparis optimizasyonu yapin.`,
+        type: 'Beden Analizi', title: `En cok satan beden: ${topSaleSize.name} (${fmtNum(topSaleSize.sales)} adet/yil)`,
+        desc: `En cok stoksuz beden: ${mostOutSize.name} (${mostOutSize.outCount} SKU stoksuz).`,
+        detail: `Beden dagilimi: ${sizeGroups.slice(0, 6).map(s => `${s.name}: ${fmtNum(s.sales)} satis, ${s.outCount} stoksuz`).join(', ')}. Stoksuz bedenlere oncelik verin.`,
         color: '#f59e0b', priority: 4,
       })
     }
@@ -456,21 +512,29 @@ export default function InventoryPage() {
             </ResponsiveContainer>
           </div>
 
-          {/* Size distribution */}
+          {/* Size distribution — by yearly sales */}
           <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.6s forwards' }}>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Beden Dagilimi</div>
-            {sizeDistribution.slice(0, 8).map((s, i) => {
-              const maxCount = sizeDistribution[0]?.count || 1
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Beden Dagilimi</div>
+            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 10 }}>Yillik satis toplami</div>
+            {sizeDistribution.map((s, i) => {
+              const maxSales = Math.max(...sizeDistribution.map(d => d.sales)) || 1
               return (
                 <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
                   <span style={{ fontSize: 11, color: 'var(--text-secondary)', width: 36, textAlign: 'right' }}>{s.name}</span>
                   <div style={{ flex: 1, height: 14, background: 'var(--bg-elevated)', borderRadius: 4, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${(s.count / maxCount) * 100}%`, background: '#6366f1', borderRadius: 4, transition: 'width 0.5s ease' }} />
+                    <div style={{ height: '100%', width: `${(s.sales / maxSales) * 100}%`, background: s.fill, borderRadius: 4, transition: 'width 0.5s ease' }} />
                   </div>
-                  <span style={{ fontSize: 11, color: 'var(--text-secondary)', width: 28 }}>{s.count}</span>
+                  <span style={{ fontSize: 10, color: 'var(--text-secondary)', width: 40, textAlign: 'right' }}>{fmtNum(s.sales)}</span>
+                  {s.outCount > 5 && (
+                    <span style={{ fontSize: 9, fontWeight: 600, color: '#ef4444', background: 'rgba(239,68,68,0.1)', padding: '1px 5px', borderRadius: 4, whiteSpace: 'nowrap' }}>{s.outCount} stoksuz</span>
+                  )}
                 </div>
               )
             })}
+            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, color: 'var(--text-secondary)' }}><div style={{ width: 8, height: 8, background: '#ef4444', borderRadius: 2 }} />En cok stoksuz</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, color: 'var(--text-secondary)' }}><div style={{ width: 8, height: 8, background: '#3b82f6', borderRadius: 2 }} />Fazla stok</div>
+            </div>
           </div>
         </div>
 
@@ -501,39 +565,57 @@ export default function InventoryPage() {
           {/* AI Insights Tab */}
           {middleTab === 'ai' && (
             <div style={{ background: 'var(--ai-gradient)', borderRadius: 10, padding: 16 }}>
-              {aiInsights.map((insight, i) => (
-                <div
-                  key={i}
-                  onClick={() => setExpandedInsight(expandedInsight === i ? null : i)}
-                  style={{
-                    borderLeft: `3px solid ${insight.color}`, padding: '10px 14px', marginBottom: 8,
-                    background: 'var(--bg-card)', borderRadius: '0 8px 8px 0', cursor: 'pointer',
-                    border: `1px solid var(--border-color)`, borderLeftColor: insight.color, borderLeftWidth: 3,
-                  }}
-                >
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <span style={{ fontSize: 9, fontWeight: 700, color: insight.color, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{insight.type}</span>
+              {aiApiLoading && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {Array.from({ length: 6 }).map((_, i) => (
+                    <div key={i} style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: 8, borderLeft: '3px solid var(--border-color)' }}>
+                      <div className="skeleton-shimmer" style={{ width: 60, height: 10, borderRadius: 4, background: 'var(--bg-elevated)', marginBottom: 6 }} />
+                      <div className="skeleton-shimmer" style={{ width: '80%', height: 12, borderRadius: 4, background: 'var(--bg-elevated)' }} />
                     </div>
-                    <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{expandedInsight === i ? '▲' : '▼'}</span>
-                  </div>
-                  <div style={{ fontSize: 12, fontWeight: 600, marginTop: 4 }}>{insight.title}</div>
-                  {expandedInsight === i && (
-                    <div style={{ marginTop: 8 }}>
-                      <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 8 }}>{insight.detail}</div>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <Link href="/inventory/orders" style={{
-                          padding: '4px 10px', fontSize: 10, fontWeight: 600, borderRadius: 6,
-                          background: `${insight.color}20`, color: insight.color, textDecoration: 'none',
-                          border: `1px solid ${insight.color}40`,
+                  ))}
+                </div>
+              )}
+              {!aiApiLoading && (aiApiInsights || aiInsights).map((insight: any, i: number) => {
+                const isApi = !!aiApiInsights
+                const title = isApi ? insight.title : insight.title
+                const detail = isApi ? insight.description : insight.detail
+                const color = insight.color
+                const type = insight.type
+                const actionLabel = isApi ? insight.action : 'Siparis Planla'
+                const actionHref = (actionLabel === 'Siparis Planla' || actionLabel === 'Stok Eritme Plani') ? '/inventory/orders' : '#'
+                return (
+                  <div
+                    key={i}
+                    onClick={() => setExpandedInsight(expandedInsight === i ? null : i)}
+                    style={{
+                      borderLeft: `3px solid ${color}`, padding: '10px 14px', marginBottom: 8,
+                      background: 'var(--bg-card)', borderRadius: '0 8px 8px 0', cursor: 'pointer',
+                      border: `1px solid var(--border-color)`, borderLeftColor: color, borderLeftWidth: 3,
+                    }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <AIIcon size={12} />
+                        <span style={{ fontSize: 9, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{type}</span>
+                      </div>
+                      <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{expandedInsight === i ? '▲' : '▼'}</span>
+                    </div>
+                    <div style={{ fontSize: 12, fontWeight: 600, marginTop: 4 }}>{title}</div>
+                    {expandedInsight === i && (
+                      <div style={{ marginTop: 8 }}>
+                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 8 }}>{detail}</div>
+                        <Link href={actionHref} style={{
+                          display: 'inline-block', padding: '5px 12px', fontSize: 10, fontWeight: 600, borderRadius: 6,
+                          background: `${color}20`, color, textDecoration: 'none',
+                          border: `1px solid ${color}40`,
                         }}>
-                          Siparis Planla
+                          {actionLabel}
                         </Link>
                       </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+                    )}
+                  </div>
+                )
+              })}
             </div>
           )}
 
