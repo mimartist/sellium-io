@@ -89,14 +89,30 @@ function AIIcon({ size = 16 }: { size?: number }) {
   )
 }
 
-function extractSize(msku: string): string {
-  if (!msku) return 'Diger'
-  const last = msku.split('-').pop()?.toUpperCase() || ''
-  const sizeMap: Record<string, string> = {
-    'XS': 'XS', 'S': 'S', 'M': 'M', 'L': 'L', 'XL': 'XL', 'XXL': 'XXL',
-    '2XL': 'XXL', '3XL': '3XL', '4XL': '4XL', '5XL': '5XL',
-  }
-  return sizeMap[last] || 'Diger'
+function extractSize(sku: string): string {
+  if (!sku) return 'Diger'
+  const upper = sku.toUpperCase()
+  if (upper.endsWith('XXXL')) return 'XXXL'
+  if (upper.endsWith('XXL')) return 'XXL'
+  if (upper.endsWith('XL')) return 'XL'
+  if (upper.endsWith('XS')) return 'XS'
+  if (upper.endsWith('S')) return 'S'
+  if (upper.endsWith('M')) return 'M'
+  if (upper.endsWith('L')) return 'L'
+  return 'Diger'
+}
+
+const TURKISH_MONTHS: Record<string, string> = {
+  '01': 'Oca', '02': 'Sub', '03': 'Mar', '04': 'Nis', '05': 'May', '06': 'Haz',
+  '07': 'Tem', '08': 'Agu', '09': 'Eyl', '10': 'Eki', '11': 'Kas', '12': 'Ara',
+}
+
+function formatMonthLabel(ym: string): string {
+  const [y, m] = ym.split('-')
+  const shortYear = y.substring(2)
+  const monthName = TURKISH_MONTHS[m] || m
+  if (m === '01' || m === '03') return `${monthName} ${shortYear}`
+  return monthName
 }
 
 export default function InventoryPage() {
@@ -201,74 +217,107 @@ export default function InventoryPage() {
   const aiInsights = useMemo(() => {
     const insights: { type: string; title: string; desc: string; detail: string; color: string; priority: number }[] = []
 
-    // 1. Stoksuz kayip
-    const outOfStock = data.filter(r => r.stock_status === 'out')
+    // 1. Stoksuz kayip — spesifik SKU ve rakamlar
+    const outOfStock = data.filter(r => r.stock_status === 'out').sort((a, b) => (b.daily_revenue_loss || 0) - (a.daily_revenue_loss || 0))
     const dailyLoss = outOfStock.reduce((s, r) => s + (r.daily_revenue_loss || 0), 0)
     if (outOfStock.length > 0) {
+      const topLoss = outOfStock.slice(0, 3)
+      const detailLines = topLoss.map(r => {
+        const cvrInfo = (r.cvr || 0) > 10 ? ` CVR %${fmtDec(r.cvr)} — yuksek donusumlu urun stoksuz!` : ''
+        return `${r.msku}: ${fmtCur(r.daily_revenue_loss || 0)}/gun kayip${cvrInfo}`
+      }).join(' | ')
       insights.push({
         type: 'Stok Kaybi', title: `${outOfStock.length} urun stoksuz, gunluk ${fmtCur(dailyLoss)} kayip`,
         desc: `Stoksuz urunler nedeniyle gunluk tahmini ${fmtCur(dailyLoss)} gelir kaybediyorsunuz.`,
-        detail: `Stoksuz urunler: ${outOfStock.slice(0, 3).map(r => r.msku).join(', ')}${outOfStock.length > 3 ? ` ve ${outOfStock.length - 3} urun daha` : ''}. Acil siparis verin.`,
+        detail: `${detailLines}${outOfStock.length > 3 ? ` ve ${outOfStock.length - 3} urun daha.` : '.'} Acil siparis verin.`,
         color: '#ef4444', priority: 1,
       })
     }
 
-    // 2. Kritik stok uyarisi
-    const critical = data.filter(r => r.stock_status === 'critical')
+    // 2. Kritik stok uyarisi — gun ve satis hizi ile
+    const critical = data.filter(r => r.stock_status === 'critical').sort((a, b) => (a.days_of_stock || 0) - (b.days_of_stock || 0))
     if (critical.length > 0) {
+      const topCritical = critical.slice(0, 4)
+      const detailLines = topCritical.map(r =>
+        `${r.msku}: ${r.days_of_stock?.toFixed(0) || 0} gun kaldi, ${fmtDec(r.avg_daily_sales || 0)} adet/gun satis`
+      ).join(' | ')
       insights.push({
         type: 'Kritik Stok', title: `${critical.length} urun kritik seviyede`,
         desc: `Bu urunlerin stoku 7 gun icinde tukenebilir.`,
-        detail: `Kritik urunler: ${critical.slice(0, 3).map(r => `${r.msku} (${r.days_of_stock?.toFixed(0) || 0} gun)`).join(', ')}. Siparis planlama sayfasindan hizli aksiyon alin.`,
+        detail: `${detailLines}. Siparis planlama sayfasindan hizli aksiyon alin.`,
         color: '#f97316', priority: 2,
       })
     }
 
-    // 3. CVR firsati
+    // 3. CVR firsati — en cok trafik alan dusuk CVR urunler
     const highTrafficLowCvr = data.filter(r => (r.sessions || 0) > 500 && (r.cvr || 0) < 5 && (r.cvr || 0) > 0)
+      .sort((a, b) => (b.sessions || 0) - (a.sessions || 0))
     if (highTrafficLowCvr.length > 0) {
       const potentialRevenue = highTrafficLowCvr.reduce((s, r) => {
         const potentialOrders = (r.sessions || 0) * 0.05
         return s + potentialOrders * (r.price || 0)
       }, 0)
+      const topItems = highTrafficLowCvr.slice(0, 3)
+      const detailLines = topItems.map(r =>
+        `${r.msku}: ${fmtNum(r.sessions || 0)} oturum, CVR %${fmtDec(r.cvr || 0)}, fiyat ${fmtCur(r.price || 0)}`
+      ).join(' | ')
       insights.push({
         type: 'CVR Firsati', title: `${highTrafficLowCvr.length} urunde CVR iyilestirme firsati`,
-        desc: `Yuksek trafik ama dusuk donus orani olan urunler var.`,
-        detail: `CVR %5'e cikarsa tahmini ek gelir: ${fmtCur(potentialRevenue)}. Listing optimizasyonu, A+ icerik ve fiyat incelemesi onerilir.`,
+        desc: `Yuksek trafik ama dusuk donus orani. CVR %5'e cikarsa tahmini ek gelir: ${fmtCur(potentialRevenue)}.`,
+        detail: `${detailLines}. Listing optimizasyonu, A+ icerik ve fiyat incelemesi onerilir.`,
         color: '#6366f1', priority: 3,
       })
     }
 
-    // 4. Beden analizi
+    // 4. Beden analizi — stok ve satis hizi ile
     const sizeGroups = sizeDistribution.filter(s => s.name !== 'Diger')
     if (sizeGroups.length > 0) {
       const topSize = sizeGroups[0]
+      // En hizli satilan beden
+      const sizeAvgSales: Record<string, { total: number; count: number }> = {}
+      data.forEach(r => {
+        const sz = extractSize(r.msku)
+        if (sz === 'Diger') return
+        if (!sizeAvgSales[sz]) sizeAvgSales[sz] = { total: 0, count: 0 }
+        sizeAvgSales[sz].total += (r.avg_daily_sales || 0)
+        sizeAvgSales[sz].count++
+      })
+      const bestSellSize = Object.entries(sizeAvgSales).sort((a, b) => b[1].total - a[1].total)[0]
       insights.push({
         type: 'Beden Analizi', title: `En yaygin beden: ${topSize.name} (${topSize.count} SKU)`,
-        desc: `Beden dagilimi stok planlamasinda onemli bir gosterge.`,
-        detail: `Beden dagilimi: ${sizeGroups.slice(0, 5).map(s => `${s.name}: ${s.count}`).join(', ')}. Satis hizina gore beden bazli siparis optimizasyonu yapin.`,
+        desc: `En hizli satilan beden: ${bestSellSize ? `${bestSellSize[0]} (toplam ${fmtDec(bestSellSize[1].total)} adet/gun)` : topSize.name}.`,
+        detail: `Beden dagilimi: ${sizeGroups.slice(0, 6).map(s => `${s.name}: ${s.count}`).join(', ')}. Satis hizina gore beden bazli siparis optimizasyonu yapin.`,
         color: '#f59e0b', priority: 4,
       })
     }
 
-    // 5. Depolama maliyeti
-    const highStorageFee = data.filter(r => (r.storage_fee_monthly || 0) > 50)
+    // 5. Depolama maliyeti — spesifik urunler
+    const highStorageFee = data.filter(r => (r.storage_fee_monthly || 0) > 50).sort((a, b) => (b.storage_fee_monthly || 0) - (a.storage_fee_monthly || 0))
     if (highStorageFee.length > 0) {
       const totalHighFee = highStorageFee.reduce((s, r) => s + (r.storage_fee_monthly || 0), 0)
+      const topFee = highStorageFee.slice(0, 3)
+      const detailLines = topFee.map(r =>
+        `${r.msku}: ${fmtCur(r.storage_fee_monthly || 0)}/ay, ${fmtDec(r.avg_daily_sales || 0)} adet/gun satis, ${r.days_of_stock?.toFixed(0) || '?'} gun stok`
+      ).join(' | ')
       insights.push({
-        type: 'Maliyet', title: `${highStorageFee.length} urunde yuksek depolama maliyeti`,
-        desc: `Toplam aylik depolama: ${fmtCur(totalStorage)}.`,
-        detail: `Yuksek maliyetli urunler (>${fmtCur(50)}/ay): ${highStorageFee.slice(0, 3).map(r => `${r.msku} (${fmtCur(r.storage_fee_monthly || 0)})`).join(', ')}. Dusuk satisli urunlerde removal veya fiyat indirimi dusunun.`,
+        type: 'Maliyet', title: `${highStorageFee.length} urunde yuksek depolama (${fmtCur(totalHighFee)}/ay)`,
+        desc: `Toplam aylik depolama: ${fmtCur(totalStorage)}. Yuksek maliyetli urunler dikkat gerektiriyor.`,
+        detail: `${detailLines}. Dusuk satisli urunlerde removal veya fiyat indirimi dusunun.`,
         color: '#f59e0b', priority: 5,
       })
     }
 
-    // 6. Yildiz urunler
+    // 6. Yildiz urunler — stok durumu ile
     if (starProducts.length > 0) {
+      const topStars = starProducts.slice(0, 3)
+      const detailLines = topStars.map(r => {
+        const stockWarn = r.stock_status === 'out' ? ' — STOKSUZ!' : r.stock_status === 'critical' ? ` — ${r.days_of_stock?.toFixed(0)} gun kaldi!` : ` — ${fmtNum(r.current_stock || 0)} adet stok`
+        return `${r.msku}: CVR %${fmtDec(r.cvr || 0)}, ${fmtNum(r.sessions || 0)} oturum${stockWarn}`
+      }).join(' | ')
       insights.push({
         type: 'Yildiz Urunler', title: `${starProducts.length} urun %12+ CVR ile parlak performans`,
         desc: `Bu urunler cok yuksek donus oranina sahip.`,
-        detail: `En iyi CVR: ${starProducts.slice(0, 3).map(r => `${r.msku} (%${fmtDec(r.cvr || 0)})`).join(', ')}. Bu urunlerin stokunu asla bitirmeyin ve reklam butcesini artirin.`,
+        detail: `${detailLines}. Bu urunlerin stokunu asla bitirmeyin ve reklam butcesini artirin.`,
         color: '#22c55e', priority: 6,
       })
     }
@@ -318,7 +367,7 @@ export default function InventoryPage() {
   // Styles
   const cardStyle: React.CSSProperties = { background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: 20 }
   const tooltipStyle = { contentStyle: { background: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)', borderRadius: 8, fontSize: 12, color: 'var(--text-primary)' }, labelStyle: { color: 'var(--text-secondary)' } }
-  const thStyle: React.CSSProperties = { textAlign: 'left', padding: '8px 8px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: 12, whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none' }
+  const thStyle: React.CSSProperties = { textAlign: 'left', padding: '8px 10px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: 12, whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none' }
 
   const sidebarContent = <Sidebar />
 
@@ -399,7 +448,7 @@ export default function InventoryPage() {
             <ResponsiveContainer width="100%" height={160}>
               <BarChart data={monthlyShipments}>
                 <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
-                <XAxis dataKey="month" tick={{ fill: 'var(--text-secondary)', fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={v => v.substring(5)} />
+                <XAxis dataKey="month" tick={{ fill: 'var(--text-secondary)', fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={v => formatMonthLabel(v)} />
                 <YAxis tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} axisLine={false} tickLine={false} />
                 <Tooltip {...tooltipStyle} formatter={(value: any) => [fmtNum(Number(value)), 'Adet']} />
                 <Bar dataKey="units" fill="#6366f1" radius={[3, 3, 0, 0]} />
@@ -505,11 +554,11 @@ export default function InventoryPage() {
                 <tbody>
                   {lowCvrProducts.map((r, i) => (
                     <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '6px 8px', fontSize: 11 }}>{r.msku}</td>
-                      <td style={{ padding: '6px 8px', fontSize: 12, textAlign: 'right' }}>{fmtNum(r.sessions || 0)}</td>
-                      <td style={{ padding: '6px 8px', fontSize: 12, textAlign: 'right', color: getCvrColor(r.cvr || 0), fontWeight: 600 }}>%{fmtDec(r.cvr || 0)}</td>
-                      <td style={{ padding: '6px 8px', fontSize: 12, textAlign: 'right' }}>%{fmtDec(r.buy_box_pct || 0)}</td>
-                      <td style={{ padding: '6px 8px', fontSize: 12, textAlign: 'right' }}>{fmtCur(r.revenue || 0)}</td>
+                      <td style={{ padding: '8px 10px', fontSize: 11 }}>{r.msku}</td>
+                      <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right' }}>{fmtNum(r.sessions || 0)}</td>
+                      <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right', color: getCvrColor(r.cvr || 0), fontWeight: 600 }}>%{fmtDec(r.cvr || 0)}</td>
+                      <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right' }}>%{fmtDec(r.buy_box_pct || 0)}</td>
+                      <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right' }}>{fmtCur(r.revenue || 0)}</td>
                     </tr>
                   ))}
                   {lowCvrProducts.length === 0 && (
@@ -537,11 +586,11 @@ export default function InventoryPage() {
                 <tbody>
                   {starProducts.map((r, i) => (
                     <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '6px 8px', fontSize: 11 }}>{r.msku}</td>
-                      <td style={{ padding: '6px 8px', fontSize: 12, textAlign: 'right', color: '#22c55e', fontWeight: 600 }}>%{fmtDec(r.cvr || 0)}</td>
-                      <td style={{ padding: '6px 8px', fontSize: 12, textAlign: 'right' }}>{fmtNum(r.sessions || 0)}</td>
-                      <td style={{ padding: '6px 8px', fontSize: 12, textAlign: 'right' }}>{fmtNum(r.current_stock || 0)}</td>
-                      <td style={{ padding: '6px 8px', fontSize: 12, textAlign: 'right' }}>{fmtCur(r.revenue || 0)}</td>
+                      <td style={{ padding: '8px 10px', fontSize: 11 }}>{r.msku}</td>
+                      <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right', color: '#22c55e', fontWeight: 600 }}>%{fmtDec(r.cvr || 0)}</td>
+                      <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right' }}>{fmtNum(r.sessions || 0)}</td>
+                      <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right' }}>{fmtNum(r.current_stock || 0)}</td>
+                      <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right' }}>{fmtCur(r.revenue || 0)}</td>
                     </tr>
                   ))}
                   {starProducts.length === 0 && (
@@ -637,19 +686,19 @@ export default function InventoryPage() {
                     transition: 'background 0.15s',
                   }}
                 >
-                  <td style={{ padding: '6px 8px' }}>{getStatusBadge(row.stock_status)}</td>
-                  <td style={{ padding: '6px 8px', fontSize: 11, fontWeight: 500 }}>{row.msku}</td>
-                  <td style={{ padding: '6px 8px', fontSize: 11, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(row.product_name || '').substring(0, 40)}</td>
-                  <td style={{ padding: '6px 8px', textAlign: 'right', fontWeight: 500 }}>{fmtNum(row.current_stock || 0)}</td>
-                  <td style={{ padding: '6px 8px', textAlign: 'right', color: (row.inbound_total || 0) > 0 ? '#6366f1' : 'var(--text-secondary)' }}>{fmtNum(row.inbound_total || 0)}</td>
-                  <td style={{ padding: '6px 8px', textAlign: 'right' }}>{fmtDec(row.avg_daily_sales || 0)}</td>
-                  <td style={{ padding: '6px 8px', textAlign: 'right' }}>{fmtNum(row.sales_30d || 0)}</td>
-                  <td style={{ padding: '6px 8px', textAlign: 'right' }}>{fmtNum(row.sales_year || 0)}</td>
-                  <td style={{ padding: '6px 8px', textAlign: 'right' }}>{fmtNum(row.sessions || 0)}</td>
-                  <td style={{ padding: '6px 8px', textAlign: 'right', color: getCvrColor(row.cvr || 0), fontWeight: 600 }}>%{fmtDec(row.cvr || 0)}</td>
-                  <td style={{ padding: '6px 8px', textAlign: 'right' }}>%{fmtDec(row.buy_box_pct || 0)}</td>
-                  <td style={{ padding: '6px 8px', textAlign: 'right', color: (row.days_of_stock || 0) < 7 ? '#ef4444' : (row.days_of_stock || 0) < 14 ? '#f59e0b' : 'var(--text-primary)', fontWeight: 500 }}>{fmtDec(row.days_of_stock || 0, 0)}</td>
-                  <td style={{ padding: '6px 8px', textAlign: 'right', color: (row.daily_revenue_loss || 0) > 0 ? '#ef4444' : 'var(--text-secondary)', fontWeight: (row.daily_revenue_loss || 0) > 0 ? 600 : 400 }}>{(row.daily_revenue_loss || 0) > 0 ? fmtCur(row.daily_revenue_loss) : '-'}</td>
+                  <td style={{ padding: '8px 10px' }}>{getStatusBadge(row.stock_status)}</td>
+                  <td style={{ padding: '8px 10px', fontSize: 11, fontWeight: 500 }}>{row.msku}</td>
+                  <td style={{ padding: '8px 10px', fontSize: 11, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(row.product_name || '').substring(0, 40)}</td>
+                  <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 500 }}>{fmtNum(row.current_stock || 0)}</td>
+                  <td style={{ padding: '8px 10px', textAlign: 'right', color: (row.inbound_total || 0) > 0 ? '#6366f1' : 'var(--text-secondary)' }}>{fmtNum(row.inbound_total || 0)}</td>
+                  <td style={{ padding: '8px 10px', textAlign: 'right' }}>{fmtDec(row.avg_daily_sales || 0)}</td>
+                  <td style={{ padding: '8px 10px', textAlign: 'right' }}>{fmtNum(row.sales_30d || 0)}</td>
+                  <td style={{ padding: '8px 10px', textAlign: 'right' }}>{fmtNum(row.sales_year || 0)}</td>
+                  <td style={{ padding: '8px 10px', textAlign: 'right' }}>{fmtNum(row.sessions || 0)}</td>
+                  <td style={{ padding: '8px 10px', textAlign: 'right', color: getCvrColor(row.cvr || 0), fontWeight: 600 }}>%{fmtDec(row.cvr || 0)}</td>
+                  <td style={{ padding: '8px 10px', textAlign: 'right' }}>%{fmtDec(row.buy_box_pct || 0)}</td>
+                  <td style={{ padding: '8px 10px', textAlign: 'right', color: (row.days_of_stock || 0) < 7 ? '#ef4444' : (row.days_of_stock || 0) < 14 ? '#f59e0b' : 'var(--text-primary)', fontWeight: 500 }}>{fmtDec(row.days_of_stock || 0, 0)}</td>
+                  <td style={{ padding: '8px 10px', textAlign: 'right', color: (row.daily_revenue_loss || 0) > 0 ? '#ef4444' : 'var(--text-secondary)', fontWeight: (row.daily_revenue_loss || 0) > 0 ? 600 : 400 }}>{(row.daily_revenue_loss || 0) > 0 ? fmtCur(row.daily_revenue_loss) : '-'}</td>
                 </tr>
               ))}
             </tbody>
