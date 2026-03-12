@@ -3,15 +3,17 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { COLORS } from '@/lib/design-tokens'
+import { useTranslation } from '@/lib/i18n'
 
 const tabs = [
-  { label: 'Add Products', href: '/products/add' },
-  { label: 'My Products', href: '/products' },
-  { label: 'Performance', href: '/products/performance' },
+  { key: 'productsLayout.addProducts', href: '/products/add' },
+  { key: 'productsLayout.myProducts', href: '/products' },
+  { key: 'productsLayout.performance', href: '/products/performance' },
 ]
 
 export default function ProductsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const { t } = useTranslation()
 
   const isActiveTab = (href: string) => {
     if (href === '/products') return pathname === '/products'
@@ -39,7 +41,7 @@ export default function ProductsLayout({ children }: { children: React.ReactNode
                     whiteSpace: 'nowrap',
                     marginBottom: -1,
                   }}>
-                    {tab.label}
+                    {t(tab.key)}
                   </div>
                 </Link>
               </div>

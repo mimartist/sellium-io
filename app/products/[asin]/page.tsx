@@ -6,6 +6,7 @@ import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { COLORS, CARD_STYLE } from '@/lib/design-tokens'
 import { ImgPlaceholder } from '@/components/ui/Badges'
+import { useTranslation } from '@/lib/i18n'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -50,6 +51,7 @@ const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 600, color: 
 const valueStyle: React.CSSProperties = { fontSize: 14, fontWeight: 500, color: COLORS.text }
 
 export default function ProductDetailPage() {
+  const { t } = useTranslation()
   const params = useParams()
   const router = useRouter()
   const asin = (params.asin as string || '').toUpperCase()
@@ -76,7 +78,7 @@ export default function ProductDetailPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ width: 36, height: 36, border: `3px solid ${COLORS.border}`, borderTopColor: COLORS.accent, borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-          <div style={{ color: COLORS.sub, fontSize: 13 }}>Loading product...</div>
+          <div style={{ color: COLORS.sub, fontSize: 13 }}>{t('common.loading')}</div>
         </div>
       </div>
     )
@@ -85,11 +87,11 @@ export default function ProductDetailPage() {
   if (!product) {
     return (
       <div style={{ ...CARD_STYLE, padding: '50px 24px', textAlign: 'center' }}>
-        <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, marginBottom: 8 }}>Product Not Found</div>
-        <div style={{ fontSize: 13, color: COLORS.sub, marginBottom: 20 }}>ASIN <span style={{ fontFamily: 'monospace', color: COLORS.accent }}>{asin}</span> was not found in your catalog.</div>
+        <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, marginBottom: 8 }}>{t('productDetail.notFound')}</div>
+        <div style={{ fontSize: 13, color: COLORS.sub, marginBottom: 20 }}>ASIN <span style={{ fontFamily: 'monospace', color: COLORS.accent }}>{asin}</span> {t('productDetail.notFoundDesc')}</div>
         <Link href="/products" style={{ textDecoration: 'none' }}>
           <button style={{ padding: '9px 18px', fontSize: 12, fontWeight: 600, borderRadius: 8, background: COLORS.accent, border: 'none', color: '#fff', cursor: 'pointer' }}>
-            ← Back to My Products
+            {t('productDetail.backToProducts')}
           </button>
         </Link>
       </div>
@@ -99,9 +101,9 @@ export default function ProductDetailPage() {
   const st = STATUS_STYLES[product.status] || STATUS_STYLES.pending
 
   const stockLabel = product.stock_level === null ? null
-    : product.stock_level === 0 ? { text: 'Out of Stock', color: COLORS.red, bg: COLORS.redLight }
-    : product.stock_level <= 5 ? { text: `Low Stock (${product.stock_level})`, color: COLORS.orange, bg: COLORS.orangeLight }
-    : { text: `In Stock (${product.stock_level})`, color: COLORS.green, bg: COLORS.greenLight }
+    : product.stock_level === 0 ? { text: t('status.out'), color: COLORS.red, bg: COLORS.redLight }
+    : product.stock_level <= 5 ? { text: `${t('productDetail.lowStock')} (${product.stock_level})`, color: COLORS.orange, bg: COLORS.orangeLight }
+    : { text: `${t('productDetail.inStock')} (${product.stock_level})`, color: COLORS.green, bg: COLORS.greenLight }
 
   return (
     <>
@@ -111,7 +113,7 @@ export default function ProductDetailPage() {
           onClick={() => router.push('/products')}
           style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: 12, color: COLORS.accent, fontWeight: 500, padding: 0, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 4 }}
         >
-          ← Back to My Products
+          {t('productDetail.backToProducts')}
         </button>
       </div>
 
@@ -137,7 +139,7 @@ export default function ProductDetailPage() {
           <div style={{ flex: 1, minWidth: 280 }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8, flexWrap: 'wrap' }}>
               <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, background: st.bg, color: st.color }}>
-                {st.label}
+                {product.status === 'pending' ? t('products.pendingStatus') : product.status === 'fetching' ? t('products.fetching') : product.status === 'active' ? t('products.activeStatus') : t('products.errorStatus')}
               </span>
               {stockLabel && (
                 <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, background: stockLabel.bg, color: stockLabel.color }}>
@@ -148,12 +150,12 @@ export default function ProductDetailPage() {
             </div>
 
             <h1 style={{ fontSize: 20, fontWeight: 700, color: COLORS.text, margin: '0 0 6px 0', lineHeight: 1.4 }}>
-              {product.title || 'Awaiting data...'}
+              {product.title || t('products.awaitingData')}
             </h1>
 
             {product.brand && (
               <div style={{ fontSize: 13, color: COLORS.sub, marginBottom: 12 }}>
-                by <span style={{ fontWeight: 600, color: COLORS.accent }}>{product.brand}</span>
+                {t('productDetail.by')} <span style={{ fontWeight: 600, color: COLORS.accent }}>{product.brand}</span>
               </div>
             )}
 
@@ -168,7 +170,7 @@ export default function ProductDetailPage() {
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                   <span style={{ fontSize: 18, color: '#F59E0B' }}>★</span>
                   <span style={{ fontSize: 18, fontWeight: 600, color: COLORS.text }}>{product.rating}</span>
-                  <span style={{ fontSize: 13, color: COLORS.sub }}>({product.review_count || 0} reviews)</span>
+                  <span style={{ fontSize: 13, color: COLORS.sub }}>({product.review_count || 0} {t('productDetail.reviews')})</span>
                 </div>
               )}
             </div>
@@ -181,19 +183,19 @@ export default function ProductDetailPage() {
               </div>
               {product.msku && (
                 <div>
-                  <div style={labelStyle}>MSKU</div>
+                  <div style={labelStyle}>{t('products.msku')}</div>
                   <div style={{ ...valueStyle, fontFamily: 'monospace', fontSize: 13 }}>{product.msku}</div>
                 </div>
               )}
               {product.parent_asin && (
                 <div>
-                  <div style={labelStyle}>PARENT ASIN</div>
+                  <div style={labelStyle}>{t('products.parentAsin').toUpperCase()}</div>
                   <div style={{ ...valueStyle, fontFamily: 'monospace', fontSize: 13 }}>{product.parent_asin}</div>
                 </div>
               )}
               {product.variant_count && (
                 <div>
-                  <div style={labelStyle}>VARIANTS</div>
+                  <div style={labelStyle}>{t('products.variants').toUpperCase()}</div>
                   <div style={valueStyle}>{product.variant_count}</div>
                 </div>
               )}
@@ -201,7 +203,7 @@ export default function ProductDetailPage() {
                 <div>
                   <div style={labelStyle}>AMAZON</div>
                   <a href={product.amazon_url} target="_blank" rel="noopener noreferrer" style={{ fontSize: 12, fontWeight: 500, color: COLORS.accent, textDecoration: 'none' }}>
-                    View on Amazon →
+                    {t('productDetail.viewOnAmazon')}
                   </a>
                 </div>
               )}
@@ -217,7 +219,7 @@ export default function ProductDetailPage() {
         <div style={{ ...CARD_STYLE, padding: '20px 24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: COLORS.orange }} />
-            <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Bestseller Rank</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>{t('productDetail.bestsellerRank')}</span>
           </div>
           {product.bestseller_rank ? (
             <div>
@@ -225,11 +227,11 @@ export default function ProductDetailPage() {
                 #{product.bestseller_rank.toLocaleString('de-DE')}
               </div>
               {product.bestseller_category && (
-                <div style={{ fontSize: 12, color: COLORS.sub }}>in {product.bestseller_category}</div>
+                <div style={{ fontSize: 12, color: COLORS.sub }}>{t('productDetail.inCategory')} {product.bestseller_category}</div>
               )}
             </div>
           ) : (
-            <div style={{ fontSize: 13, color: COLORS.sub }}>No ranking data available</div>
+            <div style={{ fontSize: 13, color: COLORS.sub }}>{t('productDetail.noRankData')}</div>
           )}
         </div>
 
@@ -237,7 +239,7 @@ export default function ProductDetailPage() {
         <div style={{ ...CARD_STYLE, padding: '20px 24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: COLORS.accent }} />
-            <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Category</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>{t('productDetail.category')}</span>
           </div>
           {product.category ? (
             <div style={{ fontSize: 13, color: '#475569', lineHeight: 1.7 }}>
@@ -251,7 +253,7 @@ export default function ProductDetailPage() {
               ))}
             </div>
           ) : (
-            <div style={{ fontSize: 13, color: COLORS.sub }}>No category data</div>
+            <div style={{ fontSize: 13, color: COLORS.sub }}>{t('productDetail.noCategoryData')}</div>
           )}
         </div>
       </div>
@@ -261,7 +263,7 @@ export default function ProductDetailPage() {
         <div style={{ ...CARD_STYLE, padding: '20px 24px', marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: COLORS.green }} />
-            <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Description</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>{t('productDetail.description')}</span>
           </div>
           <div style={{ fontSize: 13, color: '#475569', lineHeight: 1.8 }}>
             {product.description}
@@ -274,7 +276,7 @@ export default function ProductDetailPage() {
         <div style={{ ...CARD_STYLE, padding: '20px 24px', marginBottom: 20 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: COLORS.blue }} />
-            <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Key Features</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>{t('productDetail.keyFeatures')}</span>
           </div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {product.bullet_points.split(' || ').map((bp, i) => (
@@ -291,27 +293,27 @@ export default function ProductDetailPage() {
       <div style={{ ...CARD_STYLE, padding: '20px 24px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
           <div style={{ width: 8, height: 8, borderRadius: '50%', background: COLORS.muted }} />
-          <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Metadata</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>{t('productDetail.metadata')}</span>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 16 }}>
           <div>
-            <div style={labelStyle}>ADDED</div>
+            <div style={labelStyle}>{t('products.added').toUpperCase()}</div>
             <div style={{ fontSize: 13, color: '#475569' }}>{new Date(product.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
           </div>
           {product.fetched_at && (
             <div>
-              <div style={labelStyle}>LAST FETCHED</div>
+              <div style={labelStyle}>{t('productDetail.lastFetched')}</div>
               <div style={{ fontSize: 13, color: '#475569' }}>{new Date(product.fetched_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
             </div>
           )}
           {product.updated_at && (
             <div>
-              <div style={labelStyle}>UPDATED</div>
+              <div style={labelStyle}>{t('productDetail.updated')}</div>
               <div style={{ fontSize: 13, color: '#475569' }}>{new Date(product.updated_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })}</div>
             </div>
           )}
           <div>
-            <div style={labelStyle}>MARKETPLACE</div>
+            <div style={labelStyle}>{t('productDetail.marketplace')}</div>
             <div style={{ fontSize: 13, color: '#475569' }}>{product.marketplace || '—'}</div>
           </div>
         </div>

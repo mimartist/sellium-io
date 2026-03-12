@@ -3,15 +3,17 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { COLORS } from '@/lib/design-tokens'
+import { useTranslation } from '@/lib/i18n'
 
 const tabs = [
-  { label: 'Stock Tracking', href: '/inventory' },
-  { label: 'Order Planning', href: '/inventory/orders' },
-  { label: 'Stock Liquidation', href: '/inventory/melt' },
+  { key: 'inventoryLayout.stockTracking', href: '/inventory' },
+  { key: 'inventoryLayout.orderPlanning', href: '/inventory/orders' },
+  { key: 'inventoryLayout.stockLiquidation', href: '/inventory/melt' },
 ]
 
 export default function InventoryLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const { t } = useTranslation()
 
   const isActiveTab = (href: string) => {
     if (href === '/inventory') return pathname === '/inventory'
@@ -39,7 +41,7 @@ export default function InventoryLayout({ children }: { children: React.ReactNod
                     whiteSpace: 'nowrap',
                     marginBottom: -1,
                   }}>
-                    {tab.label}
+                    {t(tab.key)}
                   </div>
                 </Link>
               </div>

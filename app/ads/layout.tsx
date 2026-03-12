@@ -5,17 +5,19 @@ import { usePathname } from 'next/navigation'
 import { DateRangeProvider } from './DateRangeContext'
 import DateRangePicker from './DateRangePicker'
 import { COLORS } from '@/lib/design-tokens'
+import { useTranslation } from '@/lib/i18n'
 
 const tabs = [
-  { label: 'Overview', href: '/ads' },
-  { label: 'Campaigns', href: '/ads/campaigns' },
-  { label: 'Product Performance', href: '/ads/products' },
-  { label: 'Search Terms', href: '/ads/keywords' },
-  { label: 'Brand', href: '/ads/brand' },
+  { key: 'adsLayout.overview', href: '/ads' },
+  { key: 'adsLayout.campaigns', href: '/ads/campaigns' },
+  { key: 'adsLayout.productPerf', href: '/ads/products' },
+  { key: 'adsLayout.searchTerms', href: '/ads/keywords' },
+  { key: 'adsLayout.brand', href: '/ads/brand' },
 ]
 
 export default function AdsLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
+  const { t } = useTranslation()
 
   const isActiveTab = (href: string) => {
     if (href === '/ads') return pathname === '/ads'
@@ -46,7 +48,7 @@ export default function AdsLayout({ children }: { children: React.ReactNode }) {
                     whiteSpace: 'nowrap',
                     marginBottom: -1,
                   }}>
-                    {tab.label}
+                    {t(tab.key)}
                   </div>
                 </Link>
               </div>

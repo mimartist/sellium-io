@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { createClient } from '@supabase/supabase-js'
 import { COLORS, CARD_STYLE } from '@/lib/design-tokens'
+import { useTranslation } from '@/lib/i18n'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -10,6 +11,7 @@ const supabase = createClient(
 )
 
 export default function AddProductsPage() {
+  const { t } = useTranslation()
   const [asinInput, setAsinInput] = useState('')
   const [saving, setSaving] = useState(false)
   const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null)
@@ -63,7 +65,7 @@ export default function AddProductsPage() {
     setShowSuccess(false)
     setShowError(false)
 
-    setMessage({ text: `Fetching product data for ${newAsins.length} ASINs...`, type: 'success' })
+    setMessage({ text: t('productsAdd.fetchingAsins', { count: newAsins.length }), type: 'success' })
     setAsinInput('')
 
     const success = await triggerN8nWebhook(newAsins)
@@ -79,7 +81,7 @@ export default function AddProductsPage() {
       setShowSuccess(true)
       setTimeout(() => setShowSuccess(false), 3000)
     } else {
-      setMessage({ text: `Failed to register ${newAsins.length} ASINs. Please try again.`, type: 'error' })
+      setMessage({ text: t('productsAdd.failedToRegister', { count: newAsins.length }), type: 'error' })
       setShowError(true)
       setTimeout(() => setShowError(false), 5000)
     }
@@ -104,8 +106,8 @@ export default function AddProductsPage() {
             fontSize: 16,
           }}>✓</div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>Registration Successful!</div>
-            <div style={{ fontSize: 12, color: COLORS.sub }}>Product data is being fetched from Amazon</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>{t('productsAdd.registrationSuccess')}</div>
+            <div style={{ fontSize: 12, color: COLORS.sub }}>{t('productsAdd.fetchingFromAmazon')}</div>
           </div>
           <button onClick={() => setShowSuccess(false)} style={{
             background: 'none', border: 'none', cursor: 'pointer',
@@ -131,8 +133,8 @@ export default function AddProductsPage() {
             fontSize: 16, color: COLORS.red,
           }}>✕</div>
           <div>
-            <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>Registration Failed!</div>
-            <div style={{ fontSize: 12, color: COLORS.sub }}>Could not reach the server. Please try again.</div>
+            <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>{t('productsAdd.registrationFailed')}</div>
+            <div style={{ fontSize: 12, color: COLORS.sub }}>{t('productsAdd.serverUnreachable')}</div>
           </div>
           <button onClick={() => setShowError(false)} style={{
             background: 'none', border: 'none', cursor: 'pointer',
@@ -143,9 +145,9 @@ export default function AddProductsPage() {
 
       {/* HEADER */}
       <div style={{ marginBottom: 24 }}>
-        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: COLORS.text }}>Add Products</h1>
+        <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: COLORS.text }}>{t('productsLayout.addProducts')}</h1>
         <p style={{ fontSize: 13, color: COLORS.sub, marginTop: 2, margin: 0 }}>
-          Paste Amazon ASINs to register new products in your catalog
+          {t('productsAdd.subtitle')}
         </p>
       </div>
 
@@ -153,13 +155,13 @@ export default function AddProductsPage() {
       <div style={{ ...CARD_STYLE, padding: '24px', marginBottom: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
           <div style={{ width: 8, height: 8, borderRadius: '50%', background: COLORS.accent }} />
-          <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Bulk ASIN Entry</span>
+          <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>{t('productsAdd.bulkAsinEntry')}</span>
         </div>
 
         <textarea
           value={asinInput}
           onChange={e => { setAsinInput(e.target.value); setMessage(null) }}
-          placeholder={'Paste ASINs here — one per line, or separated by commas/spaces\n\nExample:\nB0FM5BGZJJ\nB0FMSXZVK8, B0FMS02A07\nB0GL49YTD1 B0DKP3YCG2'}
+          placeholder={t('productsAdd.placeholder')}
           style={{
             width: '100%', minHeight: 140, padding: '14px 16px', borderRadius: 10,
             border: `1px solid ${COLORS.border}`, fontSize: 13, fontFamily: 'monospace',
@@ -172,16 +174,16 @@ export default function AddProductsPage() {
         {asinInput.trim() && (
           <div style={{ display: 'flex', gap: 16, marginTop: 10, flexWrap: 'wrap' }}>
             <span style={{ fontSize: 12, color: COLORS.green, fontWeight: 500 }}>
-              ✓ {newAsins.length} new
+              ✓ {newAsins.length} {t('common.new').toLowerCase()}
             </span>
             {dupeAsins.length > 0 && (
               <span style={{ fontSize: 12, color: COLORS.orange, fontWeight: 500 }}>
-                ⟳ {dupeAsins.length} already registered
+                ⟳ {dupeAsins.length} {t('productsAdd.alreadyRegistered')}
               </span>
             )}
             {uniqueAsins.length !== parsedAsins.length && (
               <span style={{ fontSize: 12, color: COLORS.sub }}>
-                {parsedAsins.length - uniqueAsins.length} duplicates in input
+                {parsedAsins.length - uniqueAsins.length} {t('productsAdd.duplicatesInInput')}
               </span>
             )}
           </div>
@@ -199,11 +201,11 @@ export default function AddProductsPage() {
               transition: 'all 0.2s',
             }}
           >
-            {saving ? 'Saving...' : `Add ${newAsins.length > 0 ? newAsins.length : ''} ASINs`}
+            {saving ? t('productsAdd.saving') : t('productsAdd.addAsins', { count: newAsins.length > 0 ? newAsins.length : '' })}
           </button>
 
           {asinInput.trim() && newAsins.length === 0 && uniqueAsins.length > 0 && (
-            <span style={{ fontSize: 12, color: COLORS.orange }}>All ASINs already registered</span>
+            <span style={{ fontSize: 12, color: COLORS.orange }}>{t('productsAdd.allAlreadyRegistered')}</span>
           )}
         </div>
 
@@ -231,11 +233,11 @@ export default function AddProductsPage() {
             {webhookStatus === 'sending' && (
               <>
                 <span style={{ display: 'inline-block', width: 14, height: 14, border: `2px solid ${COLORS.border}`, borderTopColor: COLORS.accent, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                Fetching product data from Amazon...
+                {t('productsAdd.fetchingFromAmazonStatus')}
               </>
             )}
-            {webhookStatus === 'success' && '✓ Product data request sent — details will appear in My Products shortly'}
-            {webhookStatus === 'error' && '⚠ Could not trigger data fetch. Products saved — data will be fetched later.'}
+            {webhookStatus === 'success' && `✓ ${t('productsAdd.webhookSuccess')}`}
+            {webhookStatus === 'error' && `⚠ ${t('productsAdd.webhookError')}`}
           </div>
         )}
       </div>
@@ -245,8 +247,8 @@ export default function AddProductsPage() {
         <div style={{ ...CARD_STYLE, padding: '18px 24px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: COLORS.green }} />
-            <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Recently Added</span>
-            <span style={{ fontSize: 11, color: COLORS.sub, marginLeft: 4 }}>{recentlyAdded.length} ASINs this session</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>{t('productsAdd.recentlyAdded')}</span>
+            <span style={{ fontSize: 11, color: COLORS.sub, marginLeft: 4 }}>{t('productsAdd.asinsThisSession', { count: recentlyAdded.length })}</span>
           </div>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
             {recentlyAdded.map(asin => (
@@ -263,12 +265,12 @@ export default function AddProductsPage() {
 
       {/* HELP */}
       <div style={{ ...CARD_STYLE, padding: '18px 24px', marginTop: 20 }}>
-        <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 10 }}>How it works</div>
+        <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 10 }}>{t('productsAdd.howItWorks')}</div>
         <div style={{ fontSize: 13, color: '#475569', lineHeight: 1.8 }}>
-          <div><span style={{ fontWeight: 600, color: COLORS.text }}>1.</span> Paste your Amazon ASINs above (e.g. B0FM5BGZJJ)</div>
-          <div><span style={{ fontWeight: 600, color: COLORS.text }}>2.</span> Click &quot;Add ASINs&quot; — products are saved with <span style={{ padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600, background: 'rgba(245,158,11,0.1)', color: '#F59E0B' }}>Pending</span> status</div>
-          <div><span style={{ fontWeight: 600, color: COLORS.text }}>3.</span> Product data (title, image, price, rating, reviews) is <span style={{ fontWeight: 600, color: COLORS.accent }}>automatically fetched</span> from Amazon via Rainforest API</div>
-          <div><span style={{ fontWeight: 600, color: COLORS.text }}>4.</span> Status changes to <span style={{ padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600, background: 'rgba(16,185,129,0.1)', color: '#10B981' }}>Active</span> once data is ready — view in <span style={{ fontWeight: 600, color: COLORS.accent }}>My Products</span> tab</div>
+          <div><span style={{ fontWeight: 600, color: COLORS.text }}>1.</span> {t('productsAdd.step1')}</div>
+          <div><span style={{ fontWeight: 600, color: COLORS.text }}>2.</span> {t('productsAdd.step2pre')} <span style={{ padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600, background: 'rgba(245,158,11,0.1)', color: '#F59E0B' }}>{t('products.pendingStatus')}</span> {t('productsAdd.step2post')}</div>
+          <div><span style={{ fontWeight: 600, color: COLORS.text }}>3.</span> {t('productsAdd.step3pre')} <span style={{ fontWeight: 600, color: COLORS.accent }}>{t('productsAdd.step3auto')}</span> {t('productsAdd.step3post')}</div>
+          <div><span style={{ fontWeight: 600, color: COLORS.text }}>4.</span> {t('productsAdd.step4pre')} <span style={{ padding: '1px 6px', borderRadius: 4, fontSize: 10, fontWeight: 600, background: 'rgba(16,185,129,0.1)', color: '#10B981' }}>{t('products.activeStatus')}</span> {t('productsAdd.step4mid')} <span style={{ fontWeight: 600, color: COLORS.accent }}>{t('products.title')}</span> {t('productsAdd.step4post')}</div>
         </div>
       </div>
     </>

@@ -12,6 +12,7 @@ import { StockStatusBadge, ImgPlaceholder } from '@/components/ui/Badges'
 import ProductCell from '@/components/ui/ProductCell'
 import { useProductImages } from '@/hooks/useProductImages'
 import { COLORS, CARD_STYLE, SELECT_STYLE, TH_STYLE, STOCK_STATUS } from '@/lib/design-tokens'
+import { useTranslation } from '@/lib/i18n'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -96,6 +97,7 @@ function formatMonthLabel(ym: string): string {
 }
 
 export default function InventoryPage() {
+  const { t } = useTranslation()
   const { getBySkuWithFallback: getBySku, asinFromSkuWithFallback: asinFromSku } = useProductImages()
   const [data, setData] = useState<StockRow[]>([])
   const [monthlyShipments, setMonthlyShipments] = useState<MonthlyShipment[]>([])
@@ -426,20 +428,20 @@ export default function InventoryPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: COLORS.text, margin: 0 }}>Inventory Tracking & Analysis</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: COLORS.text, margin: 0 }}>{t("inventory.title")}</h1>
           <p style={{ fontSize: 13, color: COLORS.sub, margin: '2px 0 0' }}>
-            {snapshotDate && `Last updated: ${snapshotDate} · `}FBA inventory status · {data.length} SKU
+            {snapshotDate && `${t("inventory.lastUpdated")}: ${snapshotDate} · `}{t("inventory.fbaStatus")} · {data.length} SKU
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {statusCounts.out > 0 && (
             <span style={{ fontSize: 12, fontWeight: 600, padding: '4px 12px', borderRadius: 20, background: COLORS.redLight, color: COLORS.red }}>
-              {statusCounts.out} out of stock · {fmtCur(totalDailyLoss)}/day
+              {statusCounts.out} {t("inventory.outOfStock")} · {fmtCur(totalDailyLoss)}/day
             </span>
           )}
           {statusCounts.critical > 0 && (
             <span style={{ fontSize: 12, fontWeight: 600, padding: '4px 12px', borderRadius: 20, background: COLORS.orangeLight, color: '#D97706' }}>
-              {statusCounts.critical} critical
+              {statusCounts.critical} {t("inventory.critical")}
             </span>
           )}
         </div>
@@ -447,21 +449,21 @@ export default function InventoryPage() {
 
       {/* 4 KPI Cards */}
       <div className="grid-4" style={{ marginBottom: 20 }}>
-        <KpiCard label="TOTAL STOCK" value={fmtNum(totalStock)} change={`${data.length} SKU`} up={true}
+        <KpiCard label={t("inventory.totalStock")} value={fmtNum(totalStock)} change={`${data.length} SKU`} up={true}
           icon={KpiIcons.stock} bars={[50, 55, 60, 58, 62, 65, 68]} color={COLORS.accent} light="#C7D2FE" iconBg={COLORS.accentLight} />
-        <KpiCard label="OUT OF STOCK" value={String(statusCounts.out)} change={`${fmtCur(totalDailyLoss)}/day loss`} up={false}
+        <KpiCard label={t("inventory.outLabel")} value={String(statusCounts.out)} change={`${fmtCur(totalDailyLoss)}${t("inventory.dayLoss")}`} up={false}
           icon={KpiIcons.warning} bars={[90, 85, 80, 75, 72, 68, 65]} color={COLORS.red} light={COLORS.redLighter} iconBg={COLORS.redLight} />
-        <KpiCard label="CRITICAL (<14 DAYS)" value={String(statusCounts.critical)} change="Urgent order" up={false}
+        <KpiCard label={t("inventory.criticalDays")} value={String(statusCounts.critical)} change={t("inventory.urgentOrder")} up={false}
           icon={KpiIcons.clock} bars={[70, 65, 60, 55, 50, 48, 45]} color={COLORS.orange} light={COLORS.orangeLighter} iconBg={COLORS.orangeLight} />
-        <KpiCard label="STORAGE/MONTH" value={fmtCur(totalStorage)} change={`${data.length} records`} up={true}
+        <KpiCard label={t("inventory.storageMonth")} value={fmtCur(totalStorage)} change={`${data.length} ${t("common.records")}`} up={true}
           icon={KpiIcons.spend} bars={[60, 62, 65, 63, 60, 58, 55]} color={COLORS.orange} light={COLORS.orangeLighter} iconBg={COLORS.orangeLight} />
       </div>
 
       {/* Charts: Trend + Size */}
       <div className="grid-2" style={{ marginBottom: 20 }}>
         <div style={{ ...CARD_STYLE, padding: '18px 22px' }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>Monthly Sales Trend</div>
-          <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 14 }}>Units sold · last 12 months</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>{t("inventory.monthlyTrend")}</div>
+          <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 14 }}>{t("inventory.unitsSold")} · {t("inventory.last12")}</div>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={monthlyShipments} margin={{ top: 5, right: 0, left: -15, bottom: 0 }}>
               <CartesianGrid strokeDasharray="0" stroke={COLORS.border} vertical={false} />
@@ -479,8 +481,8 @@ export default function InventoryPage() {
         </div>
 
         <div style={{ ...CARD_STYLE, padding: '18px 22px' }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>Size Distribution</div>
-          <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 14 }}>Based on yearly sales</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>{t("inventory.sizeDist")}</div>
+          <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 14 }}>{t("inventory.basedOnYearly")}</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {sizeDistribution.map((sz, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -501,8 +503,8 @@ export default function InventoryPage() {
         <div style={{ ...CARD_STYLE, padding: '18px 22px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: COLORS.red }} />
-            <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Low CVR Opportunities</span>
-            <span style={{ fontSize: 11, color: COLORS.sub, marginLeft: 4 }}>High traffic, low conversion</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>{t("inventory.lowCvr")}</span>
+            <span style={{ fontSize: 11, color: COLORS.sub, marginLeft: 4 }}>{t("inventory.highTrafficLowCvr")}</span>
           </div>
           {lowCvrProducts.slice(0, 5).map((d, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < 4 ? `1px solid #F8FAFC` : 'none' }}>
@@ -520,14 +522,14 @@ export default function InventoryPage() {
               </div>
             </div>
           ))}
-          {lowCvrProducts.length === 0 && <div style={{ fontSize: 12, color: COLORS.sub, padding: 16, textAlign: 'center' }}>No low CVR products found</div>}
+          {lowCvrProducts.length === 0 && <div style={{ fontSize: 12, color: COLORS.sub, padding: 16, textAlign: 'center' }}>{t("inventory.noLowCvr")}</div>}
         </div>
 
         <div style={{ ...CARD_STYLE, padding: '18px 22px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
             <div style={{ width: 8, height: 8, borderRadius: '50%', background: COLORS.green }} />
-            <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Star Products</span>
-            <span style={{ fontSize: 11, color: COLORS.sub, marginLeft: 4 }}>CVR &gt;12% — increase traffic</span>
+            <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>{t("inventory.starProducts")}</span>
+            <span style={{ fontSize: 11, color: COLORS.sub, marginLeft: 4 }}>{t("inventory.starDesc")}</span>
           </div>
           {starProducts.slice(0, 5).map((d, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < 4 ? `1px solid #F8FAFC` : 'none' }}>
@@ -548,15 +550,15 @@ export default function InventoryPage() {
               </div>
             </div>
           ))}
-          {starProducts.length === 0 && <div style={{ fontSize: 12, color: COLORS.sub, padding: 16, textAlign: 'center' }}>No star products found</div>}
+          {starProducts.length === 0 && <div style={{ fontSize: 12, color: COLORS.sub, padding: 16, textAlign: 'center' }}>{t("inventory.noStar")}</div>}
         </div>
       </div>
 
       {/* AI Insights — show local insights immediately, replace with API results when ready */}
       {mappedInsights.length > 0 && (
         <AIInsights
-          title={aiApiLoading ? "AI Inventory Insights ✨" : "AI Inventory Insights"}
-          subtitle={aiApiLoading ? "Generating AI-powered insights..." : "AI-powered recommendations based on inventory and sales data"}
+          title={t("inventory.aiTitle")}
+          subtitle={aiApiLoading ? t("inventory.generatingAi") : t("inventory.aiSubtitle")}
           insights={mappedInsights}
         />
       )}
@@ -565,7 +567,7 @@ export default function InventoryPage() {
       <div style={{ ...CARD_STYLE, padding: '12px 20px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
         <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
           {(['all', 'out', 'critical', 'warning', 'healthy', 'overstock', 'dead', 'inactive'] as StockStatus[]).map(s => {
-            const labels: Record<string, string> = { all: 'All', out: 'Out of Stock', critical: 'Critical', warning: 'Warning', healthy: 'Healthy', overstock: 'Overstock', dead: 'Dead', inactive: 'Inactive' }
+            const labels: Record<string, string> = { all: t("common.all"), out: t("status.out"), critical: t("status.critical"), warning: t("status.warning"), healthy: t("status.healthy"), overstock: t("status.overstock"), dead: t("status.dead"), inactive: t("status.inactive") }
             return (
               <button key={s} onClick={() => { setStatusFilter(s); setSelectedRow(null) }} style={{
                 padding: '5px 12px', borderRadius: 8, border: '1px solid #E2E8F0', cursor: 'pointer', fontSize: 11, fontWeight: 500,
@@ -577,12 +579,12 @@ export default function InventoryPage() {
           })}
         </div>
         <div style={{ flex: 1 }} />
-        <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search SKU..."
+        <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder={t("common.searchSku")}
           style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #E2E8F0', fontSize: 12, outline: 'none', width: 140 }} />
         <select value={`${sortKey}-${sortDir}`} onChange={e => { const [k, d] = e.target.value.split('-'); setSortKey(k as SortKey); setSortDir(d as SortDir) }}
           style={{ ...SELECT_STYLE, fontSize: 12, padding: '7px 28px 7px 10px' }}>
-          <option value="daily_revenue_loss-desc">Urgency</option>
-          <option value="sales_year-desc">Yearly Sales</option>
+          <option value="daily_revenue_loss-desc">{t("inventory.urgency")}</option>
+          <option value="sales_year-desc">{t("inventory.yearlySales")}</option>
           <option value="cvr-desc">CVR</option>
           <option value="sessions-desc">Traffic</option>
           <option value="current_stock-asc">Stock</option>
@@ -591,7 +593,7 @@ export default function InventoryPage() {
 
       {/* Main Table */}
       <div style={{ ...CARD_STYLE, padding: 0, overflow: 'hidden', marginBottom: 20 }}>
-        <div style={{ overflowX: 'auto' }}>
+        <div className="modern-scroll" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 960 }}>
             <thead>
               <tr style={{ borderBottom: `2px solid ${COLORS.border}` }}>
@@ -652,7 +654,7 @@ export default function InventoryPage() {
         </div>
         {filteredData.length > 100 && (
           <div style={{ padding: '10px 16px', fontSize: 11, color: COLORS.sub, borderTop: `1px solid ${COLORS.border}` }}>
-            Showing first 100 of {filteredData.length} products
+            {t("common.showing", {limit: 100, total: filteredData.length})}
           </div>
         )}
       </div>

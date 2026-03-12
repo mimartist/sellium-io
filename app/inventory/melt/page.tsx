@@ -4,6 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react'
 import KpiCard from '@/components/ui/KpiCard'
 import { KpiIcons } from '@/components/ui/KpiIcons'
 import { COLORS, CARD_STYLE, TH_STYLE } from '@/lib/design-tokens'
+import { useTranslation } from '@/lib/i18n'
 import {
   supabase, StockRow, extractSize,
   fmtNum, fmtCur, fmtDec, STOCK_SELECT_FIELDS,
@@ -15,6 +16,7 @@ import { ImgPlaceholder } from '@/components/ui/Badges'
 const tdStyle: React.CSSProperties = { padding: '11px 12px', fontSize: 13, color: '#475569', borderBottom: `1px solid ${COLORS.border}`, whiteSpace: 'nowrap' }
 
 export default function StockLiquidationPage() {
+  const { t } = useTranslation()
   const { getBySkuWithFallback: getBySku, asinFromSkuWithFallback: asinFromSku } = useProductImages()
   const [rawData, setRawData] = useState<StockRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -43,22 +45,22 @@ export default function StockLiquidationPage() {
         let discountRate = 0
 
         if (dailySales === 0 || r.stock_status === 'dead') {
-          action = 'Remove from FBA'
+          action = t("melt.removeFromFba")
           actionColor = '#ef4444'
           actionBg = 'rgba(239,68,68,0.1)'
           discountRate = 0
         } else if (daysOfStock > 365) {
-          action = '30-50% Discount Campaign'
+          action = t("melt.discountCampaign30")
           actionColor = '#f97316'
           actionBg = 'rgba(249,115,22,0.1)'
           discountRate = 0.4
         } else if (daysOfStock > 180) {
-          action = '20-30% Discount'
+          action = t("melt.discount20")
           actionColor = '#f59e0b'
           actionBg = 'rgba(245,158,11,0.1)'
           discountRate = 0.25
         } else {
-          action = 'Increase Ad Budget'
+          action = t("melt.increaseAdBudget")
           actionColor = COLORS.accent
           actionBg = 'rgba(91,95,199,0.1)'
           discountRate = 0
@@ -74,7 +76,7 @@ export default function StockLiquidationPage() {
         if (a.stock_status !== 'dead' && b.stock_status === 'dead') return 1
         return b.storageFee - a.storageFee
       })
-  }, [rawData])
+  }, [rawData, t])
 
   const meltOverstockCount = useMemo(() => meltRows.filter(r => r.stock_status === 'overstock').reduce((s, r) => s + (r.current_stock || 0), 0), [meltRows])
   const meltDeadCount = useMemo(() => meltRows.filter(r => r.stock_status === 'dead').reduce((s, r) => s + (r.current_stock || 0), 0), [meltRows])
@@ -128,7 +130,7 @@ export default function StockLiquidationPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ width: 36, height: 36, border: `3px solid ${COLORS.border}`, borderTopColor: COLORS.accent, borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-          <div style={{ color: COLORS.sub, fontSize: 13 }}>Loading liquidation data...</div>
+          <div style={{ color: COLORS.sub, fontSize: 13 }}>{t("melt.loadingLiquidation")}</div>
         </div>
       </div>
     )
@@ -139,9 +141,9 @@ export default function StockLiquidationPage() {
       {/* HEADER */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: COLORS.text }}>Stock Liquidation</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: COLORS.text }}>{t("melt.title")}</h1>
           <p style={{ fontSize: 13, color: COLORS.sub, marginTop: 2, margin: 0 }}>
-            Overstock & dead stock analysis · {meltRows.length} products need action
+            {t("melt.subtitle", {count: meltRows.length})}
           </p>
         </div>
         <button onClick={exportCSV} style={{
@@ -149,19 +151,19 @@ export default function StockLiquidationPage() {
           background: COLORS.accentLight, border: '1px solid rgba(91,95,199,0.3)',
           color: COLORS.accent, cursor: 'pointer',
         }}>
-          Export CSV
+          {t("common.exportCsv")}
         </button>
       </div>
 
       {/* KPI CARDS */}
       <div className="grid-4" style={{ marginBottom: 20 }}>
-        <KpiCard label="TOTAL OVERSTOCK" value={fmtNum(meltOverstockCount) + ' units'} change={`${meltRows.filter(r => r.stock_status === 'overstock').length} products`} up={false}
+        <KpiCard label={t("melt.totalOverstock")} value={fmtNum(meltOverstockCount) + ' units'} change={`${meltRows.filter(r => r.stock_status === 'overstock').length} products`} up={false}
           icon={KpiIcons.stock} bars={[70, 72, 74, 76, 78, 80, 82]} color={COLORS.accent} light="#C7D2FE" iconBg={COLORS.accentLight} />
-        <KpiCard label="DEAD STOCK" value={fmtNum(meltDeadCount) + ' units'} change={`${meltRows.filter(r => r.stock_status === 'dead').length} products`} up={false}
+        <KpiCard label={t("melt.deadStock")} value={fmtNum(meltDeadCount) + ' units'} change={`${meltRows.filter(r => r.stock_status === 'dead').length} products`} up={false}
           icon={KpiIcons.warning} bars={[90, 85, 80, 75, 70, 68, 65]} color={COLORS.red} light={COLORS.redLighter} iconBg={COLORS.redLight} />
-        <KpiCard label="MONTHLY STORAGE" value={fmtCur(meltMonthlyStorage)} change="Storage cost" up={false}
+        <KpiCard label={t("melt.monthlyStorage")} value={fmtCur(meltMonthlyStorage)} change={t("melt.storageCost")} up={false}
           icon={KpiIcons.spend} bars={[60, 62, 65, 63, 60, 58, 55]} color={COLORS.orange} light={COLORS.orangeLighter} iconBg={COLORS.orangeLight} />
-        <KpiCard label="AVG. LIQUIDATION TIME" value={meltAvgDays > 0 ? `${fmtNum(Math.round(meltAvgDays))} days` : '—'} change="Based on current sales" up={true}
+        <KpiCard label={t("melt.avgLiqTime")} value={meltAvgDays > 0 ? `${fmtNum(Math.round(meltAvgDays))} days` : '—'} change={t("melt.basedOnSales")} up={true}
           icon={KpiIcons.clock} bars={[40, 45, 50, 48, 45, 42, 40]} color="#a78bfa" light="#E8DEFF" iconBg="#F3EEFF" />
       </div>
 
@@ -172,7 +174,7 @@ export default function StockLiquidationPage() {
             <div style={{ ...CARD_STYLE, padding: '18px 22px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: COLORS.red }} />
-                <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Dead Stock Action</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>{t("melt.deadAction")}</span>
               </div>
               <div style={{ fontSize: 13, color: '#475569', lineHeight: 1.7 }}>
                 Removing <span style={{ fontWeight: 700, color: COLORS.text }}>{meltSummary.deadCount} dead stock products</span> from FBA would save <span style={{ fontWeight: 700, color: COLORS.red }}>{fmtCur(meltSummary.deadStorage)}/month</span> in storage fees. Create a removal order for these items.
@@ -183,7 +185,7 @@ export default function StockLiquidationPage() {
             <div style={{ ...CARD_STYLE, padding: '18px 22px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 10 }}>
                 <div style={{ width: 8, height: 8, borderRadius: '50%', background: COLORS.orange }} />
-                <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Overstock Action</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>{t("melt.overstockAction")}</span>
               </div>
               <div style={{ fontSize: 13, color: '#475569', lineHeight: 1.7 }}>
                 Applying discounts to <span style={{ fontWeight: 700, color: COLORS.text }}>{meltSummary.overstockCount} overstock products</span> could generate an estimated <span style={{ fontWeight: 700, color: COLORS.green }}>{fmtCur(meltSummary.overstockRevenue)}</span> in revenue and free up warehouse space.
@@ -195,14 +197,14 @@ export default function StockLiquidationPage() {
 
       {/* MELT TABLE */}
       <div style={{ ...CARD_STYLE, padding: 0, overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
+        <div className="modern-scroll" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 1000 }}>
             <thead>
               <tr style={{ borderBottom: `2px solid ${COLORS.border}` }}>
                 <th style={{ ...TH_STYLE, padding: '12px 12px', width: 40 }}>
                   <input type="checkbox" checked={selectAll} onChange={handleSelectAll} style={{ cursor: 'pointer', width: 14, height: 14 }} />
                 </th>
-                {['SKU', 'Size', 'Stock', 'D. Sales', 'Days Left', 'Monthly Storage', 'Recommended Action', 'Est. Impact'].map((h, i) => (
+                {['SKU', 'Size', 'Stock', t("melt.dSales"), 'Days Left', t("melt.monthlyStorageCol"), t("melt.recommendedAction"), t("melt.estImpact")].map((h, i) => (
                   <th key={h} style={{ ...TH_STYLE, padding: '12px 12px', textAlign: i >= 3 ? (i >= 6 ? 'left' : 'right') : 'left' }}>{h}</th>
                 ))}
               </tr>
@@ -248,7 +250,7 @@ export default function StockLiquidationPage() {
         </div>
         {meltRows.length > 100 && (
           <div style={{ padding: '10px 16px', fontSize: 11, color: COLORS.sub, borderTop: `1px solid ${COLORS.border}` }}>
-            Showing first 100 of {meltRows.length} products
+            {t("common.showing", {limit: 100, total: meltRows.length})}
           </div>
         )}
       </div>

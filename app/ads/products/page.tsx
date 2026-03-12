@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { useEffect, useState, useMemo } from 'react'
 import { useDateRange, formatDateTR } from '../DateRangeContext'
+import { useTranslation } from '@/lib/i18n'
 import { COLORS, CARD_STYLE, TH_STYLE } from '@/lib/design-tokens'
 import KpiCard from '@/components/ui/KpiCard'
 import { KpiIcons } from '@/components/ui/KpiIcons'
@@ -45,6 +46,7 @@ const acosColor = (v: number) => v < 25 ? '#059669' : v < 40 ? '#D97706' : '#DC2
 const acosBadgeBg = (v: number) => v < 25 ? '#ECFDF5' : v < 35 ? '#FFFBEB' : v < 60 ? '#FFF7ED' : '#FEF2F2'
 
 export default function ProductsPage() {
+  const { t } = useTranslation()
   const { getBySkuWithFallback: getBySku, asinFromSkuWithFallback: asinFromSku } = useProductImages()
   const { startDate, endDate, isAllTime } = useDateRange()
   const [rawData, setRawData] = useState<ProductRow[]>([])
@@ -138,21 +140,21 @@ export default function ProductsPage() {
     <div>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: COLORS.text }}>SP Product Performance</h1>
-          <p style={{ fontSize: 12, color: COLORS.sub, marginTop: 3 }}>Sponsored Products · {formatDateTR(startDate)} – {formatDateTR(endDate)}</p>
+          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: COLORS.text }}>{t("adsProducts.title")}</h1>
+          <p style={{ fontSize: 12, color: COLORS.sub, marginTop: 3 }}>{t("adsProducts.subtitle")} · {formatDateTR(startDate)} – {formatDateTR(endDate)}</p>
         </div>
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 80, color: COLORS.sub, fontSize: 14 }}>Loading data...</div>
+        <div style={{ textAlign: 'center', padding: 80, color: COLORS.sub, fontSize: 14 }}>{t("ads.loadingData")}</div>
       ) : (
         <>
           {/* KPI CARDS */}
           <div className="grid-4" style={{ marginBottom: 20 }}>
-            <KpiCard label="TOTAL SPEND" value={`€${kpis.totalSpend.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`} change={`${skuData.length} products`} icon={KpiIcons.spend} color={COLORS.red} light="#FECACA" iconBg="#FEF2F2" bars={[50, 55, 60, 62, 65, 68, 72]} />
-            <KpiCard label="SALES" value={`€${kpis.totalSales.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`} change={`${kpis.totalOrders} orders`} up icon={KpiIcons.sales} color={COLORS.green} light="#A7F3D0" iconBg="#ECFDF5" bars={[85, 80, 75, 72, 68, 65, 60]} />
-            <KpiCard label="ACOS" value={`%${kpis.acos.toFixed(1)}`} change={`target %35`} up={kpis.acos <= 35} icon={KpiIcons.acos} color={COLORS.orange} light="#FDE68A" iconBg="#FFFBEB" bars={[40, 45, 48, 50, 52, 55, 58]} />
-            <KpiCard label="ROAS" value={`${kpis.roas.toFixed(2)}x`} change={`target 2.5x`} up={kpis.roas >= 2.5} icon={KpiIcons.roas} color={COLORS.accent} light="#C7D2FE" iconBg="#EEF2FF" bars={[75, 70, 65, 60, 58, 55, 52]} />
+            <KpiCard label={t("ads.totalSpend")} value={`€${kpis.totalSpend.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`} change={`${skuData.length} products`} icon={KpiIcons.spend} color={COLORS.red} light="#FECACA" iconBg="#FEF2F2" bars={[50, 55, 60, 62, 65, 68, 72]} />
+            <KpiCard label={t("ads.sales")} value={`€${kpis.totalSales.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`} change={`${kpis.totalOrders} orders`} up icon={KpiIcons.sales} color={COLORS.green} light="#A7F3D0" iconBg="#ECFDF5" bars={[85, 80, 75, 72, 68, 65, 60]} />
+            <KpiCard label={t("ads.acos")} value={`%${kpis.acos.toFixed(1)}`} change={`target %35`} up={kpis.acos <= 35} icon={KpiIcons.acos} color={COLORS.orange} light="#FDE68A" iconBg="#FFFBEB" bars={[40, 45, 48, 50, 52, 55, 58]} />
+            <KpiCard label={t("ads.roas")} value={`${kpis.roas.toFixed(2)}x`} change={`target 2.5x`} up={kpis.roas >= 2.5} icon={KpiIcons.roas} color={COLORS.accent} light="#C7D2FE" iconBg="#EEF2FF" bars={[75, 70, 65, 60, 58, 55, 52]} />
           </div>
 
           {/* INSIGHT CARDS */}
@@ -161,7 +163,7 @@ export default function ProductsPage() {
               <div style={{ ...CARD_STYLE, padding: '16px 20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                   <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(244,63,94,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#f43f5e' }}>↓</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>Worst Performers</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>{t("adsProducts.worstPerformers")}</div>
                   <div style={{ fontSize: 10, color: '#f43f5e', marginLeft: 'auto', fontWeight: 600 }}>HIGH ACOS</div>
                 </div>
                 {worst3.map((s, i) => (
@@ -177,7 +179,7 @@ export default function ProductsPage() {
               <div style={{ ...CARD_STYLE, padding: '16px 20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                   <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(16,185,129,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#10b981' }}>↑</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>Best Performers</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>{t("adsProducts.bestPerformers")}</div>
                   <div style={{ fontSize: 10, color: '#10b981', marginLeft: 'auto', fontWeight: 600 }}>LOW ACOS</div>
                 </div>
                 {best3.map((s, i) => (
@@ -196,8 +198,8 @@ export default function ProductsPage() {
           {/* AI INSIGHTS */}
           {aiInsights.length > 0 && (
             <AIInsights
-              title="AI Product Insights"
-              subtitle="SKU optimization and product performance recommendations"
+              title={t("adsProducts.aiTitle")}
+              subtitle={t("adsProducts.aiSubtitle")}
               insights={aiInsights.map(ins => ({
                 type: ins.priority === 'high' ? 'CRITICAL' : ins.priority === 'normal' ? 'OPTIMIZATION' : 'INFO',
                 title: ins.title,
@@ -211,21 +213,21 @@ export default function ProductsPage() {
           <div style={{ ...CARD_STYLE, padding: 20 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
               <div>
-                <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>SKU Based Performance</div>
+                <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>{t("adsProducts.skuPerformance")}</div>
                 <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 2 }}>{filtered.length} products</div>
               </div>
-              <input type="text" placeholder="Search SKU or ASIN..." value={search} onChange={e => setSearch(e.target.value)} style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: '7px 14px', fontSize: 12.5, color: COLORS.text, outline: 'none', width: 220 }} />
+              <input type="text" placeholder={t("common.searchSkuAsin")} value={search} onChange={e => setSearch(e.target.value)} style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: '7px 14px', fontSize: 12.5, color: COLORS.text, outline: 'none', width: 220 }} />
             </div>
-            <div style={{ overflowX: 'auto' }}>
+            <div className="modern-scroll" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead><tr>
-                  <th style={{ ...thStyle, textAlign: 'left', minWidth: 200 }}>Product</th>
-                  <th style={{ ...thStyle, textAlign: 'left' }} onClick={() => handleSort('asin')}>ASIN{sortIcon('asin')}</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => handleSort('impressions')}>Impressions{sortIcon('impressions')}</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => handleSort('clicks')}>Clicks{sortIcon('clicks')}</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => handleSort('spend')}>Spend{sortIcon('spend')}</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => handleSort('sales')}>Sales{sortIcon('sales')}</th>
-                  <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => handleSort('orders')}>Orders{sortIcon('orders')}</th>
+                  <th style={{ ...thStyle, textAlign: 'left', minWidth: 200 }}>{t("adsProducts.product")}</th>
+                  <th style={{ ...thStyle, textAlign: 'left' }} onClick={() => handleSort('asin')}>{t("adsProducts.asin")}{sortIcon('asin')}</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => handleSort('impressions')}>{t("ads.impressions")}{sortIcon('impressions')}</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => handleSort('clicks')}>{t("ads.clicks")}{sortIcon('clicks')}</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => handleSort('spend')}>{t("ads.spend")}{sortIcon('spend')}</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => handleSort('sales')}>{t("ads.sales")}{sortIcon('sales')}</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => handleSort('orders')}>{t("ads.orders")}{sortIcon('orders')}</th>
                   <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => handleSort('units')}>Units{sortIcon('units')}</th>
                   <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => handleSort('acos')}>ACOS{sortIcon('acos')}</th>
                   <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => handleSort('roas')}>ROAS{sortIcon('roas')}</th>
@@ -269,7 +271,7 @@ export default function ProductsPage() {
                       </td>
                     </tr>
                   ))}
-                  {filtered.length === 0 && <tr><td colSpan={10} style={{ ...tdStyle, textAlign: 'center', color: COLORS.sub, padding: 30 }}>{search ? 'No results found' : 'No data for this date range'}</td></tr>}
+                  {filtered.length === 0 && <tr><td colSpan={10} style={{ ...tdStyle, textAlign: 'center', color: COLORS.sub, padding: 30 }}>{search ? t("common.noResults") : t("common.noDataRange")}</td></tr>}
                 </tbody>
               </table>
             </div>

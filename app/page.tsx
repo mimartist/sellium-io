@@ -12,6 +12,7 @@ import AIInsights from '@/components/ui/AIInsights'
 import { ImgPlaceholder } from '@/components/ui/Badges'
 import { useProductImages } from '@/hooks/useProductImages'
 import { COLORS, CARD_STYLE, SELECT_STYLE } from '@/lib/design-tokens'
+import { useTranslation } from '@/lib/i18n'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -118,6 +119,7 @@ const ChartTooltip = ({ active, payload, label }: any) =>
 const insightBorder = (p: number) => [COLORS.red, '#F97316', '#8B5CF6', '#EC4899', COLORS.green][p - 1] || COLORS.sub
 
 export default function DashboardPage() {
+  const { t } = useTranslation()
   const { getBySkuWithFallback: getImgBySku, asinFromSkuWithFallback: asinFromSku } = useProductImages()
   const monthOptions = useMemo(() => generateMonthOptions(), [])
   const [selectedMonth, setSelectedMonth] = useState(monthOptions[0])
@@ -389,6 +391,7 @@ export default function DashboardPage() {
   // ========== Top products ==========
   const [topProducts, setTopProducts] = useState<{ title: string; sku: string; units: number; sales: number; stock?: number; avgPrice?: number }[]>([])
   const [topRefundProducts, setTopRefundProducts] = useState<{ title: string; sku: string; refunds: number; refundRate: number }[]>([])
+  const [champHistory, setChampHistory] = useState<{ month: string; sales: number; units: number }[]>([])
 
   useEffect(() => {
     async function fetchTopProducts() {
@@ -436,6 +439,28 @@ export default function DashboardPage() {
         allSkus.filter(([, d]) => d.refunds > 0).sort((a, b) => b[1].refunds - a[1].refunds).slice(0, 5)
           .map(([sku, d]) => ({ title: skuTitle[sku] || sku, sku, refunds: d.refunds, refundRate: d.sales > 0 ? (d.refunds / d.sales) * 100 : 0 }))
       )
+
+      // Fetch champion's last 2 months performance
+      const champSku = allSkus.sort((a, b) => b[1].units - a[1].units)[0]?.[0]
+      if (champSku) {
+        const now = new Date()
+        const histMonths: { month: string; sales: number; units: number }[] = []
+        for (let mi = 2; mi >= 1; mi--) {
+          const d = new Date(now.getFullYear(), now.getMonth() - mi, 1)
+          const mKey = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+          const { startDate, endDate } = getMonthRange(mKey)
+          let hq = supabase.from('all_orders').select('quantity, item_price, order_status').eq('sku', champSku).gte('purchase_date', startDate).lte('purchase_date', endDate)
+          if (selectedMarketplace !== 'all') hq = hq.eq('marketplace', selectedMarketplace)
+          const { data: hData } = await hq.limit(2000)
+          let mSales = 0, mUnits = 0
+          hData?.forEach((o: any) => {
+            if (o.order_status === 'Shipped') { mUnits += Number(o.quantity) || 0; mSales += Number(o.item_price) || 0 }
+          })
+          const shortMonth = new Date(d.getFullYear(), d.getMonth(), 1).toLocaleString('en', { month: 'short' })
+          histMonths.push({ month: shortMonth, sales: mSales, units: mUnits })
+        }
+        setChampHistory(histMonths)
+      }
     }
     if (!loading) fetchTopProducts()
   }, [selectedMonth, selectedMarketplace, loading])
@@ -526,11 +551,11 @@ export default function DashboardPage() {
   const salesBars = generateBars('sales')
   const profitBars = generateBars('netProfit')
   const kpiConfigs = [
-    { label: 'SALES', value: fmtNum(cur.sales), change: pctChange(cur.sales, prev.sales), icon: KpiIcons.sales, bars: salesBars, color: COLORS.green, light: COLORS.greenLighter, iconBg: COLORS.greenLight },
-    { label: 'UNITS', value: cur.units.toLocaleString('de-DE'), change: pctChange(cur.units, prev.units), icon: KpiIcons.stock, bars: [40, 55, 48, 62, 70, 65, 78], color: COLORS.accent, light: '#C7D2FE', iconBg: COLORS.accentLight },
-    { label: 'NET PROFIT', value: fmtNum(curNetProfit), change: pctChange(curNetProfit, prevNetProfit), icon: KpiIcons.revenue, bars: profitBars, color: curNetProfit >= 0 ? COLORS.green : COLORS.red, light: curNetProfit >= 0 ? COLORS.greenLighter : COLORS.redLighter, iconBg: curNetProfit >= 0 ? COLORS.greenLight : COLORS.redLight },
-    { label: 'MARGIN', value: fmtPct(curMargin), change: curMargin - prevMargin, icon: KpiIcons.margin, bars: [80, 75, 70, 65, 55, 48, 40], color: COLORS.orange, light: COLORS.orangeLighter, iconBg: COLORS.orangeLight },
-    { label: 'ADS', value: fmtNum(displayAd), change: pctChange(displayAd, displayAdPrev), icon: KpiIcons.spend, bars: [50, 55, 58, 60, 62, 65, 68], color: '#64748B', light: '#E2E8F0', iconBg: '#F8FAFC' },
+    { label: t("dashboard.totalSales").toUpperCase(), value: fmtNum(cur.sales), change: pctChange(cur.sales, prev.sales), icon: KpiIcons.sales, bars: salesBars, color: COLORS.green, light: COLORS.greenLighter, iconBg: COLORS.greenLight },
+    { label: t("dashboard.totalUnits").toUpperCase(), value: cur.units.toLocaleString('de-DE'), change: pctChange(cur.units, prev.units), icon: KpiIcons.stock, bars: [40, 55, 48, 62, 70, 65, 78], color: COLORS.accent, light: '#C7D2FE', iconBg: COLORS.accentLight },
+    { label: t("dashboard.netProfit").toUpperCase(), value: fmtNum(curNetProfit), change: pctChange(curNetProfit, prevNetProfit), icon: KpiIcons.revenue, bars: profitBars, color: curNetProfit >= 0 ? COLORS.green : COLORS.red, light: curNetProfit >= 0 ? COLORS.greenLighter : COLORS.redLighter, iconBg: curNetProfit >= 0 ? COLORS.greenLight : COLORS.redLight },
+    { label: t("dashboard.margin").toUpperCase(), value: fmtPct(curMargin), change: curMargin - prevMargin, icon: KpiIcons.margin, bars: [80, 75, 70, 65, 55, 48, 40], color: COLORS.orange, light: COLORS.orangeLighter, iconBg: COLORS.orangeLight },
+    { label: t("dashboard.adSpend").toUpperCase(), value: fmtNum(displayAd), change: pctChange(displayAd, displayAdPrev), icon: KpiIcons.spend, bars: [50, 55, 58, 60, 62, 65, 68], color: '#64748B', light: '#E2E8F0', iconBg: '#F8FAFC' },
     { label: 'TCOS', value: fmtPct(curAcos), change: curAcos - prevAcos, icon: KpiIcons.acos, bars: [55, 58, 60, 58, 62, 64, 66], color: curAcos < 25 ? COLORS.green : curAcos < 40 ? COLORS.orange : COLORS.red, light: curAcos < 25 ? COLORS.greenLighter : curAcos < 40 ? COLORS.orangeLighter : COLORS.redLighter, iconBg: curAcos < 25 ? COLORS.greenLight : curAcos < 40 ? COLORS.orangeLight : COLORS.redLight },
   ]
 
@@ -568,15 +593,15 @@ export default function DashboardPage() {
       {/* HEADER */}
       <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
         <div>
-          <h1 className="text-2xl font-bold m-0" style={{ color: COLORS.text }}>Dashboard</h1>
-          <p className="text-[13px] mt-[2px] m-0" style={{ color: COLORS.sub }}>Overview</p>
+          <h1 className="text-2xl font-bold m-0" style={{ color: COLORS.text }}>{t("dashboard.title")}</h1>
+          <p className="text-[13px] mt-[2px] m-0" style={{ color: COLORS.sub }}>{t("dashboard.subtitle")}</p>
         </div>
         <div className="flex gap-[10px] flex-wrap">
           <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} style={SELECT_STYLE}>
-            {monthOptions.map(m => <option key={m} value={m}>{m === 'all' ? '⏳ All Time' : m}</option>)}
+            {monthOptions.map(m => <option key={m} value={m}>{m === 'all' ? `⏳ ${t("dashboard.allTime")}` : m}</option>)}
           </select>
           <select value={selectedMarketplace} onChange={e => setSelectedMarketplace(e.target.value)} style={SELECT_STYLE}>
-            {MARKETPLACE_OPTIONS.map(m => <option key={m.value} value={m.value}>{m.flag} {m.label}</option>)}
+            {MARKETPLACE_OPTIONS.map(m => <option key={m.value} value={m.value}>{m.flag} {m.value === 'all' ? t("common.allMarketplaces") : m.label}</option>)}
           </select>
         </div>
       </div>
@@ -603,8 +628,8 @@ export default function DashboardPage() {
       <div className="grid-2" style={{ marginBottom: 20 }}>
         {/* Monthly Trend */}
         <div style={{ ...CARD_STYLE, padding: '20px 24px', minWidth: 0 }}>
-          <div className="text-base font-bold mb-[2px]" style={{ color: COLORS.text }}>Monthly Trend</div>
-          <div className="text-xs mb-4" style={{ color: COLORS.sub }}>Sales vs Net Profit</div>
+          <div className="text-base font-bold mb-[2px]" style={{ color: COLORS.text }}>{t("dashboard.dailyTrend")}</div>
+          <div className="text-xs mb-4" style={{ color: COLORS.sub }}>{t("dashboard.sales")} vs {t("dashboard.netProfit")}</div>
           <ResponsiveContainer width="100%" height={220}>
             <ComposedChart data={monthlyChartData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="0" stroke={COLORS.border} vertical={false} />
@@ -621,8 +646,8 @@ export default function DashboardPage() {
         <div style={{ ...CARD_STYLE, padding: '20px 24px', minWidth: 0 }}>
           <div className="flex justify-between items-start mb-4 flex-wrap gap-[6px]">
             <div>
-              <div className="text-base font-bold" style={{ color: COLORS.text }}>Daily Sales Trend</div>
-              <div className="text-xs" style={{ color: COLORS.sub }}>{selectedMonth === 'all' ? 'All Time' : selectedMonth}</div>
+              <div className="text-base font-bold" style={{ color: COLORS.text }}>{t("dashboard.dailyTrend")}</div>
+              <div className="text-xs" style={{ color: COLORS.sub }}>{selectedMonth === 'all' ? t("dashboard.allTime") : selectedMonth}</div>
             </div>
             <div className="flex gap-[3px]">
               {[
@@ -680,32 +705,34 @@ export default function DashboardPage() {
           const champ = topProducts[0]
           const champImg = getImgBySku(champ.sku)
           const champAsin = asinFromSku(champ.sku)
-          const champName = (champ.title || champ.sku).substring(0, 50)
+          const champName = (champ.title || champ.sku).substring(0, 70)
           return (
-            <div style={{ ...CARD_STYLE, padding: '18px 20px', position: 'relative', overflow: 'hidden' }}>
-              <div style={{ position: 'absolute', top: 10, right: 12, fontSize: 28, opacity: 0.12 }}>🏆</div>
+            <div style={{ ...CARD_STYLE, padding: '18px 20px', position: 'relative', overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+              {/* Header */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                <div style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FEF3C7', fontSize: 16 }}>🏆</div>
-                <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Bestseller</span>
+                <div style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: COLORS.accentLight, color: COLORS.accent }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" strokeWidth="2" /></svg></div>
+                <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>{t("dashboard.bestseller")}</span>
               </div>
-              <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 14 }}>
+              {/* Product info: text left, image right */}
+              <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', marginBottom: 14 }}>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, lineHeight: '1.4' }}>{champName}</div>
+                  <div style={{ fontSize: 11, color: COLORS.sub, marginTop: 3 }}>{champ.sku}</div>
+                </div>
                 {champImg?.image_url ? (
                   <a href={champAsin ? `/products/${champAsin}` : '#'} style={{ flexShrink: 0, lineHeight: 0 }}>
-                    <img src={champImg.image_url} alt="" style={{ width: 64, height: 64, borderRadius: 10, objectFit: 'cover', border: `1px solid ${COLORS.border}` }} />
+                    <img src={champImg.image_url} alt="" style={{ width: 68, height: 68, borderRadius: 12, objectFit: 'cover', border: `1px solid ${COLORS.border}` }} />
                   </a>
-                ) : <ImgPlaceholder size={64} />}
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>{champName}</div>
-                  <div style={{ fontSize: 11, color: COLORS.sub, marginTop: 2 }}>{champ.sku}</div>
-                </div>
+                ) : <ImgPlaceholder size={68} />}
               </div>
+              {/* Stats */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
                 <div>
-                  <div style={{ fontSize: 10, color: COLORS.sub, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Units Sold</div>
+                  <div style={{ fontSize: 10, color: COLORS.sub, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>{t("dashboard.unitsSold")}</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.accent }}>{champ.units.toLocaleString('de-DE')}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: COLORS.sub, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Revenue</div>
+                  <div style={{ fontSize: 10, color: COLORS.sub, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>{t("dashboard.revenue")}</div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.green }}>{fmtNum(champ.sales)}</div>
                 </div>
                 <div>
@@ -717,11 +744,22 @@ export default function DashboardPage() {
                   <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.text }}>{champ.avgPrice ? `€${champ.avgPrice.toFixed(2)}` : '—'}</div>
                 </div>
               </div>
+              {/* Past months - text only */}
+              {champHistory.length > 0 && (
+                <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+                  {champHistory.map((h, i) => (
+                    <div key={i} style={{ flex: 1, padding: '6px 8px', borderRadius: 8, background: '#F8FAFC' }}>
+                      <div style={{ fontSize: 10, color: COLORS.sub, fontWeight: 500 }}>{h.month}</div>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.muted }}>{h.units.toLocaleString('de-DE')} pcs</div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )
         })() : (
           <div style={{ ...CARD_STYLE, padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontSize: 12, color: COLORS.sub }}>Loading bestseller...</span>
+            <span style={{ fontSize: 12, color: COLORS.sub }}>{t("dashboard.loadingBestseller")}</span>
           </div>
         )}
 
@@ -731,13 +769,13 @@ export default function DashboardPage() {
             <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: COLORS.accentLight, color: COLORS.accent }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M18 20V10M12 20V4M6 20v-6" stroke="currentColor" strokeWidth="2" /></svg>
             </div>
-            <span className="text-sm font-bold" style={{ color: COLORS.text }}>This Month vs Last</span>
+            <span className="text-sm font-bold" style={{ color: COLORS.text }}>{t("dashboard.prevMonth")}</span>
           </div>
           {[
-            { l: 'Sales', v: fmtNum(cur.sales), c: pctChange(cur.sales, prev.sales) },
-            { l: 'Net Profit', v: fmtNum(curNetProfit), c: pctChange(curNetProfit, prevNetProfit) },
-            { l: 'Units', v: cur.units.toLocaleString('de-DE'), c: pctChange(cur.units, prev.units) },
-            { l: 'Ads', v: fmtNum(displayAd), c: pctChange(displayAd, displayAdPrev) },
+            { l: t("dashboard.sales"), v: fmtNum(cur.sales), c: pctChange(cur.sales, prev.sales) },
+            { l: t("dashboard.netProfit"), v: fmtNum(curNetProfit), c: pctChange(curNetProfit, prevNetProfit) },
+            { l: t("dashboard.totalUnits"), v: cur.units.toLocaleString('de-DE'), c: pctChange(cur.units, prev.units) },
+            { l: t("dashboard.adSpend"), v: fmtNum(displayAd), c: pctChange(displayAd, displayAdPrev) },
           ].map(r => (
             <div key={r.l} className="flex justify-between items-center py-2" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
               <span className="text-[13px]" style={{ color: '#64748B' }}>{r.l}</span>
@@ -749,21 +787,35 @@ export default function DashboardPage() {
           ))}
         </div>
 
-        {/* En Cok Satan */}
+        {/* Top 5 Ürünler */}
         <div style={{ ...CARD_STYLE, padding: '18px 20px' }}>
           <div className="flex items-center gap-2 mb-[14px]">
             <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#FEF3C7', color: COLORS.orange }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" strokeWidth="2" /></svg>
             </div>
-            <span className="text-sm font-bold" style={{ color: COLORS.text }}>Top Sellers</span>
+            <span className="text-sm font-bold" style={{ color: COLORS.text }}>{t("dashboard.topProducts")}</span>
           </div>
-          {topProducts.length > 0 ? topProducts.map((p, i) => (
-            <div key={i} className="flex justify-between items-center py-2" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-              <span className="text-[13px] font-semibold cursor-pointer" style={{ color: COLORS.accent }}>{p.sku}</span>
-              <span className="text-sm font-bold" style={{ color: COLORS.text }}>{fmtNum(p.sales)}</span>
-            </div>
-          )) : (
-            <div className="text-center py-4" style={{ color: COLORS.sub, fontSize: 12 }}>Loading product data...</div>
+          {topProducts.length > 0 ? (() => {
+            const maxSales = topProducts[0]?.sales || 1
+            const barColors = ['#EA580C', '#F97316', '#FB923C', '#FDBA74', '#FED7AA']
+            return topProducts.slice(0, 5).map((p, i) => {
+              const pct = maxSales > 0 ? (p.sales / maxSales) * 100 : 0
+              return (
+                <div key={i} style={{ marginBottom: i < 4 ? 6 : 0, borderRadius: 8, overflow: 'hidden', position: 'relative' }}>
+                  {/* Background bar */}
+                  <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: `${pct}%`, background: `${barColors[i]}15`, borderRadius: 8, transition: 'width 0.5s ease' }} />
+                  <div className="flex items-center justify-between" style={{ position: 'relative', padding: '8px 12px' }}>
+                    <div className="flex items-center gap-[10px]">
+                      <span className="flex items-center justify-center shrink-0 text-[11px] font-bold" style={{ width: 22, height: 22, borderRadius: '50%', background: barColors[i], color: '#fff' }}>{i + 1}</span>
+                      <span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{p.sku}</span>
+                    </div>
+                    <span className="text-[13px] font-bold" style={{ color: barColors[i] }}>{fmtNum(p.sales)}</span>
+                  </div>
+                </div>
+              )
+            })
+          })() : (
+            <div className="text-center py-4" style={{ color: COLORS.sub, fontSize: 12 }}>{t("common.loading")}</div>
           )}
         </div>
 
@@ -773,7 +825,7 @@ export default function DashboardPage() {
             <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#FDF2F8', color: '#EC4899' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" strokeWidth="2" /></svg>
             </div>
-            <span className="text-sm font-bold" style={{ color: COLORS.text }}>Quick Actions</span>
+            <span className="text-sm font-bold" style={{ color: COLORS.text }}>{t("dashboard.quickActions")}</span>
           </div>
           {quickActions.map((a, i) => (
             <div key={i} className="flex items-center justify-between mb-1 rounded-lg" style={{ padding: '10px 12px', background: '#F8FAFC' }}>
@@ -789,8 +841,8 @@ export default function DashboardPage() {
 
       {/* AI ONERILER */}
       <AIInsights
-        title="AI Insights"
-        subtitle="AI-powered recommendations"
+        title={t("dashboard.aiInsights")}
+        subtitle={t("dashboard.aiSubtitle")}
         insights={aiInsights.map((ins, i) => ({
           type: ins.type,
           title: ins.title,
@@ -803,8 +855,8 @@ export default function DashboardPage() {
       <div style={{ ...CARD_STYLE, padding: 0, overflow: 'hidden' }}>
         <div className="flex" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
           {[
-            { id: 'pl' as const, l: 'P&L Table' },
-            { id: 'mkt' as const, l: 'Marketplace Breakdown' },
+            { id: 'pl' as const, l: t("dashboard.costsFees") },
+            { id: 'mkt' as const, l: t("dashboard.marketplacePerf") },
           ].map(t => (
             <button
               key={t.id}
@@ -824,50 +876,50 @@ export default function DashboardPage() {
 
         <div style={{ padding: '20px 24px' }}>
           {btmTab === 'pl' && (
-            <div style={{ overflowX: 'auto' }}>
+            <div className="modern-scroll" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: `2px solid ${COLORS.border}` }}>
-                    {['Item', selectedMonth === 'all' ? 'All Time' : selectedMonth, ...(hasPrev && selectedMonth !== 'all' ? [prevMonthStr] : []), ...(selectedMonth !== 'all' ? ['Change'] : [])].map(h => (
-                      <th key={h} style={{ padding: '10px 12px', textAlign: h === 'Kalem' ? 'left' : 'right', fontSize: 12, fontWeight: 600, color: COLORS.sub }}>{h}</th>
+                    {[t("dashboard.item"), selectedMonth === 'all' ? t("dashboard.allTime") : selectedMonth, ...(hasPrev && selectedMonth !== 'all' ? [prevMonthStr] : []), ...(selectedMonth !== 'all' ? [t("dashboard.change")] : [])].map((h, hi) => (
+                      <th key={h} style={{ padding: '10px 12px', textAlign: hi === 0 ? 'left' : 'right', fontSize: 12, fontWeight: 600, color: COLORS.sub }}>{h}</th>
                     ))}
                   </tr>
                 </thead>
                 <tbody>
                   {/* Sales */}
                   <tr className="table-row-hover" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, color: COLORS.text }}>Sales</td>
+                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, color: COLORS.text }}>{t("dashboard.sales")}</td>
                     {plCell(cur.sales)}
                     {hasPrev && plPrevCell(prev.sales)}
                     {plChangeCell(cur.sales, prev.sales)}
                   </tr>
                   {/* Promo */}
                   <tr className="table-row-hover" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, color: COLORS.text }}>Promo</td>
+                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, color: COLORS.text }}>{t("dashboard.promo")}</td>
                     {plCell(-cur.promo)}
                     {hasPrev && plPrevCell(-prev.promo)}
                     {plChangeCell(cur.promo, prev.promo, true)}
                   </tr>
                   {/* Refunds */}
                   <tr className="table-row-hover" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, color: COLORS.text }}>Refunds</td>
+                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, color: COLORS.text }}>{t("dashboard.refunds")}</td>
                     {plCell(-cur.refunds)}
                     {hasPrev && plPrevCell(-prev.refunds)}
                     {plChangeCell(cur.refunds, prev.refunds, true)}
                   </tr>
                   {/* Amazon Fees - expandable */}
                   <tr className="table-row-hover cursor-pointer" onClick={() => setFeesExpanded(!feesExpanded)} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, color: COLORS.text }}>{feesExpanded ? '\u25BC' : '\u25B6'} Amazon Fees</td>
+                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, color: COLORS.text }}>{feesExpanded ? '\u25BC' : '\u25B6'} {t("dashboard.fees")}</td>
                     {plCell(-curTotalFees)}
                     {hasPrev && plPrevCell(-prevTotalFees)}
                     {plChangeCell(curTotalFees, prevTotalFees, true)}
                   </tr>
                   {feesExpanded && [
-                    { label: 'Commission', curV: cur.commission, prevV: prev.commission },
-                    { label: 'FBA Fees', curV: cur.fba, prevV: prev.fba },
-                    { label: 'Storage & Aged', curV: cur.storage, prevV: prev.storage },
-                    { label: 'Return Management', curV: cur.return_mgmt, prevV: prev.return_mgmt },
-                    { label: 'Digital Services', curV: cur.digital_fba + cur.digital_sell, prevV: prev.digital_fba + prev.digital_sell },
+                    { label: t("dashboard.commission"), curV: cur.commission, prevV: prev.commission },
+                    { label: t("dashboard.fbaFees"), curV: cur.fba, prevV: prev.fba },
+                    { label: t("dashboard.storageFees"), curV: cur.storage, prevV: prev.storage },
+                    { label: t("dashboard.returnMgmt"), curV: cur.return_mgmt, prevV: prev.return_mgmt },
+                    { label: t("dashboard.digitalServices"), curV: cur.digital_fba + cur.digital_sell, prevV: prev.digital_fba + prev.digital_sell },
                   ].map((sub, i) => (
                     <tr key={i} style={{ borderBottom: `1px solid ${COLORS.border}`, background: '#FAFBFE' }}>
                       <td style={{ padding: '10px 12px 10px 32px', fontSize: 12, color: COLORS.sub }}>{sub.label}</td>
@@ -878,21 +930,21 @@ export default function DashboardPage() {
                   ))}
                   {/* COGS */}
                   <tr className="table-row-hover" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, color: COLORS.text }}>COGS</td>
+                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, color: COLORS.text }}>{t("dashboard.cogs")}</td>
                     {plCell(-cur.cogs)}
                     {hasPrev && plPrevCell(-prev.cogs)}
                     {plChangeCell(cur.cogs, prev.cogs, true)}
                   </tr>
                   {/* Subscription */}
                   <tr className="table-row-hover" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, color: COLORS.text }}>Subscription</td>
+                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, color: COLORS.text }}>{t("dashboard.subscription")}</td>
                     {plCell(-cur.subscription)}
                     {hasPrev && plPrevCell(-prev.subscription)}
                     {plChangeCell(cur.subscription, prev.subscription, true)}
                   </tr>
                   {/* Advertising - expandable */}
                   <tr className="table-row-hover cursor-pointer" onClick={() => setAdsExpanded(!adsExpanded)} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, color: COLORS.text }}>{adsExpanded ? '\u25BC' : '\u25B6'} Advertising</td>
+                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, color: COLORS.text }}>{adsExpanded ? '\u25BC' : '\u25B6'} {t("dashboard.adSpend")}</td>
                     {plCell(-displayAd)}
                     {hasPrev && plPrevCell(-displayAdPrev)}
                     {plChangeCell(displayAd, displayAdPrev, true)}
@@ -910,14 +962,14 @@ export default function DashboardPage() {
                   ))}
                   {/* Net Profit */}
                   <tr style={{ borderTop: `2px solid ${COLORS.border}`, background: '#FAFBFE' }}>
-                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 700, color: COLORS.text }}>{'\u25B8'} Net Profit</td>
+                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 700, color: COLORS.text }}>{'\u25B8'} {t("dashboard.netProfit")}</td>
                     <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 13, fontWeight: 700, color: curNetProfit >= 0 ? COLORS.green : COLORS.red }}>{fmtNum(curNetProfit)}</td>
                     {hasPrev && <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 13, color: '#64748B' }}>{fmtNum(prevNetProfit)}</td>}
                     {plChangeCell(curNetProfit, prevNetProfit)}
                   </tr>
                   {/* Margin */}
                   <tr style={{ background: '#FAFBFE' }}>
-                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 700, color: COLORS.text }}>{'\u25B8'} Margin %</td>
+                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 700, color: COLORS.text }}>{'\u25B8'} {t("dashboard.margin")} %</td>
                     <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 13, fontWeight: 700, color: curMargin >= 0 ? COLORS.green : COLORS.red }}>{fmtPct(curMargin)}</td>
                     {hasPrev && <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 13, color: '#64748B' }}>{fmtPct(prevMargin)}</td>}
                     <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: curMargin >= prevMargin ? COLORS.green : COLORS.red }}>
@@ -930,19 +982,19 @@ export default function DashboardPage() {
           )}
 
           {btmTab === 'mkt' && (
-            <div style={{ overflowX: 'auto' }}>
+            <div className="modern-scroll" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
                 <thead>
                   <tr style={{ borderBottom: `2px solid ${COLORS.border}` }}>
                     {([
-                      { key: 'marketplace' as SortKey, label: 'Marketplace', align: 'left' },
-                      { key: 'sales' as SortKey, label: 'Sales \u2193', align: 'right' },
-                      { key: 'units' as SortKey, label: 'Units', align: 'right' },
-                      { key: 'fees' as SortKey, label: 'Amazon Fees', align: 'right' },
-                      { key: 'adSpend' as SortKey, label: 'Ads', align: 'right' },
-                      { key: 'cogs' as SortKey, label: 'COGS', align: 'right' },
-                      { key: 'netProfit' as SortKey, label: 'Net Profit', align: 'right' },
-                      { key: 'margin' as SortKey, label: 'Margin', align: 'right' },
+                      { key: 'marketplace' as SortKey, label: t("dashboard.byMarketplace"), align: 'left' },
+                      { key: 'sales' as SortKey, label: `${t("dashboard.sales")} \u2193`, align: 'right' },
+                      { key: 'units' as SortKey, label: t("dashboard.totalUnits"), align: 'right' },
+                      { key: 'fees' as SortKey, label: t("dashboard.fees"), align: 'right' },
+                      { key: 'adSpend' as SortKey, label: t("dashboard.adSpend"), align: 'right' },
+                      { key: 'cogs' as SortKey, label: t("dashboard.cogs"), align: 'right' },
+                      { key: 'netProfit' as SortKey, label: t("dashboard.netProfit"), align: 'right' },
+                      { key: 'margin' as SortKey, label: t("dashboard.margin"), align: 'right' },
                     ]).map(h => (
                       <th
                         key={h.key}

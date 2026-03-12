@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { useEffect, useState, useMemo } from 'react'
 import { useDateRange, formatDateTR } from '../DateRangeContext'
+import { useTranslation } from '@/lib/i18n'
 import { COLORS, CARD_STYLE, TH_STYLE } from '@/lib/design-tokens'
 import KpiCard from '@/components/ui/KpiCard'
 import { KpiIcons } from '@/components/ui/KpiIcons'
@@ -51,6 +52,7 @@ const acosColor = (v: number) => v < 25 ? '#059669' : v < 40 ? '#D97706' : '#DC2
 const acosBadgeBg = (v: number) => v < 25 ? '#ECFDF5' : v < 35 ? '#FFFBEB' : v < 60 ? '#FFF7ED' : '#FEF2F2'
 
 export default function CampaignsPage() {
+  const { t } = useTranslation()
   const { startDate, endDate, isAllTime } = useDateRange()
   const [rawData, setRawData] = useState<AdRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -161,23 +163,23 @@ export default function CampaignsPage() {
     <div>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: COLORS.text }}>Campaign Overview</h1>
+          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: COLORS.text }}>{t("adsCampaigns.title")}</h1>
           <p style={{ fontSize: 12, color: COLORS.sub, marginTop: 3 }}>Amazon Ads · {formatDateTR(startDate)} – {formatDateTR(endDate)}</p>
         </div>
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 80, color: COLORS.sub, fontSize: 14 }}>Loading data...</div>
+        <div style={{ textAlign: 'center', padding: 80, color: COLORS.sub, fontSize: 14 }}>{t("ads.loadingData")}</div>
       ) : (
         <>
           {/* KPI CARDS */}
           <div className="grid-6" style={{ marginBottom: 20 }}>
-            <KpiCard label="TOTAL SPEND" value={`€${kpis.totalSpend.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`} change={`${campaigns.length} campaigns`} icon={KpiIcons.spend} color={COLORS.red} light="#FECACA" iconBg="#FEF2F2" bars={[50, 55, 60, 62, 65, 68, 72]} />
-            <KpiCard label="SALES" value={`€${kpis.totalSales.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`} change={`${kpis.totalOrders} orders`} up icon={KpiIcons.sales} color={COLORS.green} light="#A7F3D0" iconBg="#ECFDF5" bars={[85, 80, 75, 72, 68, 65, 60]} />
-            <KpiCard label="ACOS" value={`%${kpis.acos.toFixed(1)}`} change={`target %35`} up={kpis.acos <= 35} icon={KpiIcons.acos} color={COLORS.orange} light="#FDE68A" iconBg="#FFFBEB" bars={[40, 45, 48, 50, 52, 55, 58]} />
-            <KpiCard label="ROAS" value={`${kpis.roas.toFixed(2)}x`} change={`target 2.5x`} up={kpis.roas >= 2.5} icon={KpiIcons.roas} color={COLORS.accent} light="#C7D2FE" iconBg="#EEF2FF" bars={[75, 70, 65, 60, 58, 55, 52]} />
-            <KpiCard label="CLICKS" value={kpis.totalClicks.toLocaleString('de-DE')} change={`CTR %${kpis.totalClicks > 0 && kpis.totalImpressions > 0 ? ((kpis.totalClicks / kpis.totalImpressions) * 100).toFixed(2) : '0'}`} icon={KpiIcons.clicks} color={COLORS.accent} light="#C7D2FE" iconBg="#EEF2FF" bars={[40, 45, 50, 55, 60, 65, 72]} />
-            <KpiCard label="IMPRESSIONS" value={kpis.totalImpressions >= 1000000 ? `${(kpis.totalImpressions / 1000000).toFixed(1)}M` : kpis.totalImpressions.toLocaleString('de-DE')} change={`${campaigns.length} campaigns`} icon={KpiIcons.impressions} color="#7097A8" light="#B0CDDA" iconBg="#F0F7FA" bars={[60, 65, 70, 68, 72, 75, 78]} />
+            <KpiCard label={t("ads.totalSpend")} value={`€${kpis.totalSpend.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`} change={`${campaigns.length} ${t("adsCampaigns.campaigns")}`} icon={KpiIcons.spend} color={COLORS.red} light="#FECACA" iconBg="#FEF2F2" bars={[50, 55, 60, 62, 65, 68, 72]} />
+            <KpiCard label={t("ads.sales")} value={`€${kpis.totalSales.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`} change={`${kpis.totalOrders} orders`} up icon={KpiIcons.sales} color={COLORS.green} light="#A7F3D0" iconBg="#ECFDF5" bars={[85, 80, 75, 72, 68, 65, 60]} />
+            <KpiCard label={t("ads.acos")} value={`%${kpis.acos.toFixed(1)}`} change={`target %35`} up={kpis.acos <= 35} icon={KpiIcons.acos} color={COLORS.orange} light="#FDE68A" iconBg="#FFFBEB" bars={[40, 45, 48, 50, 52, 55, 58]} />
+            <KpiCard label={t("ads.roas")} value={`${kpis.roas.toFixed(2)}x`} change={`target 2.5x`} up={kpis.roas >= 2.5} icon={KpiIcons.roas} color={COLORS.accent} light="#C7D2FE" iconBg="#EEF2FF" bars={[75, 70, 65, 60, 58, 55, 52]} />
+            <KpiCard label={t("ads.clicks")} value={kpis.totalClicks.toLocaleString('de-DE')} change={`CTR %${kpis.totalClicks > 0 && kpis.totalImpressions > 0 ? ((kpis.totalClicks / kpis.totalImpressions) * 100).toFixed(2) : '0'}`} icon={KpiIcons.clicks} color={COLORS.accent} light="#C7D2FE" iconBg="#EEF2FF" bars={[40, 45, 50, 55, 60, 65, 72]} />
+            <KpiCard label={t("ads.impressions")} value={kpis.totalImpressions >= 1000000 ? `${(kpis.totalImpressions / 1000000).toFixed(1)}M` : kpis.totalImpressions.toLocaleString('de-DE')} change={`${campaigns.length} ${t("adsCampaigns.campaigns")}`} icon={KpiIcons.impressions} color="#7097A8" light="#B0CDDA" iconBg="#F0F7FA" bars={[60, 65, 70, 68, 72, 75, 78]} />
           </div>
 
           {/* INSIGHT CARDS */}
@@ -187,7 +189,7 @@ export default function CampaignsPage() {
                 <div style={{ ...CARD_STYLE, padding: '16px 20px' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                     <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(244,63,94,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#f43f5e' }}>!</div>
-                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>Least Efficient Campaigns</div>
+                    <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>{t("adsCampaigns.leastEfficient")}</div>
                     <div style={{ fontSize: 10, color: '#f43f5e', marginLeft: 'auto', fontWeight: 600 }}>HIGH ACOS</div>
                   </div>
                   {insightCampaigns.filter(c => Number(c.calc_acos) > 40).slice(0, 3).map((c, i) => (
@@ -225,8 +227,8 @@ export default function CampaignsPage() {
           {/* AI INSIGHTS */}
           {aiInsights.length > 0 && (
             <AIInsights
-              title="AI Campaign Insights"
-              subtitle="Budget allocation and campaign optimization recommendations"
+              title={t("adsCampaigns.aiTitle")}
+              subtitle={t("adsCampaigns.aiSubtitle")}
               insights={aiInsights.map(ins => ({
                 type: ins.priority === 'high' ? 'CRITICAL' : ins.priority === 'normal' ? 'OPTIMIZATION' : 'INFO',
                 title: ins.title,
@@ -239,8 +241,8 @@ export default function CampaignsPage() {
           {/* CHARTS ROW */}
           <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
             <div style={{ ...CARD_STYLE, padding: 20 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: COLORS.text }}>Spend vs Sales</div>
-              <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 16 }}>Top 10 Campaigns</div>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: COLORS.text }}>{t("adsCampaigns.spendVsSales")}</div>
+              <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 16 }}>{t("adsCampaigns.top10")}</div>
               {top10BySpend.length === 0 ? <div style={{ textAlign: 'center', padding: 30, color: COLORS.sub }}>No data</div> : top10BySpend.map((c, i) => {
                 const spendW = (c.spend / maxSpendSales) * 100; const salesW = (c.sales / maxSpendSales) * 100
                 return (
@@ -263,8 +265,8 @@ export default function CampaignsPage() {
               </div>
             </div>
             <div style={{ ...CARD_STYLE, padding: 20 }}>
-              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: COLORS.text }}>ACOS Distribution</div>
-              <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 16 }}>Top 10 Campaigns</div>
+              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4, color: COLORS.text }}>{t("adsCampaigns.acosDistribution")}</div>
+              <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 16 }}>{t("adsCampaigns.top10")}</div>
               {top10ByAcos.length === 0 ? <div style={{ textAlign: 'center', padding: 30, color: COLORS.sub }}>No data</div> : top10ByAcos.map((c, i) => {
                 const w = (c.acos / maxAcos) * 100
                 return (
@@ -291,7 +293,7 @@ export default function CampaignsPage() {
           <div className="table-container" style={{ ...CARD_STYLE, padding: 0, overflow: 'hidden' }}>
             <div style={{ padding: '16px 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 10, borderBottom: `1px solid ${COLORS.border}` }}>
               <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
-                {[{ key: 'all', label: 'All' }, ...statusOptions.map(s => ({ key: s, label: s === 'ENABLED' ? 'Active' : s === 'PAUSED' ? 'Paused' : s === 'ARCHIVED' ? 'Archived' : s }))].map(opt => {
+                {[{ key: 'all', label: t("common.all") }, ...statusOptions.map(s => ({ key: s, label: s === 'ENABLED' ? t("common.active") : s === 'PAUSED' ? t("common.paused") : s === 'ARCHIVED' ? t("common.archived") : s }))].map(opt => {
                   const count = opt.key === 'all' ? campaigns.length : campaigns.filter(c => c.status === opt.key).length
                   return (
                     <button key={opt.key} onClick={() => setStatusFilter(opt.key)} style={{
@@ -304,12 +306,12 @@ export default function CampaignsPage() {
                   )
                 })}
               </div>
-              <input type="text" placeholder="Search campaigns..." value={search} onChange={e => setSearch(e.target.value)} style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: '7px 14px', fontSize: 12.5, color: COLORS.text, outline: 'none', width: 220 }} />
+              <input type="text" placeholder={t("adsCampaigns.searchCampaigns")} value={search} onChange={e => setSearch(e.target.value)} style={{ background: COLORS.bg, border: `1px solid ${COLORS.border}`, borderRadius: 8, padding: '7px 14px', fontSize: 12.5, color: COLORS.text, outline: 'none', width: 220 }} />
             </div>
-            <div style={{ overflowX: 'auto' }}>
+            <div className="modern-scroll" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead><tr>
-                  {([['campaign_name','Campaign'],['campaign_type','Type'],['status','Status'],['impressions','Impressions'],['clicks','Clicks'],['spend','Spend'],['sales','Sales'],['orders_7d','Orders'],['acos','ACOS'],['roas','ROAS']] as [SortKey,string][]).map(([key,label], i) => (
+                  {([['campaign_name',t("ads.campaign")],['campaign_type',t("adsCampaigns.type")],['status',t("ads.status")],['impressions',t("ads.impressions")],['clicks',t("ads.clicks")],['spend',t("ads.spend")],['sales',t("ads.sales")],['orders_7d',t("ads.orders")],['acos','ACOS'],['roas','ROAS']] as [SortKey,string][]).map(([key,label], i) => (
                     <th key={key} onClick={() => handleSort(key)} style={{ ...thStyle, textAlign: ['impressions','clicks','spend','sales','orders_7d','acos','roas'].includes(key) ? 'right' : 'left', paddingLeft: i === 0 ? 24 : 16, paddingRight: i === 9 ? 24 : 16 }}>{label}{sortIcon(key)}</th>
                   ))}
                 </tr></thead>
@@ -318,7 +320,7 @@ export default function CampaignsPage() {
                     <tr key={i} style={{ transition: 'background 0.15s' }} onMouseEnter={e => (e.currentTarget.style.background = 'rgba(99,102,241,0.04)')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
                       <td style={{ ...tdStyle, paddingLeft: 24, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', fontWeight: 500 }}>{c.campaign_name}</td>
                       <td style={tdStyle}><span style={{ background: c.campaign_type === 'Sponsored Products' ? 'rgba(99,102,241,0.12)' : c.campaign_type === 'Sponsored Brands' ? 'rgba(245,158,11,0.12)' : 'rgba(16,185,129,0.12)', color: c.campaign_type === 'Sponsored Products' ? '#818cf8' : c.campaign_type === 'Sponsored Brands' ? '#f59e0b' : '#10b981', padding: '3px 10px', borderRadius: 12, fontSize: 11, fontWeight: 600 }}>{c.campaign_type === 'Sponsored Products' ? 'SP' : c.campaign_type === 'Sponsored Brands' ? 'SB' : c.campaign_type === 'Sponsored Display' ? 'SD' : c.campaign_type}</span></td>
-                      <td style={tdStyle}><span style={{ width: 6, height: 6, borderRadius: '50%', display: 'inline-block', marginRight: 6, background: c.status === 'ENABLED' ? COLORS.green : c.status === 'PAUSED' ? COLORS.orange : COLORS.sub }} /><span style={{ fontSize: 12, color: COLORS.sub }}>{c.status === 'ENABLED' ? 'Active' : c.status === 'PAUSED' ? 'Paused' : c.status === 'ARCHIVED' ? 'Archived' : c.status}</span></td>
+                      <td style={tdStyle}><span style={{ width: 6, height: 6, borderRadius: '50%', display: 'inline-block', marginRight: 6, background: c.status === 'ENABLED' ? COLORS.green : c.status === 'PAUSED' ? COLORS.orange : COLORS.sub }} /><span style={{ fontSize: 12, color: COLORS.sub }}>{c.status === 'ENABLED' ? t("common.active") : c.status === 'PAUSED' ? t("common.paused") : c.status === 'ARCHIVED' ? t("common.archived") : c.status}</span></td>
                       <td style={{ ...tdStyle, textAlign: 'right', color: '#475569' }}>{c.impressions.toLocaleString('de-DE')}</td>
                       <td style={{ ...tdStyle, textAlign: 'right', color: '#475569' }}>{c.clicks.toLocaleString('de-DE')}</td>
                       <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: COLORS.text }}>€{c.spend.toFixed(0)}</td>
@@ -332,7 +334,7 @@ export default function CampaignsPage() {
                       <td style={{ ...tdStyle, textAlign: 'right', paddingRight: 24, fontWeight: 600, color: c.roas >= 2 ? COLORS.green : c.roas > 0 ? COLORS.red : COLORS.sub }}>{c.roas > 0 ? `${c.roas.toFixed(2)}x` : '—'}</td>
                     </tr>
                   ))}
-                  {filtered.length === 0 && <tr><td colSpan={10} style={{ ...tdStyle, textAlign: 'center', color: COLORS.sub, padding: 30 }}>{search ? 'No results found' : 'No data for this date range'}</td></tr>}
+                  {filtered.length === 0 && <tr><td colSpan={10} style={{ ...tdStyle, textAlign: 'center', color: COLORS.sub, padding: 30 }}>{search ? t("common.noResults") : t("common.noDataRange")}</td></tr>}
                 </tbody>
               </table>
             </div>

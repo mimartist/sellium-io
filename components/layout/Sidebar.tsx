@@ -4,6 +4,8 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import { SidebarIcons } from "./SidebarIcons";
 import { COLORS } from "@/lib/design-tokens";
+import { useTranslation } from "@/lib/i18n";
+import LanguageSelector from "@/components/ui/LanguageSelector";
 
 interface SidebarProps {
   open?: boolean;
@@ -12,17 +14,18 @@ interface SidebarProps {
 }
 
 const MENU_ITEMS = [
-  { label: "Dashboard", href: "/", icon: SidebarIcons.dashboard },
-  { label: "COGS & Profitability", href: "/cogs", icon: SidebarIcons.cogs },
-  { label: "Ad Performance", href: "/ads", icon: SidebarIcons.ads },
-  { label: "Product Performance", href: "/products", icon: SidebarIcons.performance },
-  { label: "Inventory Tracking", href: "/inventory", icon: SidebarIcons.stock, badge: 39 },
-  { label: "AI Insights", href: "/ai", icon: SidebarIcons.ai },
-  { label: "Platform Comparison", href: "/platforms", icon: SidebarIcons.platform },
+  { key: "sidebar.dashboard" as const, href: "/", icon: SidebarIcons.dashboard },
+  { key: "sidebar.cogs" as const, href: "/cogs", icon: SidebarIcons.cogs },
+  { key: "sidebar.ads" as const, href: "/ads", icon: SidebarIcons.ads },
+  { key: "sidebar.products" as const, href: "/products", icon: SidebarIcons.performance },
+  { key: "sidebar.inventory" as const, href: "/inventory", icon: SidebarIcons.stock, badge: 39 },
+  { key: "sidebar.ai" as const, href: "/ai", icon: SidebarIcons.ai },
+  { key: "sidebar.platforms" as const, href: "/platforms", icon: SidebarIcons.platform },
 ];
 
 export default function Sidebar({ open, onClose, mobile }: SidebarProps) {
   const pathname = usePathname();
+  const { t } = useTranslation();
 
   return (
     <>
@@ -51,7 +54,7 @@ export default function Sidebar({ open, onClose, mobile }: SidebarProps) {
           <div>
             <div className="text-lg font-bold" style={{ color: COLORS.text }}>Sellometrix</div>
             <div className="text-[11px] font-medium tracking-wider" style={{ color: COLORS.sub }}>
-              AI Commerce OS
+              {t("sidebar.brand")}
             </div>
           </div>
         </div>
@@ -72,21 +75,26 @@ export default function Sidebar({ open, onClose, mobile }: SidebarProps) {
                   background: isActive ? COLORS.accent : "transparent",
                 }}
               >
-                <span className="flex items-center shrink-0" style={{ opacity: isActive ? 1 : 0.6 }}>
+                <span className="relative flex items-center shrink-0" style={{ opacity: isActive ? 1 : 0.6 }}>
                   {item.icon}
+                  {item.badge && (
+                    <span
+                      className="absolute text-[8px] font-bold leading-none rounded-full flex items-center justify-center"
+                      style={{
+                        top: -5,
+                        left: -6,
+                        minWidth: 16,
+                        height: 16,
+                        padding: "0 3px",
+                        background: isActive ? "rgba(255,255,255,.9)" : COLORS.red,
+                        color: isActive ? COLORS.accent : "#fff",
+                      }}
+                    >
+                      {item.badge}
+                    </span>
+                  )}
                 </span>
-                {item.label}
-                {item.badge && (
-                  <span
-                    className="ml-auto text-[10px] font-bold px-2 py-[2px] rounded-[10px]"
-                    style={{
-                      background: isActive ? "rgba(255,255,255,.25)" : "#FEE2E2",
-                      color: isActive ? "#fff" : COLORS.red,
-                    }}
-                  >
-                    {item.badge}
-                  </span>
-                )}
+                <span className="truncate">{t(item.key)}</span>
               </Link>
             );
           })}
@@ -94,6 +102,11 @@ export default function Sidebar({ open, onClose, mobile }: SidebarProps) {
 
         {/* Bottom section */}
         <div className="mt-auto px-5 mb-4">
+          {/* Language Selector */}
+          <div className="pb-3">
+            <LanguageSelector />
+          </div>
+
           {/* User */}
           <div className="flex items-center gap-[10px] py-3 border-t border-[#F1F5F9]">
             <div
@@ -106,6 +119,18 @@ export default function Sidebar({ open, onClose, mobile }: SidebarProps) {
               <div className="text-[13px] font-semibold" style={{ color: COLORS.text }}>Atakan Ormanlı</div>
               <div className="text-[11px]" style={{ color: COLORS.sub }}>Mimosso</div>
             </div>
+            <button
+              onClick={() => { localStorage.removeItem("sellometrix-auth"); window.location.href = "/login"; }}
+              className="shrink-0 flex items-center justify-center rounded-lg hover:bg-[#F1F5F9] transition-colors"
+              style={{ width: 32, height: 32, border: 'none', background: 'transparent', cursor: 'pointer' }}
+              title="Sign out"
+            >
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#94A3B8" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+            </button>
           </div>
         </div>
 
@@ -116,10 +141,10 @@ export default function Sidebar({ open, onClose, mobile }: SidebarProps) {
         >
           <div className="absolute -top-5 -right-5 w-20 h-20 rounded-full bg-white/10" />
           <div className="relative">
-            <div className="text-sm font-bold mb-1">Pro Version</div>
-            <div className="text-xs opacity-85 mb-3">Discover all features</div>
+            <div className="text-sm font-bold mb-1">{t("sidebar.pro")}</div>
+            <div className="text-xs opacity-85 mb-3">{t("sidebar.proDesc")}</div>
             <div className="py-2 rounded-lg bg-white/20 text-[13px] font-semibold cursor-pointer">
-              Upgrade →
+              {t("sidebar.upgrade")}
             </div>
           </div>
         </div>

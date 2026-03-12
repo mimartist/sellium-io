@@ -5,6 +5,7 @@ import { createClient } from '@supabase/supabase-js'
 import Link from 'next/link'
 import { COLORS, CARD_STYLE, TH_STYLE } from '@/lib/design-tokens'
 import { ImgPlaceholder } from '@/components/ui/Badges'
+import { useTranslation } from '@/lib/i18n'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -53,6 +54,7 @@ const STATUS_STYLES: Record<string, { label: string; bg: string; color: string }
 type ViewMode = 'child' | 'parent'
 
 export default function MyProductsPage() {
+  const { t } = useTranslation()
   const [products, setProducts] = useState<ProductEntry[]>([])
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
@@ -181,7 +183,7 @@ export default function MyProductsPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ width: 36, height: 36, border: `3px solid ${COLORS.border}`, borderTopColor: COLORS.accent, borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-          <div style={{ color: COLORS.sub, fontSize: 13 }}>Loading products...</div>
+          <div style={{ color: COLORS.sub, fontSize: 13 }}>{t('products.loadingProducts')}</div>
         </div>
       </div>
     )
@@ -206,7 +208,7 @@ export default function MyProductsPage() {
             )}
             <div style={{ minWidth: 0 }}>
               <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: indent ? 200 : 240 }}>
-                {p.title || 'Awaiting data...'}
+                {p.title || t('products.awaitingData')}
               </div>
               {p.brand && <div style={{ fontSize: 11, color: COLORS.sub, marginTop: 1 }}>{p.brand}</div>}
             </div>
@@ -230,7 +232,7 @@ export default function MyProductsPage() {
         </td>
         <td style={{ ...tdStyle, textAlign: 'center' }}>
           <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, background: st.bg, color: st.color }}>
-            {st.label}
+            {p.status === 'pending' ? t('products.pendingStatus') : p.status === 'fetching' ? t('products.fetching') : p.status === 'active' ? t('products.activeStatus') : t('products.errorStatus')}
           </span>
         </td>
         <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500 }}>{p.price ? `€${p.price.toLocaleString('de-DE', { minimumFractionDigits: 2 })}` : '—'}</td>
@@ -255,7 +257,7 @@ export default function MyProductsPage() {
             }}
             onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = COLORS.redLight; (e.currentTarget as HTMLElement).style.color = COLORS.red }}
             onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = COLORS.sub }}
-            title="Remove product"
+            title={t('products.removeProduct')}
           >
             ✕
           </button>
@@ -290,12 +292,12 @@ export default function MyProductsPage() {
               )}
               <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>
-                  {group.title || 'Awaiting data...'}
+                  {group.title || t('products.awaitingData')}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
                   {group.brand && <span style={{ fontSize: 11, color: COLORS.sub }}>{group.brand}</span>}
                   <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 4, background: COLORS.accentLight, color: COLORS.accent }}>
-                    {group.children.length} variants
+                    {group.children.length} {t('products.variants')}
                   </span>
                 </div>
               </div>
@@ -305,7 +307,7 @@ export default function MyProductsPage() {
           <td style={{ ...tdStyle, fontSize: 11, color: COLORS.sub }}>—</td>
           <td style={{ ...tdStyle, textAlign: 'center' }}>
             <span style={{ fontSize: 10, fontWeight: 600, color: COLORS.sub }}>
-              {group.children.filter(c => c.status === 'active').length}/{group.children.length} active
+              {group.children.filter(c => c.status === 'active').length}/{group.children.length} {t('products.active')}
             </span>
           </td>
           <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500, fontSize: 12 }}>{priceRange}</td>
@@ -329,10 +331,10 @@ export default function MyProductsPage() {
       {/* HEADER */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: COLORS.text }}>My Products</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: COLORS.text }}>{t('products.title')}</h1>
           <p style={{ fontSize: 13, color: COLORS.sub, marginTop: 2, margin: 0 }}>
-            {products.length} products registered · {activeCount} active · {pendingCount} pending
-            {viewMode === 'parent' && ` · ${parentGroups.length} parent groups`}
+            {products.length} {t('products.registered')} · {activeCount} {t('products.active')} · {pendingCount} {t('products.pending')}
+            {viewMode === 'parent' && ` · ${parentGroups.length} ${t('products.parentGroups')}`}
           </p>
         </div>
         <Link href="/products/add" style={{ textDecoration: 'none' }}>
@@ -340,7 +342,7 @@ export default function MyProductsPage() {
             padding: '9px 18px', fontSize: 12, fontWeight: 600, borderRadius: 8,
             background: COLORS.accent, border: 'none', color: '#fff', cursor: 'pointer',
           }}>
-            + Add Products
+            {t('products.addProducts')}
           </button>
         </Link>
       </div>
@@ -350,7 +352,7 @@ export default function MyProductsPage() {
         <>
           {/* Search + View Toggle */}
           <div style={{ ...CARD_STYLE, padding: '10px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by ASIN, title, brand, or MSKU..."
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('products.searchPlaceholder')}
               style={{ flex: '1 1 200px', padding: '6px 10px', borderRadius: 8, border: '1px solid #E2E8F0', fontSize: 12, outline: 'none', minWidth: 150 }} />
             <div style={{ flex: '1 1 0', minWidth: 0 }} />
 
@@ -367,28 +369,28 @@ export default function MyProductsPage() {
                     transition: 'all 0.2s',
                   }}
                 >
-                  {mode === 'child' ? 'All Variants' : 'By Parent'}
+                  {mode === 'child' ? t('products.allVariants') : t('products.byParent')}
                 </button>
               ))}
             </div>
 
             <span style={{ fontSize: 11, color: COLORS.sub }}>
-              {viewMode === 'child' ? `${filtered.length} of ${products.length} products` : `${parentGroups.length} groups`}
+              {viewMode === 'child' ? `${filtered.length} ${t('products.of')} ${products.length} ${t('common.products')}` : `${parentGroups.length} ${t('products.parentGroups')}`}
             </span>
           </div>
 
           <div style={{ ...CARD_STYLE, padding: 0, overflow: 'hidden' }}>
-            <div style={{ overflowX: 'auto' }}>
+            <div className="modern-scroll" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 750 }}>
                 <thead>
                   <tr style={{ borderBottom: `2px solid ${COLORS.border}` }}>
-                    <th style={{ ...TH_STYLE, padding: '12px 12px', textAlign: 'left', minWidth: 300 }}>Product</th>
-                    <th style={{ ...TH_STYLE, padding: '12px 12px', textAlign: 'left' }}>{viewMode === 'parent' ? 'Parent ASIN' : 'ASIN'}</th>
-                    <th style={{ ...TH_STYLE, padding: '12px 12px', textAlign: 'left' }}>MSKU</th>
-                    <th style={{ ...TH_STYLE, padding: '12px 12px', textAlign: 'center' }}>Status</th>
-                    <th style={{ ...TH_STYLE, padding: '12px 12px', textAlign: 'right' }}>Price</th>
-                    <th style={{ ...TH_STYLE, padding: '12px 12px', textAlign: 'right' }}>Rating</th>
-                    <th style={{ ...TH_STYLE, padding: '12px 12px', textAlign: 'left' }}>Added</th>
+                    <th style={{ ...TH_STYLE, padding: '12px 12px', textAlign: 'left', minWidth: 300 }}>{t('products.product')}</th>
+                    <th style={{ ...TH_STYLE, padding: '12px 12px', textAlign: 'left' }}>{viewMode === 'parent' ? t('products.parentAsin') : 'ASIN'}</th>
+                    <th style={{ ...TH_STYLE, padding: '12px 12px', textAlign: 'left' }}>{t('products.msku')}</th>
+                    <th style={{ ...TH_STYLE, padding: '12px 12px', textAlign: 'center' }}>{t('products.status')}</th>
+                    <th style={{ ...TH_STYLE, padding: '12px 12px', textAlign: 'right' }}>{t('products.price')}</th>
+                    <th style={{ ...TH_STYLE, padding: '12px 12px', textAlign: 'right' }}>{t('products.rating')}</th>
+                    <th style={{ ...TH_STYLE, padding: '12px 12px', textAlign: 'left' }}>{t('products.added')}</th>
                     <th style={{ ...TH_STYLE, padding: '12px 12px', textAlign: 'center', width: 50 }}></th>
                   </tr>
                 </thead>
@@ -398,7 +400,7 @@ export default function MyProductsPage() {
                     : parentGroups.map(g => renderParentRow(g))
                   }
                   {(viewMode === 'child' ? filtered.length : parentGroups.length) === 0 && (
-                    <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: COLORS.sub, fontSize: 13 }}>No products found</td></tr>
+                    <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: COLORS.sub, fontSize: 13 }}>{t('products.noProducts')}</td></tr>
                   )}
                 </tbody>
               </table>
@@ -414,16 +416,16 @@ export default function MyProductsPage() {
           }}>
             📦
           </div>
-          <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, marginBottom: 6 }}>Welcome to Your Product Catalog</div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, marginBottom: 6 }}>{t('products.welcomeTitle')}</div>
           <div style={{ fontSize: 13, color: COLORS.sub, textAlign: 'center', maxWidth: 420, marginBottom: 24, lineHeight: 1.7 }}>
-            Start by adding your Amazon ASINs. Product details like title, image, price and rating will be automatically fetched.
+            {t('products.welcomeDesc')}
           </div>
 
           <div style={{ display: 'flex', gap: 16, marginBottom: 28, flexWrap: 'wrap', justifyContent: 'center' }}>
             {[
-              { step: '1', icon: '✏️', title: 'Add ASINs', desc: 'Paste your product ASINs' },
-              { step: '2', icon: '⚡', title: 'Auto-Fetch', desc: 'Data pulled automatically' },
-              { step: '3', icon: '📊', title: 'Track', desc: 'Monitor performance' },
+              { step: '1', icon: '✏️', title: t('products.addAsins'), desc: t('products.addAsinsDesc') },
+              { step: '2', icon: '⚡', title: t('products.autoFetch'), desc: t('products.autoFetchDesc') },
+              { step: '3', icon: '📊', title: t('products.track'), desc: t('products.trackDesc') },
             ].map(s => (
               <div key={s.step} style={{
                 textAlign: 'center', padding: '16px 18px', borderRadius: 12,
@@ -442,7 +444,7 @@ export default function MyProductsPage() {
               background: COLORS.accent, border: 'none', color: '#fff', cursor: 'pointer',
               boxShadow: '0 2px 8px rgba(91,95,199,0.25)', transition: 'all 0.2s',
             }}>
-              + Add Your First Products
+              {t('products.addFirst')}
             </button>
           </Link>
         </div>

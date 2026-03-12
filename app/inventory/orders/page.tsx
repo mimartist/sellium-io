@@ -7,6 +7,7 @@ import {
 import KpiCard from '@/components/ui/KpiCard'
 import { KpiIcons } from '@/components/ui/KpiIcons'
 import { COLORS, CARD_STYLE, TH_STYLE } from '@/lib/design-tokens'
+import { useTranslation } from '@/lib/i18n'
 import { useProductImages } from '@/hooks/useProductImages'
 import { ImgPlaceholder } from '@/components/ui/Badges'
 import {
@@ -25,11 +26,11 @@ interface OrderRow extends StockRow {
   priority: 'acil' | 'yuksek' | 'normal' | 'dusuk'
 }
 
-const PRIORITY_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  acil: { label: 'Urgent', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
-  yuksek: { label: 'High', color: '#f97316', bg: 'rgba(249,115,22,0.1)' },
-  normal: { label: 'Normal', color: COLORS.accent, bg: 'rgba(91,95,199,0.1)' },
-  dusuk: { label: 'Low', color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' },
+const PRIORITY_COLORS: Record<string, { color: string; bg: string }> = {
+  acil: { color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
+  yuksek: { color: '#f97316', bg: 'rgba(249,115,22,0.1)' },
+  normal: { color: COLORS.accent, bg: 'rgba(91,95,199,0.1)' },
+  dusuk: { color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' },
 }
 
 /* ── Styles ── */
@@ -37,6 +38,8 @@ const tdStyle: React.CSSProperties = { padding: '11px 12px', fontSize: 13, color
 const sliderTrackStyle: React.CSSProperties = { width: '100%', height: 6, appearance: 'none' as any, borderRadius: 4, outline: 'none', cursor: 'pointer' }
 
 export default function OrderPlanningPage() {
+  const { t } = useTranslation()
+  const priorityLabels: Record<string, string> = { acil: t("inventoryOrders.urgent"), yuksek: t("inventoryOrders.high"), normal: t("inventoryOrders.normal"), dusuk: t("inventoryOrders.low") }
   const { getBySkuWithFallback: getBySku, asinFromSkuWithFallback: asinFromSku } = useProductImages()
   const [rawData, setRawData] = useState<StockRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -122,7 +125,7 @@ export default function OrderPlanningPage() {
     const BOM = '\uFEFF'
     const headers = ['Priority', 'SKU', 'Size', 'Stock', 'Inbound', 'D.Sales', 'Target Stock', 'Order Qty', 'Cost', 'Revenue', 'Deadline']
     const rows = (selectedRows.length > 0 ? selectedRows : orderRows).map(r => [
-      PRIORITY_CONFIG[r.priority]?.label || r.priority, r.msku, extractSize(r.msku),
+      priorityLabels[r.priority] || r.priority, r.msku, extractSize(r.msku),
       r.current_stock || 0, r.inbound_total || 0, fmtDec(r.avg_daily_sales || 0),
       Math.ceil(r.targetStock), r.orderQty, fmtDec(r.estimatedCost, 0), fmtDec(r.estimatedRevenue, 0), r.deadline,
     ])
@@ -138,7 +141,7 @@ export default function OrderPlanningPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ width: 36, height: 36, border: `3px solid ${COLORS.border}`, borderTopColor: COLORS.accent, borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-          <div style={{ color: COLORS.sub, fontSize: 13 }}>Calculating order data...</div>
+          <div style={{ color: COLORS.sub, fontSize: 13 }}>{t("inventoryOrders.calculating")}</div>
         </div>
       </div>
     )
@@ -149,9 +152,9 @@ export default function OrderPlanningPage() {
       {/* HEADER */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: COLORS.text }}>Order Planning</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: COLORS.text }}>{t("inventoryOrders.title")}</h1>
           <p style={{ fontSize: 13, color: COLORS.sub, marginTop: 2, margin: 0 }}>
-            Stock-based automatic order plan · {rawData.length} SKU · {orderRows.length} orders needed
+            {t("inventoryOrders.subtitle")} · {rawData.length} SKU · {orderRows.length} {t("inventoryOrders.ordersNeeded")}
           </p>
         </div>
         <button onClick={exportOrderCSV} style={{
@@ -159,30 +162,30 @@ export default function OrderPlanningPage() {
           background: COLORS.accentLight, border: '1px solid rgba(91,95,199,0.3)',
           color: COLORS.accent, cursor: 'pointer',
         }}>
-          Export CSV
+          {t("common.exportCsv")}
         </button>
       </div>
 
       {/* KPI CARDS */}
       <div className="grid-4" style={{ marginBottom: 20 }}>
-        <KpiCard label="SELECTED PRODUCTS" value={selectedRows.length > 0 ? `${selectedRows.length}` : `${orderRows.length} (All)`} change={`${rawData.length} SKU total`} up={true}
+        <KpiCard label={t("inventoryOrders.selectedProducts")} value={selectedRows.length > 0 ? `${selectedRows.length}` : `${orderRows.length} (${t("common.all")})`} change={`${rawData.length} SKU total`} up={true}
           icon={KpiIcons.stock} bars={[50, 55, 60, 58, 62, 65, 68]} color={COLORS.accent} light="#C7D2FE" iconBg={COLORS.accentLight} />
-        <KpiCard label="TOTAL ORDER QTY" value={fmtNum(totalOrderQty) + ' units'} change={`${orderRows.length} products`} up={true}
+        <KpiCard label={t("inventoryOrders.totalOrderQty")} value={fmtNum(totalOrderQty) + ' units'} change={`${orderRows.length} products`} up={true}
           icon={KpiIcons.orders} bars={[40, 45, 50, 55, 60, 65, 70]} color="#a78bfa" light="#E8DEFF" iconBg="#F3EEFF" />
-        <KpiCard label="ESTIMATED COST" value={fmtCur(totalCost)} change="Production cost" up={false}
+        <KpiCard label={t("inventoryOrders.estimatedCost")} value={fmtCur(totalCost)} change={t("inventoryOrders.productionCost")} up={false}
           icon={KpiIcons.spend} bars={[60, 62, 65, 63, 60, 58, 55]} color={COLORS.orange} light={COLORS.orangeLighter} iconBg={COLORS.orangeLight} />
-        <KpiCard label="EXPECTED REVENUE" value={fmtCur(totalRevenue)} change={`ROI: %${fmtDec(roi, 0)}`} up={true}
+        <KpiCard label={t("inventoryOrders.expectedRevenue")} value={fmtCur(totalRevenue)} change={`${t("inventoryOrders.roi")}: %${fmtDec(roi, 0)}`} up={true}
           icon={KpiIcons.revenue} bars={[30, 35, 42, 50, 58, 65, 72]} color={COLORS.green} light={COLORS.greenLighter} iconBg={COLORS.greenLight} />
       </div>
 
       {/* PARAMETERS + INVESTMENT SUMMARY */}
       <div style={{ ...CARD_STYLE, padding: 20, marginBottom: 20 }}>
-        <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>Parameters</div>
-        <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 16 }}>Adjust lead time, safety buffer and growth estimate</div>
+        <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>{t("inventoryOrders.parameters")}</div>
+        <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 16 }}>{t("inventoryOrders.parametersDesc")}</div>
         <div className="inv-slider-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 24, marginBottom: 18 }}>
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 12, color: '#475569' }}>Lead Time</span>
+              <span style={{ fontSize: 12, color: '#475569' }}>{t("inventoryOrders.leadTime")}</span>
               <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.accent }}>{leadTime} days</span>
             </div>
             <input type="range" min={15} max={120} value={leadTime} onChange={e => setLeadTime(Number(e.target.value))}
@@ -193,7 +196,7 @@ export default function OrderPlanningPage() {
           </div>
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 12, color: '#475569' }}>Safety Buffer</span>
+              <span style={{ fontSize: 12, color: '#475569' }}>{t("inventoryOrders.safetyBuffer")}</span>
               <span style={{ fontSize: 13, fontWeight: 600, color: '#f59e0b' }}>{safetyBuffer} days</span>
             </div>
             <input type="range" min={0} max={90} value={safetyBuffer} onChange={e => setSafetyBuffer(Number(e.target.value))}
@@ -204,7 +207,7 @@ export default function OrderPlanningPage() {
           </div>
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
-              <span style={{ fontSize: 12, color: '#475569' }}>Growth Estimate</span>
+              <span style={{ fontSize: 12, color: '#475569' }}>{t("inventoryOrders.growthEstimate")}</span>
               <span style={{ fontSize: 13, fontWeight: 600, color: '#22c55e' }}>%{growthRate}</span>
             </div>
             <input type="range" min={0} max={50} value={growthRate} onChange={e => setGrowthRate(Number(e.target.value))}
@@ -217,9 +220,9 @@ export default function OrderPlanningPage() {
         {/* Investment / Revenue / ROI — inline inside Parameters */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, borderTop: `1px solid ${COLORS.border}`, paddingTop: 16 }}>
           {[
-            { label: 'INVESTMENT', value: fmtCur(totalCost), color: '#f59e0b' },
-            { label: 'EXPECTED REVENUE', value: fmtCur(totalRevenue), color: '#22c55e' },
-            { label: 'ESTIMATED ROI', value: `%${fmtDec(roi, 0)}`, color: roi > 100 ? '#22c55e' : '#f59e0b' },
+            { label: t("inventoryOrders.investment"), value: fmtCur(totalCost), color: '#f59e0b' },
+            { label: t("inventoryOrders.expectedRevenue"), value: fmtCur(totalRevenue), color: '#22c55e' },
+            { label: t("inventoryOrders.estimatedRoi"), value: `%${fmtDec(roi, 0)}`, color: roi > 100 ? '#22c55e' : '#f59e0b' },
           ].map((item, i) => (
             <div key={i} style={{ textAlign: 'center', padding: '12px 8px', background: '#F8FAFC', borderRadius: 10 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.sub, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 4 }}>{item.label}</div>
@@ -232,7 +235,7 @@ export default function OrderPlanningPage() {
       {/* GROUP DISTRIBUTION + TIMELINE */}
       <div className="grid-2" style={{ marginBottom: 20 }}>
         <div style={{ ...CARD_STYLE, padding: '18px 22px' }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>Product Group Distribution</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>{t("inventoryOrders.productGroupDist")}</div>
           <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 14 }}>Top 10 groups by order quantity</div>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={groupDistribution} layout="vertical">
@@ -247,14 +250,14 @@ export default function OrderPlanningPage() {
 
         {/* Timeline */}
         <div style={{ ...CARD_STYLE, padding: '18px 22px' }}>
-          <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>Delivery Timeline</div>
+          <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>{t("inventoryOrders.deliveryTimeline")}</div>
           <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 16 }}>Based on {leadTime} days lead time</div>
           <div style={{ position: 'relative', paddingLeft: 20 }}>
             {[
-              { label: 'Order Placed', date: new Date().toISOString().substring(0, 10), color: COLORS.accent },
-              { label: 'Production Complete', date: (() => { const d = new Date(); d.setDate(d.getDate() + Math.floor(leadTime * 0.4)); return d.toISOString().substring(0, 10) })(), color: '#f59e0b' },
-              { label: 'Shipment Started', date: (() => { const d = new Date(); d.setDate(d.getDate() + Math.floor(leadTime * 0.6)); return d.toISOString().substring(0, 10) })(), color: '#a78bfa' },
-              { label: 'FBA Delivery', date: (() => { const d = new Date(); d.setDate(d.getDate() + leadTime); return d.toISOString().substring(0, 10) })(), color: '#22c55e' },
+              { label: t("inventoryOrders.orderPlaced"), date: new Date().toISOString().substring(0, 10), color: COLORS.accent },
+              { label: t("inventoryOrders.productionComplete"), date: (() => { const d = new Date(); d.setDate(d.getDate() + Math.floor(leadTime * 0.4)); return d.toISOString().substring(0, 10) })(), color: '#f59e0b' },
+              { label: t("inventoryOrders.shipmentStarted"), date: (() => { const d = new Date(); d.setDate(d.getDate() + Math.floor(leadTime * 0.6)); return d.toISOString().substring(0, 10) })(), color: '#a78bfa' },
+              { label: t("inventoryOrders.fbaDelivery"), date: (() => { const d = new Date(); d.setDate(d.getDate() + leadTime); return d.toISOString().substring(0, 10) })(), color: '#22c55e' },
             ].map((step, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: i < 3 ? 16 : 0, position: 'relative' }}>
                 <div style={{ position: 'absolute', left: -20, width: 10, height: 10, borderRadius: '50%', background: step.color, border: '2px solid #fff' }} />
@@ -271,21 +274,21 @@ export default function OrderPlanningPage() {
 
       {/* ORDER TABLE */}
       <div style={{ ...CARD_STYLE, padding: 0, overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
+        <div className="modern-scroll" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 1000 }}>
             <thead>
               <tr style={{ borderBottom: `2px solid ${COLORS.border}` }}>
                 <th style={{ ...TH_STYLE, padding: '12px 12px', width: 40 }}>
                   <input type="checkbox" checked={selectAll} onChange={handleSelectAll} style={{ cursor: 'pointer', width: 14, height: 14 }} />
                 </th>
-                {['Priority', 'SKU', 'Size', 'Stock', 'Inbound', 'D.Sales', 'Target', 'ORDER', 'Cost', 'Revenue', 'Deadline'].map((h, i) => (
+                {[t("inventoryOrders.priority"), 'SKU', t("inventoryOrders.size"), 'Stock', 'Inbound', 'D.Sales', 'Target', 'ORDER', 'Cost', 'Revenue', 'Deadline'].map((h, i) => (
                   <th key={h} style={{ ...TH_STYLE, padding: '12px 12px', textAlign: i >= 4 ? 'right' : 'left', fontWeight: h === 'ORDER' ? 700 : 600 }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
               {orderRows.slice(0, 100).map((row, i) => {
-                const prCfg = PRIORITY_CONFIG[row.priority] || PRIORITY_CONFIG.normal
+                const prCfg = { ...(PRIORITY_COLORS[row.priority] || PRIORITY_COLORS.normal), label: priorityLabels[row.priority] || row.priority }
                 return (
                   <tr key={i} style={{ borderBottom: `1px solid ${COLORS.border}`, background: selectedItems.has(row.msku) ? '#F8FAFC' : 'transparent', transition: 'background 0.15s' }}
                     onMouseEnter={e => { if (!selectedItems.has(row.msku)) (e.currentTarget as HTMLElement).style.background = '#FAFBFC' }}
@@ -324,7 +327,7 @@ export default function OrderPlanningPage() {
         </div>
         {orderRows.length > 100 && (
           <div style={{ padding: '10px 16px', fontSize: 11, color: COLORS.sub, borderTop: `1px solid ${COLORS.border}` }}>
-            Showing first 100 of {orderRows.length} products
+            {t("common.showing", {limit: 100, total: orderRows.length})}
           </div>
         )}
       </div>

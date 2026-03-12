@@ -11,6 +11,7 @@ import AIInsights, { type Insight } from '@/components/ui/AIInsights'
 import { ImgPlaceholder } from '@/components/ui/Badges'
 import { useProductImages } from '@/hooks/useProductImages'
 import { COLORS, CARD_STYLE, SELECT_STYLE, TH_STYLE } from '@/lib/design-tokens'
+import { useTranslation } from '@/lib/i18n'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -138,6 +139,7 @@ async function fetchAll(query: any): Promise<any[]> {
 }
 
 export default function COGSPage() {
+  const { t } = useTranslation()
   const { getBySku, asinFromSku, getByAsin } = useProductImages()
   const monthOptions = useMemo(() => generateMonthOptions(), [])
   const [selectedMonth, setSelectedMonth] = useState(monthOptions[0])
@@ -495,14 +497,14 @@ export default function COGSPage() {
   const costBarsData = useMemo(() => {
     if (!sel) return []
     return [
-      { label: 'Selling price', value: sel.avgPrice, color: COLORS.costBars[0] },
-      { label: 'COGS', value: -sel.cogs, color: COLORS.costBars[1] },
-      { label: 'Commission', value: -sel.commission, color: COLORS.costBars[2] },
-      { label: 'FBA Shipping', value: -sel.fba, color: COLORS.costBars[3] },
-      { label: 'Storage', value: -sel.storage, color: COLORS.costBars[4] },
-      { label: 'Returns+Digital', value: -(sel.returnMgmt + sel.digital), color: COLORS.costBars[5] },
-      { label: 'Ads', value: -sel.adSpend, color: COLORS.costBars[6] },
-      { label: 'Net profit', value: sel.profitPerUnit, color: COLORS.profitBar },
+      { label: t('cogs.sellingPrice'), value: sel.avgPrice, color: COLORS.costBars[0] },
+      { label: t('cogs.cogs'), value: -sel.cogs, color: COLORS.costBars[1] },
+      { label: t('cogs.commission'), value: -sel.commission, color: COLORS.costBars[2] },
+      { label: t('cogs.fbaShipping'), value: -sel.fba, color: COLORS.costBars[3] },
+      { label: t('cogs.storage'), value: -sel.storage, color: COLORS.costBars[4] },
+      { label: t('cogs.returnsDigital'), value: -(sel.returnMgmt + sel.digital), color: COLORS.costBars[5] },
+      { label: t('cogs.ads'), value: -sel.adSpend, color: COLORS.costBars[6] },
+      { label: t('cogs.netProfit'), value: sel.profitPerUnit, color: COLORS.profitBar },
     ]
   }, [sel])
   const maxBarVal = useMemo(() => costBarsData.length > 0 ? Math.max(...costBarsData.map(b => Math.abs(b.value))) : 1, [costBarsData])
@@ -644,7 +646,7 @@ export default function COGSPage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ width: 36, height: 36, border: `3px solid ${COLORS.border}`, borderTopColor: COLORS.accent, borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-          <div style={{ color: COLORS.sub, fontSize: 13 }}>Loading data...</div>
+          <div style={{ color: COLORS.sub, fontSize: 13 }}>{t('common.loading')}</div>
         </div>
       </div>
     )
@@ -655,15 +657,15 @@ export default function COGSPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: COLORS.text, margin: 0 }}>COGS & Profitability</h1>
-          <p style={{ fontSize: 13, color: COLORS.sub, margin: '2px 0 0' }}>SKU-level cost and profitability analysis · {selectedMonth}</p>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: COLORS.text, margin: 0 }}>{t('cogs.title')}</h1>
+          <p style={{ fontSize: 13, color: COLORS.sub, margin: '2px 0 0' }}>{t('cogs.subtitle')} · {selectedMonth}</p>
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} style={SELECT_STYLE}>
             {monthOptions.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
           <select value={selectedMarketplace} onChange={e => setSelectedMarketplace(e.target.value)} style={SELECT_STYLE}>
-            {MARKETPLACE_OPTIONS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
+            {MARKETPLACE_OPTIONS.map(m => <option key={m.value} value={m.value}>{m.value === 'all' ? t('common.allMarketplaces') : m.label}</option>)}
           </select>
         </div>
       </div>
@@ -671,26 +673,26 @@ export default function COGSPage() {
       {/* 4 KPI Cards */}
       <div className="grid-4" style={{ marginBottom: 20 }}>
         <KpiCard
-          label="AVG. MARGIN" value={fmtPct(avgMargin)}
-          change={lossMakingSkus.length > 0 ? `${lossMakingSkus.length} loss-making` : 'All profitable'} up={avgMargin > 0}
+          label={t('cogs.avgMargin')} value={fmtPct(avgMargin)}
+          change={lossMakingSkus.length > 0 ? `${lossMakingSkus.length} ${t('cogs.lossMaking')}` : t('cogs.allProfitable')} up={avgMargin > 0}
           icon={KpiIcons.margin} bars={[55, 60, 58, 62, 68, 72, 75]}
           color={COLORS.green} light={COLORS.greenLighter} iconBg={COLORS.greenLight}
         />
         <KpiCard
-          label="LOSS-MAKING SKU" value={String(lossMakingSkus.length)}
-          change={lossMakingSkus.length === 0 ? 'Great!' : 'Review'} up={lossMakingSkus.length === 0}
+          label={t('cogs.lossMakingSku')} value={String(lossMakingSkus.length)}
+          change={lossMakingSkus.length === 0 ? t('cogs.great') : t('cogs.review')} up={lossMakingSkus.length === 0}
           icon={KpiIcons.warning} bars={[90, 85, 78, 72, 68, 60, 55]}
           color={COLORS.red} light={COLORS.redLighter} iconBg={COLORS.redLight}
         />
         <KpiCard
-          label="MOST PROFITABLE" value={bestSku ? bestSku.skuGroup : '—'}
-          change={bestSku ? `${fmtPct(bestSku.margin)} margin` : ''} up={true}
+          label={t('cogs.mostProfitable')} value={bestSku ? bestSku.skuGroup : '—'}
+          change={bestSku ? `${fmtPct(bestSku.margin)} ${t('cogs.margin')}` : ''} up={true}
           icon={KpiIcons.brand} bars={[40, 48, 55, 60, 68, 75, 85]}
           color={COLORS.accent} light="#C7D2FE" iconBg={COLORS.accentLight}
         />
         <KpiCard
-          label="AVG. BREAKEVEN" value={fmtEur(avgBreakeven)}
-          change={`Max disc: ${fmtPct(avgMaxDiscount)}`} up={true}
+          label={t('cogs.avgBreakeven')} value={fmtEur(avgBreakeven)}
+          change={`${t('cogs.maxDisc')}: ${fmtPct(avgMaxDiscount)}`} up={true}
           icon={KpiIcons.clock} bars={[65, 62, 60, 58, 56, 55, 54]}
           color={COLORS.orange} light={COLORS.orangeLighter} iconBg={COLORS.orangeLight}
         />
@@ -698,27 +700,27 @@ export default function COGSPage() {
 
       {/* AI Insights */}
       <AIInsights
-        title="AI Profitability Insights"
-        subtitle="AI-powered cost and profitability recommendations"
+        title={t('cogs.aiInsightsTitle')}
+        subtitle={t('cogs.aiInsightsSubtitle')}
         insights={aiInsights}
       />
 
       {/* 3-Level Product Table */}
       <div style={{ ...CARD_STYLE, padding: 0, marginBottom: 20, overflow: 'hidden' }}>
         <div style={{ padding: '16px 24px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text }}>Product Profitability Table</div>
-          <div style={{ fontSize: 12, color: COLORS.sub }}>{parentGroups.length} product groups · {skuRows.length} SKU</div>
+          <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text }}>{t('cogs.productProfitTable')}</div>
+          <div style={{ fontSize: 12, color: COLORS.sub }}>{parentGroups.length} {t('cogs.productGroups')} · {skuRows.length} SKU</div>
         </div>
-        <div style={{ overflowX: 'auto' }}>
+        <div className="modern-scroll" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
             <thead>
               <tr style={{ borderBottom: `2px solid ${COLORS.border}` }}>
-                <th style={{ ...TH_STYLE, padding: '8px 10px 8px 20px', textAlign: 'left', minWidth: 200 }}>Product</th>
+                <th style={{ ...TH_STYLE, padding: '8px 10px 8px 20px', textAlign: 'left', minWidth: 200 }}>{t('cogs.product')}</th>
                 {([
-                  ['units', 'Units'], ['avgPrice', 'Avg.Price'], ['cogs', 'COGS'], ['commission', 'Commission'],
-                  ['fba', 'FBA'], ['storage', 'Storage'], ['adSpend', 'Ads'], ['breakeven', 'Breakeven'],
-                  ['profitPerUnit', 'Profit/unit'], ['margin', 'Margin%'], ['maxDiscount', 'Max Disc.'],
-                ] as const).map(([key, label]) => (
+                  ['units', t('cogs.units')], ['avgPrice', t('cogs.avgPrice')], ['cogs', t('cogs.cogs')], ['commission', t('cogs.commission')],
+                  ['fba', 'FBA'], ['storage', t('cogs.storage')], ['adSpend', t('cogs.ads')], ['breakeven', t('cogs.breakeven')],
+                  ['profitPerUnit', t('cogs.profitPerUnit')], ['margin', t('cogs.marginPct')], ['maxDiscount', t('cogs.maxDiscCol')],
+                ] as [string, string][]).map(([key, label]) => (
                   <th key={key} onClick={() => handleSort(key as SortKey)}
                     style={{ ...TH_STYLE, padding: '8px 10px', textAlign: 'right', cursor: 'pointer', color: sortKey === key ? COLORS.accent : COLORS.sub }}>
                     {label}{sortIcon(key as SortKey)}
@@ -816,7 +818,7 @@ export default function COGSPage() {
                             <td style={{ padding: '6px 10px 6px 48px', fontSize: 12, color: COLORS.accent, fontWeight: 500 }}>
                               {hasMultipleSizes && <span style={{ marginRight: 5, fontSize: 8 }}>{isGroupExpanded ? '▼' : '▶'}</span>}
                               {cg.skuGroup}
-                              {hasMultipleSizes && <span style={{ fontSize: 10, color: COLORS.sub, marginLeft: 6 }}>({cg.rows.length} sizes)</span>}
+                              {hasMultipleSizes && <span style={{ fontSize: 10, color: COLORS.sub, marginLeft: 6 }}>({cg.rows.length} {t('cogs.sizes')})</span>}
                             </td>
                             <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: 12, fontWeight: 500, color: COLORS.text }}>{cg.totalUnits.toLocaleString('de-DE')}</td>
                             <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: 12, color: '#64748B' }}>{fmtEur(cg.avgPrice)}</td>
@@ -859,7 +861,7 @@ export default function COGSPage() {
                 )
               })}
               {parentGroups.length === 0 && (
-                <tr><td colSpan={12} style={{ padding: 30, textAlign: 'center', color: COLORS.sub }}>No data found for this month</td></tr>
+                <tr><td colSpan={12} style={{ padding: 30, textAlign: 'center', color: COLORS.sub }}>{t('cogs.noData')}</td></tr>
               )}
             </tbody>
           </table>
@@ -898,20 +900,20 @@ export default function COGSPage() {
             </div>
             <div style={{ display: 'flex', gap: 0 }}>
               {isMobile ? (
-                [{ id: 'breakdown', l: 'Cost Breakdown' }, { id: 'edit', l: 'Cost Editing' }, { id: 'discount', l: 'Discount Simulator' }].map(t => (
-                  <button key={t.id} onClick={() => setCostTab(t.id)} style={{
+                [{ id: 'breakdown', l: t('cogs.costBreakdown') }, { id: 'edit', l: t('cogs.costEditing') }, { id: 'discount', l: t('cogs.discountSimulator') }].map(tab => (
+                  <button key={tab.id} onClick={() => setCostTab(tab.id)} style={{
                     padding: '10px 14px', border: 'none', background: 'transparent', fontSize: 12,
-                    fontWeight: costTab === t.id ? 600 : 400, color: costTab === t.id ? COLORS.accent : COLORS.sub,
-                    borderBottom: costTab === t.id ? `2px solid ${COLORS.accent}` : '2px solid transparent', cursor: 'pointer',
-                  }}>{t.l}</button>
+                    fontWeight: costTab === tab.id ? 600 : 400, color: costTab === tab.id ? COLORS.accent : COLORS.sub,
+                    borderBottom: costTab === tab.id ? `2px solid ${COLORS.accent}` : '2px solid transparent', cursor: 'pointer',
+                  }}>{tab.l}</button>
                 ))
               ) : (
-                [{ id: 'combined', l: 'Cost Breakdown & Editing' }, { id: 'discount', l: 'Discount Simulator' }].map(t => (
-                  <button key={t.id} onClick={() => setCostTab(t.id)} style={{
+                [{ id: 'combined', l: `${t('cogs.costBreakdown')} & ${t('cogs.costEditing')}` }, { id: 'discount', l: t('cogs.discountSimulator') }].map(tab => (
+                  <button key={tab.id} onClick={() => setCostTab(tab.id)} style={{
                     padding: '10px 20px', border: 'none', background: 'transparent', fontSize: 13,
-                    fontWeight: costTab === t.id ? 600 : 400, color: costTab === t.id ? COLORS.accent : COLORS.sub,
-                    borderBottom: costTab === t.id ? `2px solid ${COLORS.accent}` : '2px solid transparent', cursor: 'pointer',
-                  }}>{t.l}</button>
+                    fontWeight: costTab === tab.id ? 600 : 400, color: costTab === tab.id ? COLORS.accent : COLORS.sub,
+                    borderBottom: costTab === tab.id ? `2px solid ${COLORS.accent}` : '2px solid transparent', cursor: 'pointer',
+                  }}>{tab.l}</button>
                 ))
               )}
             </div>
@@ -923,8 +925,8 @@ export default function COGSPage() {
               <div className="grid-2" style={{ alignItems: 'stretch' }}>
                 {/* LEFT: Cost Breakdown */}
                 <div style={{ display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>Cost Breakdown</div>
-                  <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 18 }}>From price to profit</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>{t('cogs.costBreakdown')}</div>
+                  <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 18 }}>{t('cogs.fromPriceToProfit')}</div>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
                     {costBarsData.map((b, i) => {
                       const pct = Math.abs(b.value) / maxBarVal * 100
@@ -942,35 +944,35 @@ export default function COGSPage() {
                     })}
                   </div>
                   <div style={{ marginTop: 12, padding: '12px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.red }}>Breakeven: {fmtEur(sel.breakeven)}</span>
-                    <span style={{ fontSize: 12, color: '#64748B' }}>· Below this price you lose money</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.red }}>{t('cogs.breakeven')}: {fmtEur(sel.breakeven)}</span>
+                    <span style={{ fontSize: 12, color: '#64748B' }}>· {t('cogs.belowBreakeven')}</span>
                   </div>
                 </div>
 
                 {/* RIGHT: Cost Edit */}
                 <div style={{ borderLeft: `1px solid ${COLORS.border}`, paddingLeft: 24, display: 'flex', flexDirection: 'column' }}>
-                  <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>Cost Editing</div>
-                  <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 14 }}>Update COGS</div>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>{t('cogs.costEditing')}</div>
+                  <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 14 }}>{t('cogs.updateCogs')}</div>
                   {editingGroup === sel.skuGroup ? (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1 }}>
                       <div>
-                        <label style={{ fontSize: 11, color: COLORS.sub, display: 'block', marginBottom: 4 }}>Packaging Cost (€)</label>
+                        <label style={{ fontSize: 11, color: COLORS.sub, display: 'block', marginBottom: 4 }}>{t('cogs.packagingCost')} (€)</label>
                         <input type="number" step="0.01" value={editPackCost} onChange={e => setEditPackCost(e.target.value)} style={{ ...SELECT_STYLE, width: '100%' }} />
                       </div>
                       <div>
-                        <label style={{ fontSize: 11, color: COLORS.sub, display: 'block', marginBottom: 4 }}>Other Cost (€)</label>
+                        <label style={{ fontSize: 11, color: COLORS.sub, display: 'block', marginBottom: 4 }}>{t('cogs.otherCost')} (€)</label>
                         <input type="number" step="0.01" value={editOtherCost} onChange={e => setEditOtherCost(e.target.value)} style={{ ...SELECT_STYLE, width: '100%' }} />
                       </div>
                       <div style={{ display: 'flex', gap: 8 }}>
-                        <button onClick={() => saveCost(sel.skuGroup)} style={{ flex: 1, padding: 12, borderRadius: 10, background: COLORS.accent, color: '#fff', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}>Save</button>
-                        <button onClick={() => setEditingGroup(null)} style={{ flex: 1, padding: 12, borderRadius: 10, background: '#F8FAFC', color: COLORS.sub, fontSize: 13, fontWeight: 600, border: `1px solid ${COLORS.border}`, cursor: 'pointer' }}>Cancel</button>
+                        <button onClick={() => saveCost(sel.skuGroup)} style={{ flex: 1, padding: 12, borderRadius: 10, background: COLORS.accent, color: '#fff', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}>{t('common.save')}</button>
+                        <button onClick={() => setEditingGroup(null)} style={{ flex: 1, padding: 12, borderRadius: 10, background: '#F8FAFC', color: COLORS.sub, fontSize: 13, fontWeight: 600, border: `1px solid ${COLORS.border}`, cursor: 'pointer' }}>{t('common.cancel')}</button>
                       </div>
                     </div>
                   ) : (
                     <div style={{ flex: 1 }}>
                       {[
-                        { l: 'COGS/unit', v: sel.cogs }, { l: 'Commission/unit', v: sel.commission }, { l: 'FBA Shipping/unit', v: sel.fba },
-                        { l: 'Storage/unit', v: sel.storage }, { l: 'Returns+Digital/unit', v: sel.returnMgmt + sel.digital }, { l: 'Ads/unit', v: sel.adSpend },
+                        { l: t('cogs.cogsUnit'), v: sel.cogs }, { l: t('cogs.commissionUnit'), v: sel.commission }, { l: t('cogs.fbaShippingUnit'), v: sel.fba },
+                        { l: t('cogs.storageUnit'), v: sel.storage }, { l: t('cogs.returnsDigitalUnit'), v: sel.returnMgmt + sel.digital }, { l: t('cogs.adsUnit'), v: sel.adSpend },
                       ].map((r, i) => (
                         <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: `1px solid #F8FAFC` }}>
                           <span style={{ fontSize: 13, color: '#64748B' }}>{r.l}</span>
@@ -978,15 +980,15 @@ export default function COGSPage() {
                         </div>
                       ))}
                       <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderTop: `2px solid ${COLORS.border}`, marginTop: 4 }}>
-                        <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Total Cost</span>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>{t('cogs.totalCost')}</span>
                         <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>{fmtEur(sel.totalCost)}</span>
                       </div>
                       {!sel.hasEconData && (
-                        <div style={{ fontSize: 11, color: COLORS.orange, marginBottom: 8 }}>Amazon fees are estimated from monthly P&L data.</div>
+                        <div style={{ fontSize: 11, color: COLORS.orange, marginBottom: 8 }}>{t('cogs.feesEstimated')}</div>
                       )}
                       <button onClick={() => { setEditingGroup(sel.skuGroup); setEditPackCost(sel.cogs.toFixed(2)); setEditOtherCost('0') }}
                         style={{ width: '100%', padding: 12, borderRadius: 10, background: COLORS.accent, color: '#fff', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
-                        Edit Cost
+                        {t('cogs.editCost')}
                       </button>
                     </div>
                   )}
@@ -997,8 +999,8 @@ export default function COGSPage() {
             {/* Mobile: breakdown only */}
             {costTab === 'breakdown' && isMobile && (
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>Cost Breakdown</div>
-                <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 18 }}>From price to profit</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>{t('cogs.costBreakdown')}</div>
+                <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 18 }}>{t('cogs.fromPriceToProfit')}</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                   {costBarsData.map((b, i) => {
                     const pct = Math.abs(b.value) / maxBarVal * 100
@@ -1016,8 +1018,8 @@ export default function COGSPage() {
                   })}
                 </div>
                 <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.red }}>Breakeven: {fmtEur(sel.breakeven)}</span>
-                  <span style={{ fontSize: 12, color: '#64748B' }}>· Below this price you lose money</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.red }}>{t('cogs.breakeven')}: {fmtEur(sel.breakeven)}</span>
+                  <span style={{ fontSize: 12, color: '#64748B' }}>· {t('cogs.belowBreakeven')}</span>
                 </div>
               </div>
             )}
@@ -1025,28 +1027,28 @@ export default function COGSPage() {
             {/* Mobile: edit only */}
             {costTab === 'edit' && isMobile && (
               <div>
-                <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>Cost Editing</div>
-                <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 14 }}>Update COGS</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>{t('cogs.costEditing')}</div>
+                <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 14 }}>{t('cogs.updateCogs')}</div>
                 {editingGroup === sel.skuGroup ? (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
                     <div>
-                      <label style={{ fontSize: 11, color: COLORS.sub, display: 'block', marginBottom: 4 }}>Packaging Cost (€)</label>
+                      <label style={{ fontSize: 11, color: COLORS.sub, display: 'block', marginBottom: 4 }}>{t('cogs.packagingCost')} (€)</label>
                       <input type="number" step="0.01" value={editPackCost} onChange={e => setEditPackCost(e.target.value)} style={{ ...SELECT_STYLE, width: '100%' }} />
                     </div>
                     <div>
-                      <label style={{ fontSize: 11, color: COLORS.sub, display: 'block', marginBottom: 4 }}>Other Cost (€)</label>
+                      <label style={{ fontSize: 11, color: COLORS.sub, display: 'block', marginBottom: 4 }}>{t('cogs.otherCost')} (€)</label>
                       <input type="number" step="0.01" value={editOtherCost} onChange={e => setEditOtherCost(e.target.value)} style={{ ...SELECT_STYLE, width: '100%' }} />
                     </div>
                     <div style={{ display: 'flex', gap: 8 }}>
-                      <button onClick={() => saveCost(sel.skuGroup)} style={{ flex: 1, padding: 12, borderRadius: 10, background: COLORS.accent, color: '#fff', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}>Save</button>
-                      <button onClick={() => setEditingGroup(null)} style={{ flex: 1, padding: 12, borderRadius: 10, background: '#F8FAFC', color: COLORS.sub, fontSize: 13, fontWeight: 600, border: `1px solid ${COLORS.border}`, cursor: 'pointer' }}>Cancel</button>
+                      <button onClick={() => saveCost(sel.skuGroup)} style={{ flex: 1, padding: 12, borderRadius: 10, background: COLORS.accent, color: '#fff', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}>{t('common.save')}</button>
+                      <button onClick={() => setEditingGroup(null)} style={{ flex: 1, padding: 12, borderRadius: 10, background: '#F8FAFC', color: COLORS.sub, fontSize: 13, fontWeight: 600, border: `1px solid ${COLORS.border}`, cursor: 'pointer' }}>{t('common.cancel')}</button>
                     </div>
                   </div>
                 ) : (
                   <>
                     {[
-                      { l: 'COGS/unit', v: sel.cogs }, { l: 'Commission/unit', v: sel.commission }, { l: 'FBA Shipping/unit', v: sel.fba },
-                      { l: 'Storage/unit', v: sel.storage }, { l: 'Returns+Digital/unit', v: sel.returnMgmt + sel.digital }, { l: 'Ads/unit', v: sel.adSpend },
+                      { l: t('cogs.cogsUnit'), v: sel.cogs }, { l: t('cogs.commissionUnit'), v: sel.commission }, { l: t('cogs.fbaShippingUnit'), v: sel.fba },
+                      { l: t('cogs.storageUnit'), v: sel.storage }, { l: t('cogs.returnsDigitalUnit'), v: sel.returnMgmt + sel.digital }, { l: t('cogs.adsUnit'), v: sel.adSpend },
                     ].map((r, i) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid #F8FAFC' }}>
                         <span style={{ fontSize: 13, color: '#64748B' }}>{r.l}</span>
@@ -1054,15 +1056,15 @@ export default function COGSPage() {
                       </div>
                     ))}
                     <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderTop: `2px solid ${COLORS.border}`, marginTop: 4 }}>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Total Cost</span>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>{t('cogs.totalCost')}</span>
                       <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>{fmtEur(sel.totalCost)}</span>
                     </div>
                     {!sel.hasEconData && (
-                      <div style={{ fontSize: 11, color: COLORS.orange, marginTop: 10, marginBottom: 8 }}>Amazon fees are estimated from monthly P&L data.</div>
+                      <div style={{ fontSize: 11, color: COLORS.orange, marginTop: 10, marginBottom: 8 }}>{t('cogs.feesEstimated')}</div>
                     )}
                     <button onClick={() => { setEditingGroup(sel.skuGroup); setEditPackCost(sel.cogs.toFixed(2)); setEditOtherCost('0') }}
                       style={{ width: '100%', padding: 12, borderRadius: 10, background: COLORS.accent, color: '#fff', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
-                      Edit Cost
+                      {t('cogs.editCost')}
                     </button>
                   </>
                 )}
@@ -1081,14 +1083,14 @@ export default function COGSPage() {
                   </div>
                   <span style={{ fontSize: 12, color: COLORS.sub }}>%50</span>
                 </div>
-                <div style={{ textAlign: 'center', fontSize: 15, fontWeight: 700, color: COLORS.accent, marginBottom: 16 }}>%{discountPct} discount</div>
+                <div style={{ textAlign: 'center', fontSize: 15, fontWeight: 700, color: COLORS.accent, marginBottom: 16 }}>%{discountPct} {t('cogs.discount').toLowerCase()}</div>
 
                 {selectedDiscountRow && (
                   <div style={{ display: 'flex', gap: 16, marginBottom: 18, padding: '14px 18px', background: '#F8FAFC', borderRadius: 10 }}>
                     {[
-                      { l: 'NEW PRICE', v: fmtEur(selectedDiscountRow.newPrice) },
-                      { l: 'PROFIT/UNIT', v: fmtEur(selectedDiscountRow.profit), c: selectedDiscountRow.profit >= 0 ? COLORS.green : COLORS.red },
-                      { l: 'MARGIN', v: fmtPct(selectedDiscountRow.margin), c: selectedDiscountRow.margin >= 0 ? COLORS.green : COLORS.red },
+                      { l: t('cogs.newPrice'), v: fmtEur(selectedDiscountRow.newPrice) },
+                      { l: t('cogs.profitPerUnit'), v: fmtEur(selectedDiscountRow.profit), c: selectedDiscountRow.profit >= 0 ? COLORS.green : COLORS.red },
+                      { l: t('cogs.marginPct'), v: fmtPct(selectedDiscountRow.margin), c: selectedDiscountRow.margin >= 0 ? COLORS.green : COLORS.red },
                     ].map((m, i) => (
                       <div key={i} style={{ flex: 1, textAlign: 'center' }}>
                         <div style={{ fontSize: 9, fontWeight: 700, color: COLORS.sub, letterSpacing: '.05em', marginBottom: 3 }}>{m.l}</div>
@@ -1101,7 +1103,7 @@ export default function COGSPage() {
                 <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                   <thead>
                     <tr style={{ borderBottom: `2px solid ${COLORS.border}` }}>
-                      {['Discount', 'New Price', 'Profit/unit', 'Margin%', 'Status'].map(h => (
+                      {[t('cogs.discount'), t('cogs.newPrice'), t('cogs.profitPerUnit'), t('cogs.marginPct'), t('cogs.status')].map(h => (
                         <th key={h} style={{ ...TH_STYLE, padding: '7px 10px', textAlign: 'right' }}>{h}</th>
                       ))}
                     </tr>
@@ -1120,9 +1122,9 @@ export default function COGSPage() {
                   </tbody>
                 </table>
                 <div style={{ marginTop: 14, fontSize: 11, color: COLORS.sub }}>
-                  This product can sustain a maximum <span style={{ fontWeight: 600, color: COLORS.green }}>%{sel.maxDiscount.toFixed(0)}</span> discount.
+                  {t('cogs.maxDiscountInfo')} <span style={{ fontWeight: 600, color: COLORS.green }}>%{sel.maxDiscount.toFixed(0)}</span>
                   {sel.avgPrice > 20 && (
-                    <span style={{ color: COLORS.orange, marginLeft: 6 }}>If price drops below 20€, the 15%→10% commission advantage kicks in.</span>
+                    <span style={{ color: COLORS.orange, marginLeft: 6 }}>{t('cogs.commissionAdvantage')}</span>
                   )}
                 </div>
               </div>
@@ -1133,8 +1135,8 @@ export default function COGSPage() {
 
       {/* Profitability Scatter Map */}
       <div style={{ ...CARD_STYLE, padding: '20px 24px', marginBottom: 20 }}>
-        <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>Profitability Map</div>
-        <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 16 }}>X: Units sold · Y: Margin% · Size: Total profit</div>
+        <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>{t('cogs.profitabilityMap')}</div>
+        <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 16 }}>{t('cogs.profitabilityMapDesc')}</div>
         <ResponsiveContainer width="100%" height={320}>
           <ScatterChart margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
             <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
@@ -1161,10 +1163,10 @@ export default function COGSPage() {
         </ResponsiveContainer>
         <div style={{ display: 'flex', gap: 20, justifyContent: 'center', marginTop: 8 }}>
           {[
-            { l: 'Star (>20% & high volume)', c: COLORS.green },
-            { l: 'Niche (>20% & low volume)', c: COLORS.accent },
-            { l: 'Volume (<20% & high volume)', c: COLORS.orange },
-            { l: 'Problem (<20% & low volume)', c: COLORS.red },
+            { l: t('cogs.legendStar'), c: COLORS.green },
+            { l: t('cogs.legendNiche'), c: COLORS.accent },
+            { l: t('cogs.legendVolume'), c: COLORS.orange },
+            { l: t('cogs.legendProblem'), c: COLORS.red },
           ].map((lg, i) => (
             <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: COLORS.sub }}>
               <div style={{ width: 10, height: 10, borderRadius: '50%', background: lg.c }} />{lg.l}

@@ -4,6 +4,7 @@ import { createClient } from '@supabase/supabase-js'
 import { useEffect, useState, useMemo } from 'react'
 import Link from 'next/link'
 import { useDateRange, formatDateTR } from './DateRangeContext'
+import { useTranslation } from '@/lib/i18n'
 import KpiCard from '@/components/ui/KpiCard'
 import { KpiIcons } from '@/components/ui/KpiIcons'
 import AIInsights, { type Insight } from '@/components/ui/AIInsights'
@@ -36,6 +37,7 @@ const ChartTooltip = ({ active, payload, label }: any) =>
   ) : null
 
 export default function AdsOverviewPage() {
+  const { t } = useTranslation()
   const { startDate, endDate, isAllTime } = useDateRange()
   const { getBySkuWithFallback: getBySku, getByAsin, loaded: imgLoaded } = useProductImages()
   const [loading, setLoading] = useState(true)
@@ -191,7 +193,8 @@ export default function AdsOverviewPage() {
   const statusBadge = (s: string) => {
     const m: Record<string, { bg: string; c: string }> = { Active: { bg: '#ECFDF5', c: COLORS.green }, Paused: { bg: '#FFFBEB', c: '#D97706' }, Archived: { bg: '#F8FAFC', c: '#64748B' } }
     const x = m[s] || m.Archived
-    return <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 12, background: x.bg, color: x.c, whiteSpace: 'nowrap' }}>● {s}</span>
+    const statusLabel: Record<string, string> = { Active: t("common.active"), Paused: t("common.paused"), Archived: t("common.archived") }
+    return <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 12, background: x.bg, color: x.c, whiteSpace: 'nowrap' }}>● {statusLabel[s] || s}</span>
   }
 
   return (
@@ -199,30 +202,30 @@ export default function AdsOverviewPage() {
       {/* Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, color: COLORS.text, margin: 0 }}>Ad Performance</h1>
-          <p style={{ fontSize: 13, color: COLORS.sub, margin: '2px 0 0' }}>Amazon Ads · {formatDateTR(startDate)} – {formatDateTR(endDate)}</p>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: COLORS.text, margin: 0 }}>{t("ads.title")}</h1>
+          <p style={{ fontSize: 13, color: COLORS.sub, margin: '2px 0 0' }}>{t("ads.subtitle")} · {formatDateTR(startDate)} – {formatDateTR(endDate)}</p>
         </div>
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 80, color: COLORS.sub, fontSize: 14 }}>Loading data...</div>
+        <div style={{ textAlign: 'center', padding: 80, color: COLORS.sub, fontSize: 14 }}>{t("ads.loadingData")}</div>
       ) : (
         <>
           {/* 6 KPI Cards */}
           <div className="grid-6" style={{ marginBottom: 20 }}>
-            <KpiCard label="TOTAL SPEND" value={`€${rawKpi.spend.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`} icon={KpiIcons.spend} color={COLORS.red} light="#FECACA" iconBg="#FEF2F2" bars={[50, 55, 60, 62, 65, 68, 72]} />
-            <KpiCard label="SALES" value={`€${rawKpi.sales.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`} icon={KpiIcons.sales} color={COLORS.green} light="#A7F3D0" iconBg="#ECFDF5" bars={[85, 80, 75, 72, 68, 65, 60]} />
-            <KpiCard label="ACOS" value={`%${rawKpi.acos.toFixed(1)}`} icon={KpiIcons.acos} color={COLORS.orange} light="#FDE68A" iconBg="#FFFBEB" bars={[40, 45, 48, 50, 52, 55, 58]} />
-            <KpiCard label="ROAS" value={`${rawKpi.roas.toFixed(2)}x`} icon={KpiIcons.roas} color={COLORS.accent} light="#C7D2FE" iconBg="#EEF2FF" bars={[75, 70, 65, 60, 58, 55, 52]} />
-            <KpiCard label="CLICKS" value={rawKpi.clicks.toLocaleString('de-DE')} icon={KpiIcons.clicks} color={COLORS.accent} light="#C7D2FE" iconBg="#EEF2FF" bars={[40, 45, 50, 55, 60, 65, 72]} />
-            <KpiCard label="ORDERS" value={rawKpi.orders.toLocaleString('de-DE')} icon={KpiIcons.orders} color={COLORS.green} light="#A7F3D0" iconBg="#ECFDF5" bars={[70, 68, 65, 62, 60, 58, 55]} />
+            <KpiCard label={t("ads.totalSpend")} value={`€${rawKpi.spend.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`} icon={KpiIcons.spend} color={COLORS.red} light="#FECACA" iconBg="#FEF2F2" bars={[50, 55, 60, 62, 65, 68, 72]} />
+            <KpiCard label={t("ads.sales")} value={`€${rawKpi.sales.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`} icon={KpiIcons.sales} color={COLORS.green} light="#A7F3D0" iconBg="#ECFDF5" bars={[85, 80, 75, 72, 68, 65, 60]} />
+            <KpiCard label={t("ads.acos")} value={`%${rawKpi.acos.toFixed(1)}`} icon={KpiIcons.acos} color={COLORS.orange} light="#FDE68A" iconBg="#FFFBEB" bars={[40, 45, 48, 50, 52, 55, 58]} />
+            <KpiCard label={t("ads.roas")} value={`${rawKpi.roas.toFixed(2)}x`} icon={KpiIcons.roas} color={COLORS.accent} light="#C7D2FE" iconBg="#EEF2FF" bars={[75, 70, 65, 60, 58, 55, 52]} />
+            <KpiCard label={t("ads.clicks")} value={rawKpi.clicks.toLocaleString('de-DE')} icon={KpiIcons.clicks} color={COLORS.accent} light="#C7D2FE" iconBg="#EEF2FF" bars={[40, 45, 50, 55, 60, 65, 72]} />
+            <KpiCard label={t("ads.orders")} value={rawKpi.orders.toLocaleString('de-DE')} icon={KpiIcons.orders} color={COLORS.green} light="#A7F3D0" iconBg="#ECFDF5" bars={[70, 68, 65, 62, 60, 58, 55]} />
           </div>
 
           {/* Charts: Spend vs Sales + ACOS Distribution */}
           <div className="grid-2" style={{ marginBottom: 20 }}>
             <div style={{ ...CARD_STYLE, padding: '18px 22px' }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>Spend vs Sales Trend</div>
-              <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 14 }}>Monthly comparison</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>{t("ads.spendVsSales")}</div>
+              <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 14 }}>{t("ads.monthlyComparison")}</div>
               <ResponsiveContainer width="100%" height={200}>
                 <ComposedChart data={spendTrend} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="0" stroke={COLORS.border} vertical={false} />
@@ -239,15 +242,15 @@ export default function AdsOverviewPage() {
               </div>
             </div>
             <div style={{ ...CARD_STYLE, padding: '18px 22px', display: 'flex', flexDirection: 'column' }}>
-              <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>ACOS Distribution</div>
-              <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 12 }}>{campaigns.filter(c => c.acos > 0).length} campaign based</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>{t("ads.acosDistribution")}</div>
+              <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 12 }}>{campaigns.filter(c => c.acos > 0).length} {t("ads.campaignBased")}</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 24, flex: 1 }}>
                 <div style={{ width: 150, height: 150, flexShrink: 0, position: 'relative' }}>
                   <ResponsiveContainer width="100%" height="100%">
                     <PieChart><Pie data={acosDist} cx="50%" cy="50%" innerRadius={42} outerRadius={68} dataKey="value" strokeWidth={2} stroke="#fff">{acosDist.map((d, i) => <Cell key={i} fill={d.color} />)}</Pie></PieChart>
                   </ResponsiveContainer>
                   <div style={{ position: 'absolute', top: '50%', left: '50%', transform: 'translate(-50%,-50%)', textAlign: 'center' }}>
-                    <div style={{ fontSize: 10, color: COLORS.sub, fontWeight: 500 }}>Total</div>
+                    <div style={{ fontSize: 10, color: COLORS.sub, fontWeight: 500 }}>{t("ads.total")}</div>
                     <div style={{ fontSize: 22, fontWeight: 800, color: COLORS.text }}>{campaigns.filter(c => c.acos > 0).length}</div>
                   </div>
                 </div>
@@ -282,10 +285,10 @@ export default function AdsOverviewPage() {
           {/* 4 Summary Cards */}
           <div className="grid-4" style={{ marginBottom: 20 }}>
             {[
-              { title: 'Least Efficient', badge: 'HIGH ACOS', bc: COLORS.red, items: inefficientCamps.map(c => ({ l: c.campaign_name.length > 22 ? c.campaign_name.substring(0, 22) + '…' : c.campaign_name, r: `%${c.acos.toFixed(0)}`, r2: `€${c.spend.toFixed(0)}`, rc: COLORS.red, img: false })) },
-              { title: 'Wasted Spend', badge: `€${totalWasted.toFixed(0)} TOTAL`, bc: COLORS.orange, items: wastedTerms.map(t => ({ l: t.term.length > 25 ? t.term.substring(0, 25) + '…' : t.term, r: `€${t.spend.toFixed(2)}`, r2: `${t.clicks} clicks`, rc: COLORS.red, img: false })) },
-              { title: 'Top Products', badge: 'LOW ACOS', bc: COLORS.green, items: bestProducts.map(p => { const pi = getBySku(p.sku) || getByAsin(p.asin); return { l: p.sku, r: `%${p.acos.toFixed(1)}`, r2: `€${p.sales.toFixed(0)}`, rc: COLORS.green, img: true, imgUrl: pi?.image_url || null } }) },
-              { title: 'Top Terms', badge: `${convertingTermCount} CONVERSIONS`, bc: COLORS.accent, items: topTerms.map(t => ({ l: t.term, r: `CVR %${t.cvr.toFixed(0)}`, r2: `€${t.sales.toFixed(0)}`, rc: COLORS.green, img: false })) },
+              { title: t("ads.leastEfficient"), badge: t("ads.highAcos"), bc: COLORS.red, items: inefficientCamps.map(c => ({ l: c.campaign_name.length > 22 ? c.campaign_name.substring(0, 22) + '…' : c.campaign_name, r: `%${c.acos.toFixed(0)}`, r2: `€${c.spend.toFixed(0)}`, rc: COLORS.red, img: false })) },
+              { title: t("ads.wastedSpend"), badge: `€${totalWasted.toFixed(0)} TOTAL`, bc: COLORS.orange, items: wastedTerms.map(t => ({ l: t.term.length > 25 ? t.term.substring(0, 25) + '…' : t.term, r: `€${t.spend.toFixed(2)}`, r2: `${t.clicks} clicks`, rc: COLORS.red, img: false })) },
+              { title: t("ads.topProducts"), badge: t("ads.lowAcos"), bc: COLORS.green, items: bestProducts.map(p => { const pi = getBySku(p.sku) || getByAsin(p.asin); return { l: p.sku, r: `%${p.acos.toFixed(1)}`, r2: `€${p.sales.toFixed(0)}`, rc: COLORS.green, img: true, imgUrl: pi?.image_url || null } }) },
+              { title: t("ads.topTerms"), badge: `${convertingTermCount} ${t("ads.conversions")}`, bc: COLORS.accent, items: topTerms.map(t => ({ l: t.term, r: `CVR %${t.cvr.toFixed(0)}`, r2: `€${t.sales.toFixed(0)}`, rc: COLORS.green, img: false })) },
             ].map((c, ci) => (
               <div key={ci} style={{ ...CARD_STYLE, padding: '18px 20px', minWidth: 0, overflow: 'hidden' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
@@ -303,27 +306,27 @@ export default function AdsOverviewPage() {
                       <span style={{ fontSize: 10, color: COLORS.sub, whiteSpace: 'nowrap' }}>{it.r2}</span>
                     </div>
                   </div>
-                )) : <div style={{ fontSize: 12, color: COLORS.sub, padding: '12px 0' }}>No data found</div>}
+                )) : <div style={{ fontSize: 12, color: COLORS.sub, padding: '12px 0' }}>{t("common.noData")}</div>}
               </div>
             ))}
           </div>
 
           {/* AI Insights */}
-          {aiInsights.length > 0 && <AIInsights title="AI Ad Recommendations" subtitle="AI recommendations based on campaign and search term data" insights={aiInsights} />}
+          {aiInsights.length > 0 && <AIInsights title={t("ads.aiTitle")} subtitle={t("ads.aiSubtitle")} insights={aiInsights} />}
 
           {/* Top 5 Campaign Table */}
           {top5Camps.length > 0 && (
             <div style={{ ...CARD_STYLE, padding: 0, overflow: 'hidden' }}>
               <div style={{ padding: '16px 24px', borderBottom: '1px solid #F1F5F9', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>Top 5 Campaigns</div>
-                <Link href="/ads/campaigns" style={{ fontSize: 12, fontWeight: 600, color: COLORS.accent, textDecoration: 'none' }}>View All →</Link>
+                <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>{t("ads.top5Campaigns")}</div>
+                <Link href="/ads/campaigns" style={{ fontSize: 12, fontWeight: 600, color: COLORS.accent, textDecoration: 'none' }}>{t("common.viewAll")}</Link>
               </div>
-              <div style={{ overflowX: 'auto' }}>
+              <div className="modern-scroll" style={{ overflowX: 'auto' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 850 }}>
                   <thead>
                     <tr style={{ borderBottom: '2px solid #F1F5F9' }}>
-                      {['Campaign', 'Status', 'Impressions', 'Clicks', 'Spend', 'Sales', 'Orders', 'ACOS', 'ROAS'].map((h, i) => (
-                        <th key={h} style={{ ...TH_STYLE, textAlign: h === 'Campaign' ? 'left' : 'right', padding: '10px 16px', paddingLeft: i === 0 ? 24 : 16, paddingRight: i === 8 ? 24 : 16 }}>{h}</th>
+                      {[t("ads.campaign"), t("ads.status"), t("ads.impressions"), t("ads.clicks"), t("ads.spend"), t("ads.sales"), t("ads.orders"), 'ACOS', 'ROAS'].map((h, i) => (
+                        <th key={h} style={{ ...TH_STYLE, textAlign: i === 0 ? 'left' : 'right', padding: '10px 16px', paddingLeft: i === 0 ? 24 : 16, paddingRight: i === 8 ? 24 : 16 }}>{h}</th>
                       ))}
                     </tr>
                   </thead>

@@ -21,6 +21,22 @@
 /* ═══ TABLE ═══ */
 .table-row-hover:hover { background: #F8FAFC; }
 
+/* ═══ MODERN SCROLLBAR (global for table containers) ═══ */
+.modern-scroll::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.modern-scroll::-webkit-scrollbar-track {
+  background: transparent;
+}
+.modern-scroll::-webkit-scrollbar-thumb {
+  background: rgba(91,95,199,.13);
+  border-radius: 3px;
+}
+.modern-scroll::-webkit-scrollbar-thumb:hover {
+  background: rgba(91,95,199,.28);
+}
+
 /* ═══ AI SIRI GLOW ANIMATION ═══ */
 @keyframes siriGlow {
   0%   { background-position: 0% 50%; }

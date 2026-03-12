@@ -8,6 +8,7 @@ import AIInsights, { type Insight } from '@/components/ui/AIInsights'
 import ProductCell from '@/components/ui/ProductCell'
 import { useProductImages } from '@/hooks/useProductImages'
 import { COLORS, CARD_STYLE, SELECT_STYLE, TH_STYLE } from '@/lib/design-tokens'
+import { useTranslation } from '@/lib/i18n'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -81,6 +82,7 @@ async function fetchAll(query: any): Promise<any[]> {
 }
 
 export default function ProductPerformancePage() {
+  const { t } = useTranslation()
   const { getByAsin, getBySkuWithFallback, asinFromSkuWithFallback } = useProductImages()
   const monthOptions = useMemo(() => generateMonthOptions(), [])
   const [selectedMonth, setSelectedMonth] = useState(monthOptions[0])
@@ -254,7 +256,7 @@ export default function ProductPerformancePage() {
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
         <div style={{ textAlign: 'center' }}>
           <div style={{ width: 36, height: 36, border: `3px solid ${COLORS.border}`, borderTopColor: COLORS.accent, borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-          <div style={{ color: COLORS.sub, fontSize: 13 }}>Loading product data...</div>
+          <div style={{ color: COLORS.sub, fontSize: 13 }}>{t('common.loading')}</div>
         </div>
       </div>
     )
@@ -265,22 +267,22 @@ export default function ProductPerformancePage() {
       {/* HEADER */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: COLORS.text }}>Product Performance</h1>
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: COLORS.text }}>{t('productsPerformance.title')}</h1>
           <p style={{ fontSize: 13, color: COLORS.sub, marginTop: 2, margin: 0 }}>
-            Product-level sales and return analysis · {products.length} products
+            Product-level sales and return analysis · {products.length} {t('common.products')}
           </p>
         </div>
       </div>
 
       {/* KPI CARDS */}
       <div className="grid-4" style={{ marginBottom: 20 }}>
-        <KpiCard label="TOTAL PRODUCTS" value={String(products.length)} change={`${selectedMonth}`} up={true}
+        <KpiCard label={t('productsPerformance.totalProducts')} value={String(products.length)} change={`${selectedMonth}`} up={true}
           icon={KpiIcons.stock} bars={[40, 45, 50, 55, 58, 62, 65]} color={COLORS.accent} light="#C7D2FE" iconBg={COLORS.accentLight} />
-        <KpiCard label="TOTAL SALES" value={fmtCur(totalSales)} change={`${fmtNum(totalUnits)} units sold`} up={true}
+        <KpiCard label={t('productsPerformance.totalSales')} value={fmtCur(totalSales)} change={`${fmtNum(totalUnits)} ${t('common.units')}`} up={true}
           icon={KpiIcons.revenue} bars={[50, 55, 60, 58, 62, 65, 70]} color={COLORS.green} light={COLORS.greenLighter} iconBg={COLORS.greenLight} />
-        <KpiCard label="TOTAL UNITS" value={fmtNum(totalUnits)} change={`Avg. ${fmtCur(totalUnits > 0 ? totalSales / totalUnits : 0)}/unit`} up={true}
+        <KpiCard label={t('productsPerformance.totalUnits')} value={fmtNum(totalUnits)} change={`Avg. ${fmtCur(totalUnits > 0 ? totalSales / totalUnits : 0)}/unit`} up={true}
           icon={KpiIcons.orders} bars={[45, 48, 52, 55, 60, 58, 63]} color={COLORS.accent} light="#C7D2FE" iconBg={COLORS.accentLight} />
-        <KpiCard label="TOTAL RETURNS" value={fmtCur(totalRefunds)} change={`${totalSales > 0 ? fmtDec((totalRefunds / totalSales) * 100) : '0'}% rate`} up={false}
+        <KpiCard label={t('productsPerformance.totalReturns')} value={fmtCur(totalRefunds)} change={`${totalSales > 0 ? fmtDec((totalRefunds / totalSales) * 100) : '0'}% rate`} up={false}
           icon={KpiIcons.warning} bars={[80, 75, 70, 65, 60, 58, 55]} color={COLORS.red} light={COLORS.redLighter} iconBg={COLORS.redLight} />
       </div>
 
@@ -298,13 +300,13 @@ export default function ProductPerformancePage() {
           {MARKETPLACE_OPTIONS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
         </select>
         <div style={{ flex: 1 }} />
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search products..."
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder={t('common.search')}
           style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #E2E8F0', fontSize: 12, outline: 'none', width: 200 }} />
       </div>
 
       {/* TABLE */}
       <div style={{ ...CARD_STYLE, padding: 0, overflow: 'hidden' }}>
-        <div style={{ overflowX: 'auto' }}>
+        <div className="modern-scroll" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 800 }}>
             <thead>
               <tr style={{ borderBottom: `2px solid ${COLORS.border}` }}>
@@ -374,7 +376,7 @@ export default function ProductPerformancePage() {
                 </tr>
               ))}
               {filtered.length === 0 && (
-                <tr><td colSpan={7} style={{ padding: 40, textAlign: 'center', color: COLORS.sub, fontSize: 13 }}>No products found</td></tr>
+                <tr><td colSpan={7} style={{ padding: 40, textAlign: 'center', color: COLORS.sub, fontSize: 13 }}>{t('products.noProducts')}</td></tr>
               )}
             </tbody>
           </table>

@@ -3,6 +3,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { useEffect, useState, useMemo } from 'react'
 import { useDateRange, formatDateTR } from '../DateRangeContext'
+import { useTranslation } from '@/lib/i18n'
 import { COLORS, CARD_STYLE, TH_STYLE } from '@/lib/design-tokens'
 import KpiCard from '@/components/ui/KpiCard'
 import { KpiIcons } from '@/components/ui/KpiIcons'
@@ -39,6 +40,7 @@ const acosColor = (v: number) => v < 25 ? '#059669' : v < 40 ? '#D97706' : '#DC2
 const acosBadgeBg = (v: number) => v < 25 ? '#ECFDF5' : v < 35 ? '#FFFBEB' : v < 60 ? '#FFF7ED' : '#FEF2F2'
 
 export default function BrandPage() {
+  const { t } = useTranslation()
   const { startDate, endDate, isAllTime } = useDateRange()
   const [rawData, setRawData] = useState<BrandRow[]>([])
   const [loading, setLoading] = useState(true)
@@ -130,21 +132,21 @@ export default function BrandPage() {
     <div>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: COLORS.text }}>SB Brand Performance</h1>
-          <p style={{ fontSize: 12, color: COLORS.sub, marginTop: 3 }}>Sponsored Brands · {formatDateTR(startDate)} – {formatDateTR(endDate)}</p>
+          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: COLORS.text }}>{t("adsBrand.title")}</h1>
+          <p style={{ fontSize: 12, color: COLORS.sub, marginTop: 3 }}>{t("adsBrand.subtitle")} · {formatDateTR(startDate)} – {formatDateTR(endDate)}</p>
         </div>
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 80, color: COLORS.sub, fontSize: 14 }}>Loading data...</div>
+        <div style={{ textAlign: 'center', padding: 80, color: COLORS.sub, fontSize: 14 }}>{t("ads.loadingData")}</div>
       ) : (
         <>
           {/* KPI CARDS */}
           <div className="grid-4" style={{ marginBottom: 20 }}>
-            <KpiCard label="TOPLAM GÖSTERİM" value={kpis.totalImpressions.toLocaleString('de-DE')} change={`${campaignData.length} kampanya`} up icon={KpiIcons.impressions} color={COLORS.accent} light="#C7D2FE" iconBg="#EEF2FF" bars={[50, 55, 60, 65, 70, 68, 72]} />
-            <KpiCard label="BRAND SEARCHES" value={kpis.totalBrandSearches.toLocaleString('de-DE')} change={kpis.totalBrandSearches < 50 ? 'düşük hacim' : 'normal hacim'} up={kpis.totalBrandSearches >= 50} icon={KpiIcons.clicks} color="#7C3AED" light="#DDD6FE" iconBg="#F5F3FF" bars={[30, 35, 40, 38, 42, 45, 50]} />
-            <KpiCard label="NTB SİPARİŞ" value={kpis.totalNtbOrders.toLocaleString('de-DE')} change={`hedef >5`} up={kpis.totalNtbOrders >= 5} icon={KpiIcons.sales} color={COLORS.green} light="#A7F3D0" iconBg="#ECFDF5" bars={[20, 25, 30, 28, 32, 35, 40]} />
-            <KpiCard label="TOPLAM SPEND" value={`€${kpis.totalSpend.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`} change={`ACOS %${kpis.acos.toFixed(1)}`} up={kpis.acos <= 35} icon={KpiIcons.spend} color={COLORS.red} light="#FECACA" iconBg="#FEF2F2" bars={[50, 55, 60, 62, 65, 68, 72]} />
+            <KpiCard label={t("adsBrand.totalImpressions")} value={kpis.totalImpressions.toLocaleString('de-DE')} change={`${campaignData.length} ${t("adsBrand.campaigns")}`} up icon={KpiIcons.impressions} color={COLORS.accent} light="#C7D2FE" iconBg="#EEF2FF" bars={[50, 55, 60, 65, 70, 68, 72]} />
+            <KpiCard label={t("adsBrand.brandSearches")} value={kpis.totalBrandSearches.toLocaleString('de-DE')} change={kpis.totalBrandSearches < 50 ? t("adsBrand.lowVolume") : t("adsBrand.normalVolume")} up={kpis.totalBrandSearches >= 50} icon={KpiIcons.clicks} color="#7C3AED" light="#DDD6FE" iconBg="#F5F3FF" bars={[30, 35, 40, 38, 42, 45, 50]} />
+            <KpiCard label={t("adsBrand.ntbOrders")} value={kpis.totalNtbOrders.toLocaleString('de-DE')} change={t("adsBrand.targetAbove5")} up={kpis.totalNtbOrders >= 5} icon={KpiIcons.sales} color={COLORS.green} light="#A7F3D0" iconBg="#ECFDF5" bars={[20, 25, 30, 28, 32, 35, 40]} />
+            <KpiCard label={t("adsBrand.totalSpend")} value={`€${kpis.totalSpend.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`} change={`ACOS %${kpis.acos.toFixed(1)}`} up={kpis.acos <= 35} icon={KpiIcons.spend} color={COLORS.red} light="#FECACA" iconBg="#FEF2F2" bars={[50, 55, 60, 62, 65, 68, 72]} />
           </div>
 
           {/* INSIGHT CARDS: Brand Trend + NTB */}
@@ -153,7 +155,7 @@ export default function BrandPage() {
               <div style={{ ...CARD_STYLE, padding: '16px 20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                   <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(124,58,237,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#7C3AED' }}>~</div>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>Brand Search Trend</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>{t("adsBrand.brandSearchTrend")}</div>
                   <div style={{ fontSize: 10, color: '#7C3AED', marginLeft: 'auto', fontWeight: 600 }}>{totalSearches.toLocaleString('de-DE')} TOTAL</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 40, marginBottom: 8 }}>
@@ -211,7 +213,7 @@ export default function BrandPage() {
               <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>Brand Kampanya Performansı</div>
               <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 2 }}>{sorted.length} kampanya</div>
             </div>
-            <div style={{ overflowX: 'auto' }}>
+            <div className="modern-scroll" style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead><tr>
                   <th style={{ ...thStyle, textAlign: 'left', minWidth: 200 }} onClick={() => handleSort('campaign_name')}>Kampanya{sortIcon('campaign_name')}</th>

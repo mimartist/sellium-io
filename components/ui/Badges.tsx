@@ -1,33 +1,47 @@
 import { STOCK_STATUS, COLORS } from "@/lib/design-tokens";
+import { useTranslation } from "@/lib/i18n";
+
+const STATUS_KEYS: Record<string, string> = {
+  out: "status.out",
+  critical: "status.critical",
+  warning: "status.warning",
+  healthy: "status.healthy",
+  overstock: "status.overstock",
+  dead: "status.dead",
+  inactive: "status.inactive",
+};
 
 // Stock status badge — dot + label pill
 export function StockStatusBadge({ status }: { status: keyof typeof STOCK_STATUS }) {
+  const { t } = useTranslation();
   const s = STOCK_STATUS[status] || STOCK_STATUS.inactive;
+  const label = STATUS_KEYS[status] ? t(STATUS_KEYS[status]) : s.label;
   return (
     <span
       className="inline-flex items-center gap-[5px] rounded-[20px]"
       style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", background: s.bg, color: s.color, whiteSpace: "nowrap" }}
     >
       <span className="rounded-full shrink-0" style={{ width: 6, height: 6, background: s.dot }} />
-      {s.label}
+      {label}
     </span>
   );
 }
 
 // Campaign/ad status badge
 export function CampaignStatusBadge({ status }: { status: string }) {
-  const map: Record<string, { bg: string; c: string }> = {
-    Active: { bg: "#ECFDF5", c: COLORS.green },
-    Paused: { bg: "#FFFBEB", c: "#D97706" },
-    Archived: { bg: "#F8FAFC", c: "#64748B" },
+  const { t } = useTranslation();
+  const statusMap: Record<string, { bg: string; c: string; key: string }> = {
+    Active: { bg: "#ECFDF5", c: COLORS.green, key: "common.active" },
+    Paused: { bg: "#FFFBEB", c: "#D97706", key: "common.paused" },
+    Archived: { bg: "#F8FAFC", c: "#64748B", key: "common.archived" },
   };
-  const x = map[status] || map.Archived;
+  const x = statusMap[status] || statusMap.Archived;
   return (
     <span
       className="rounded-xl"
       style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", background: x.bg, color: x.c, whiteSpace: "nowrap" }}
     >
-      ● {status}
+      ● {t(x.key)}
     </span>
   );
 }
