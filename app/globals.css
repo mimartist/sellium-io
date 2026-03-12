@@ -1,4 +1,6 @@
+@import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 @import "tailwindcss";
+@import "../styles/sellometrix.css";
 
 :root {
   --background: #ffffff;
@@ -12,24 +14,8 @@
   --font-mono: var(--font-geist-mono);
 }
 
-/* Dark theme (default) */
+/* Light theme (default) */
 :root {
-  --bg-primary: #06070b;
-  --bg-card: #12141a;
-  --bg-elevated: #1a1e29;
-  --border-color: #1e2130;
-  --text-primary: #e2e8f0;
-  --text-secondary: #94a3b8;
-  --text-muted: #64748b;
-  --bg-sub-row: #0d0f16;
-  --chart-grid: #1e2130;
-  --tooltip-bg: #1a1e29;
-  --tooltip-border: #222636;
-  --ai-gradient: linear-gradient(135deg, #12141a, #1a1040);
-}
-
-/* Light theme */
-[data-theme="light"] {
   --bg-primary: #f8fafc;
   --bg-card: #ffffff;
   --bg-elevated: #f0f2f5;
@@ -44,6 +30,22 @@
   --ai-gradient: linear-gradient(135deg, #f8fafc, #eef2ff);
 }
 
+/* Dark theme */
+[data-theme="dark"] {
+  --bg-primary: #06070b;
+  --bg-card: #12141a;
+  --bg-elevated: #1a1e29;
+  --border-color: #1e2130;
+  --text-primary: #e2e8f0;
+  --text-secondary: #94a3b8;
+  --text-muted: #64748b;
+  --bg-sub-row: #0d0f16;
+  --chart-grid: #1e2130;
+  --tooltip-bg: #1a1e29;
+  --tooltip-border: #222636;
+  --ai-gradient: linear-gradient(135deg, #12141a, #1a1040);
+}
+
 /* Smooth theme transition */
 body, .dashboard-root, .dashboard-sidebar, .dashboard-main,
 .kpi-grid > div, .kpi-grid-6 > div {
@@ -53,7 +55,7 @@ body, .dashboard-root, .dashboard-sidebar, .dashboard-main,
 body {
   background: var(--bg-primary);
   color: var(--text-primary);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Plus Jakarta Sans', Arial, Helvetica, sans-serif;
 }
 
 /* === Chart Animation Keyframes === */
@@ -89,4 +91,9 @@ body {
 
 @keyframes spin {
   to { transform: rotate(360deg); }
+}
+
+@keyframes slideIn {
+  from { opacity: 0; transform: translateX(60px); }
+  to { opacity: 1; transform: translateX(0); }
 }

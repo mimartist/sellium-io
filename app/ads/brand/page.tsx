@@ -3,6 +3,10 @@
 import { createClient } from '@supabase/supabase-js'
 import { useEffect, useState, useMemo } from 'react'
 import { useDateRange, formatDateTR } from '../DateRangeContext'
+import { COLORS, CARD_STYLE, TH_STYLE } from '@/lib/design-tokens'
+import KpiCard from '@/components/ui/KpiCard'
+import { KpiIcons } from '@/components/ui/KpiIcons'
+import AIInsights from '@/components/ui/AIInsights'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -29,9 +33,10 @@ interface AiInsight {
 type SortKey = keyof BrandAgg
 type SortDir = 'asc' | 'desc'
 
-const acosColor = (v: number) => v < 25 ? '#10b981' : v < 40 ? '#f59e0b' : '#f43f5e'
-const priorityColor = (p: string) => p === 'high' ? '#f43f5e' : p === 'normal' ? '#f59e0b' : '#10b981'
-const priorityBg = (p: string) => p === 'high' ? 'rgba(244,63,94,0.12)' : p === 'normal' ? 'rgba(245,158,11,0.12)' : 'rgba(16,185,129,0.12)'
+// Vivid for text/badges
+const acosColor = (v: number) => v < 25 ? '#059669' : v < 40 ? '#D97706' : '#DC2626'
+// Semantic badge backgrounds
+const acosBadgeBg = (v: number) => v < 25 ? '#ECFDF5' : v < 35 ? '#FFFBEB' : v < 60 ? '#FFF7ED' : '#FEF2F2'
 
 export default function BrandPage() {
   const { startDate, endDate, isAllTime } = useDateRange()
@@ -78,7 +83,9 @@ export default function BrandPage() {
     const totalBrandSearches = rawData.reduce((s, r) => s + Number(r.brand_searches), 0)
     const totalNtbOrders = rawData.reduce((s, r) => s + Number(r.new_to_brand_orders), 0)
     const totalSpend = rawData.reduce((s, r) => s + Number(r.spend), 0)
-    return { totalImpressions, totalBrandSearches, totalNtbOrders, totalSpend }
+    const totalSales = rawData.reduce((s, r) => s + Number(r.sales_14d), 0)
+    const acos = totalSales > 0 ? (totalSpend / totalSales) * 100 : 0
+    return { totalImpressions, totalBrandSearches, totalNtbOrders, totalSpend, totalSales, acos }
   }, [rawData])
 
   const campaignData = useMemo(() => {
@@ -107,10 +114,10 @@ export default function BrandPage() {
   const handleSort = (key: SortKey) => { if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc'); else { setSortKey(key); setSortDir('desc') } }
   const sortIcon = (key: SortKey) => sortKey === key ? (sortDir === 'asc' ? ' ↑' : ' ↓') : ' ↕'
 
-  const thStyle: React.CSSProperties = { padding: '10px 12px', fontSize: 10.5, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', textAlign: 'left', cursor: 'pointer', whiteSpace: 'nowrap', borderBottom: '1px solid var(--border-color)', userSelect: 'none' }
-  const tdStyle: React.CSSProperties = { padding: '10px 12px', fontSize: 13, borderBottom: '1px solid var(--bg-elevated)', whiteSpace: 'nowrap' }
+  const thStyle: React.CSSProperties = { ...TH_STYLE, padding: '12px 16px', textAlign: 'left', cursor: 'pointer', borderBottom: `2px solid ${COLORS.border}`, userSelect: 'none' }
+  const tdStyle: React.CSSProperties = { padding: '11px 16px', fontSize: 13, color: '#475569', borderBottom: `1px solid ${COLORS.border}`, whiteSpace: 'nowrap' }
 
-  // Brand arama trendi
+  // Brand search trend
   const dailyMap: Record<string, number> = {}
   rawData.forEach(r => { dailyMap[r.date] = (dailyMap[r.date] || 0) + Number(r.brand_searches) })
   const days = Object.entries(dailyMap).sort(([a], [b]) => a.localeCompare(b))
@@ -123,69 +130,61 @@ export default function BrandPage() {
     <div>
       <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>SB Brand Performansı</h1>
-          <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 3 }}>Sponsored Brands · {formatDateTR(startDate)} – {formatDateTR(endDate)}</p>
+          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0, color: COLORS.text }}>SB Brand Performance</h1>
+          <p style={{ fontSize: 12, color: COLORS.sub, marginTop: 3 }}>Sponsored Brands · {formatDateTR(startDate)} – {formatDateTR(endDate)}</p>
         </div>
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 80, color: 'var(--text-secondary)', fontSize: 14 }}>Veriler yükleniyor...</div>
+        <div style={{ textAlign: 'center', padding: 80, color: COLORS.sub, fontSize: 14 }}>Loading data...</div>
       ) : (
         <>
           {/* KPI CARDS */}
-          <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 20 }}>
-            {[
-              { label: 'TOPLAM GÖSTERİM', value: kpis.totalImpressions.toLocaleString('de-DE'), color: '#6366f1' },
-              { label: 'BRAND SEARCHES', value: kpis.totalBrandSearches.toLocaleString('de-DE'), color: '#a78bfa' },
-              { label: 'NTB SİPARİŞ', value: kpis.totalNtbOrders.toLocaleString('de-DE'), color: '#10b981' },
-              { label: 'TOPLAM SPEND', value: `€${kpis.totalSpend.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`, color: '#f43f5e' },
-            ].map((kpi, i) => (
-              <div key={i} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: '14px 16px', position: 'relative', overflow: 'hidden', opacity: 0, animation: `fadeInUp 0.6s ease-out ${i * 0.1}s forwards` }}>
-                <div style={{ position: 'absolute', top: 0, right: 0, width: 50, height: 50, borderRadius: '0 14px 0 50px', background: kpi.color, opacity: 0.07 }} />
-                <div style={{ fontSize: 9.5, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>{kpi.label}</div>
-                <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: '-0.5px', animation: `numberCount 0.5s ease-out ${0.3 + i * 0.1}s both` }}>{kpi.value}</div>
-              </div>
-            ))}
+          <div className="grid-4" style={{ marginBottom: 20 }}>
+            <KpiCard label="TOPLAM GÖSTERİM" value={kpis.totalImpressions.toLocaleString('de-DE')} change={`${campaignData.length} kampanya`} up icon={KpiIcons.impressions} color={COLORS.accent} light="#C7D2FE" iconBg="#EEF2FF" bars={[50, 55, 60, 65, 70, 68, 72]} />
+            <KpiCard label="BRAND SEARCHES" value={kpis.totalBrandSearches.toLocaleString('de-DE')} change={kpis.totalBrandSearches < 50 ? 'düşük hacim' : 'normal hacim'} up={kpis.totalBrandSearches >= 50} icon={KpiIcons.clicks} color="#7C3AED" light="#DDD6FE" iconBg="#F5F3FF" bars={[30, 35, 40, 38, 42, 45, 50]} />
+            <KpiCard label="NTB SİPARİŞ" value={kpis.totalNtbOrders.toLocaleString('de-DE')} change={`hedef >5`} up={kpis.totalNtbOrders >= 5} icon={KpiIcons.sales} color={COLORS.green} light="#A7F3D0" iconBg="#ECFDF5" bars={[20, 25, 30, 28, 32, 35, 40]} />
+            <KpiCard label="TOPLAM SPEND" value={`€${kpis.totalSpend.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`} change={`ACOS %${kpis.acos.toFixed(1)}`} up={kpis.acos <= 35} icon={KpiIcons.spend} color={COLORS.red} light="#FECACA" iconBg="#FEF2F2" bars={[50, 55, 60, 62, 65, 68, 72]} />
           </div>
 
           {/* INSIGHT CARDS: Brand Trend + NTB */}
           {rawData.length > 0 && (
             <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
-              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderLeft: '3px solid #a78bfa', borderRadius: 14, padding: '16px 20px', opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.45s forwards' }}>
+              <div style={{ ...CARD_STYLE, padding: '16px 20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                  <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(167,139,250,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#a78bfa' }}>~</div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>Brand Arama Trendi</div>
-                  <div style={{ fontSize: 10, color: '#a78bfa', marginLeft: 'auto', fontWeight: 600 }}>{totalSearches.toLocaleString('de-DE')} TOPLAM</div>
+                  <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(124,58,237,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#7C3AED' }}>~</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>Brand Search Trend</div>
+                  <div style={{ fontSize: 10, color: '#7C3AED', marginLeft: 'auto', fontWeight: 600 }}>{totalSearches.toLocaleString('de-DE')} TOTAL</div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'flex-end', gap: 2, height: 40, marginBottom: 8 }}>
                   {days.map(([date, val], i) => (
-                    <div key={date} style={{ flex: 1, background: '#a78bfa', borderRadius: '2px 2px 0 0', opacity: 0.6 + (val / maxDay) * 0.4, height: `${Math.max((val / maxDay) * 100, 4)}%`, transformOrigin: 'bottom center', transform: 'scaleY(0)', animation: `barGrow 0.5s ease-out ${0.5 + i * 0.02}s forwards` }} title={`${date}: ${val}`} />
+                    <div key={date} style={{ flex: 1, background: '#7C3AED', borderRadius: '2px 2px 0 0', opacity: 0.6 + (val / maxDay) * 0.4, height: `${Math.max((val / maxDay) * 100, 4)}%`, transformOrigin: 'bottom center', transform: 'scaleY(0)', animation: `barGrow 0.5s ease-out ${0.5 + i * 0.02}s forwards` }} title={`${date}: ${val}`} />
                   ))}
                 </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-secondary)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: COLORS.sub }}>
                   <span>{days.length > 0 ? days[0][0].slice(5) : ''}</span>
                   <span>{days.length > 0 ? days[days.length - 1][0].slice(5) : ''}</span>
                 </div>
               </div>
-              <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderLeft: '3px solid #10b981', borderRadius: 14, padding: '16px 20px', opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.5s forwards' }}>
+              <div style={{ ...CARD_STYLE, padding: '16px 20px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
                   <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(16,185,129,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 12, color: '#10b981' }}>+</div>
-                  <div style={{ fontSize: 13, fontWeight: 600 }}>New-to-Brand Özet</div>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>New-to-Brand Summary</div>
                 </div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
                   <div>
-                    <div style={{ fontSize: 10.5, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>NTB SİPARİŞ</div>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: '#10b981' }}>{ntbTotal.toLocaleString('de-DE')}</div>
+                    <div style={{ fontSize: 10.5, color: COLORS.sub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>NTB SİPARİŞ</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: '#059669' }}>{ntbTotal.toLocaleString('de-DE')}</div>
                   </div>
                   <div>
-                    <div style={{ fontSize: 10.5, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>NTB SATIŞ</div>
-                    <div style={{ fontSize: 20, fontWeight: 700, color: '#10b981' }}>€{ntbSalesTotal.toLocaleString('de-DE', { maximumFractionDigits: 0 })}</div>
+                    <div style={{ fontSize: 10.5, color: COLORS.sub, textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>NTB SATIŞ</div>
+                    <div style={{ fontSize: 20, fontWeight: 700, color: '#059669' }}>€{ntbSalesTotal.toLocaleString('de-DE', { maximumFractionDigits: 0 })}</div>
                   </div>
                 </div>
                 {kpis.totalSpend > 0 && (
-                  <div style={{ marginTop: 12, padding: '8px 12px', background: 'var(--bg-primary)', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>NTB Maliyet/Sipariş</span>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: ntbTotal > 0 ? '#f59e0b' : 'var(--text-secondary)' }}>{ntbTotal > 0 ? `€${(kpis.totalSpend / ntbTotal).toFixed(2)}` : '-'}</span>
+                  <div style={{ marginTop: 12, padding: '8px 12px', background: COLORS.bg, borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <span style={{ fontSize: 11, color: COLORS.sub }}>NTB Maliyet/Sipariş</span>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: ntbTotal > 0 ? '#D97706' : COLORS.sub }}>{ntbTotal > 0 ? `€${(kpis.totalSpend / ntbTotal).toFixed(2)}` : '—'}</span>
                   </div>
                 )}
               </div>
@@ -194,58 +193,60 @@ export default function BrandPage() {
 
           {/* AI INSIGHTS */}
           {aiInsights.length > 0 && (
-            <div style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: '16px 20px', marginBottom: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.55s forwards' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(99,102,241,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, color: '#6366f1', fontWeight: 700 }}>AI</div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>AI Önerileri</div>
-                <div style={{ fontSize: 10, color: '#6366f1', marginLeft: 'auto', fontWeight: 600 }}>{aiInsights.length} ÖNERİ</div>
-              </div>
-              {aiInsights.map((ins, i) => (
-                <div key={ins.id} style={{ padding: '10px 0', borderBottom: i < aiInsights.length - 1 ? '1px solid var(--bg-elevated)' : 'none' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                    <span style={{ fontSize: 9, fontWeight: 700, color: priorityColor(ins.priority), background: priorityBg(ins.priority), padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase' }}>{ins.priority}</span>
-                    <span style={{ fontSize: 12.5, fontWeight: 600 }}>{ins.title}</span>
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8, lineHeight: 1.4 }}>{ins.content}</div>
-                  <div style={{ display: 'flex', gap: 8 }}>
-                    <button onClick={() => updateInsightStatus(ins.id, 'applied')} style={{ background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.3)', borderRadius: 6, padding: '4px 12px', fontSize: 11, color: '#10b981', cursor: 'pointer', fontWeight: 600 }}>Uygulandı</button>
-                    <button onClick={() => updateInsightStatus(ins.id, 'dismissed')} style={{ background: 'rgba(107,114,128,0.12)', border: '1px solid rgba(107,114,128,0.3)', borderRadius: 6, padding: '4px 12px', fontSize: 11, color: 'var(--text-secondary)', cursor: 'pointer', fontWeight: 600 }}>Geç</button>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <AIInsights
+              title="AI Brand Insights"
+              subtitle="Brand awareness and new-to-brand performance recommendations"
+              insights={aiInsights.map(ins => ({
+                type: ins.priority === 'high' ? 'CRITICAL' : ins.priority === 'normal' ? 'BRAND' : 'INFO',
+                title: ins.title,
+                desc: ins.content,
+                color: ins.priority === 'high' ? COLORS.red : ins.priority === 'normal' ? '#7C3AED' : COLORS.green,
+              }))}
+            />
           )}
 
           {/* TABLE */}
-          <div className="table-container" style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.6s forwards' }}>
+          <div style={{ ...CARD_STYLE, padding: 20 }}>
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>Kampanya Bazlı Brand Performansı</div>
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 2 }}>{sorted.length} kampanya</div>
+              <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>Brand Kampanya Performansı</div>
+              <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 2 }}>{sorted.length} kampanya</div>
             </div>
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead><tr>
-                  {([['campaign_name','Kampanya'],['impressions','Gösterim'],['clicks','Tıklama'],['spend','Spend'],['sales','Satış'],['orders','Sipariş'],['brand_searches','Brand Arama'],['ntb_orders','NTB Sipariş'],['ntb_sales','NTB Satış'],['dpv','DPV'],['acos','ACOS']] as [SortKey,string][]).map(([key,label]) => (
-                    <th key={key} onClick={() => handleSort(key)} style={{ ...thStyle, textAlign: key !== 'campaign_name' ? 'right' : 'left' }}>{label}{sortIcon(key)}</th>
-                  ))}
+                  <th style={{ ...thStyle, textAlign: 'left', minWidth: 200 }} onClick={() => handleSort('campaign_name')}>Kampanya{sortIcon('campaign_name')}</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => handleSort('impressions')}>Gösterim{sortIcon('impressions')}</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => handleSort('clicks')}>Tıklama{sortIcon('clicks')}</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => handleSort('spend')}>Spend{sortIcon('spend')}</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => handleSort('sales')}>Satış{sortIcon('sales')}</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => handleSort('orders')}>Sipariş{sortIcon('orders')}</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => handleSort('brand_searches')}>Brand Arama{sortIcon('brand_searches')}</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => handleSort('ntb_orders')}>NTB{sortIcon('ntb_orders')}</th>
+                  <th style={{ ...thStyle, textAlign: 'right' }} onClick={() => handleSort('acos')}>ACOS{sortIcon('acos')}</th>
                 </tr></thead>
                 <tbody>
                   {sorted.map((c, i) => (
                     <tr key={i} style={{ transition: 'background 0.15s' }} onMouseEnter={e => (e.currentTarget.style.background = 'rgba(99,102,241,0.04)')} onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}>
-                      <td style={{ ...tdStyle, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis' }}>{c.campaign_name}</td>
+                      <td style={{ ...tdStyle, maxWidth: 260, overflow: 'hidden', textOverflow: 'ellipsis', color: COLORS.text, fontWeight: 500 }}>{c.campaign_name}</td>
                       <td style={{ ...tdStyle, textAlign: 'right' }}>{c.impressions.toLocaleString('de-DE')}</td>
                       <td style={{ ...tdStyle, textAlign: 'right' }}>{c.clicks.toLocaleString('de-DE')}</td>
-                      <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600 }}>€{c.spend.toFixed(2)}</td>
-                      <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: '#10b981' }}>€{c.sales.toFixed(2)}</td>
+                      <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: COLORS.text }}>€{c.spend.toFixed(2)}</td>
+                      <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: c.sales > 0 ? '#059669' : COLORS.sub }}>€{c.sales.toFixed(2)}</td>
                       <td style={{ ...tdStyle, textAlign: 'right' }}>{c.orders}</td>
                       <td style={{ ...tdStyle, textAlign: 'right' }}>{c.brand_searches.toLocaleString('de-DE')}</td>
-                      <td style={{ ...tdStyle, textAlign: 'right', color: '#a78bfa', fontWeight: 600 }}>{c.ntb_orders}</td>
-                      <td style={{ ...tdStyle, textAlign: 'right', color: '#a78bfa' }}>€{c.ntb_sales.toFixed(2)}</td>
-                      <td style={{ ...tdStyle, textAlign: 'right' }}>{c.dpv.toLocaleString('de-DE')}</td>
-                      <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 600, color: acosColor(c.acos) }}>{c.acos > 0 ? `%${c.acos.toFixed(1)}` : '-'}</td>
+                      <td style={{ ...tdStyle, textAlign: 'right', color: '#7C3AED', fontWeight: 600 }}>{c.ntb_orders}</td>
+                      <td style={{ ...tdStyle, textAlign: 'right' }}>
+                        {c.acos > 0 ? (
+                          <span style={{ display: 'inline-block', padding: '2px 8px', borderRadius: 6, background: acosBadgeBg(c.acos), color: acosColor(c.acos), fontWeight: 600, fontSize: 12 }}>
+                            %{c.acos.toFixed(1)}
+                          </span>
+                        ) : (
+                          <span style={{ color: COLORS.sub }}>—</span>
+                        )}
+                      </td>
                     </tr>
                   ))}
-                  {sorted.length === 0 && <tr><td colSpan={11} style={{ ...tdStyle, textAlign: 'center', color: 'var(--text-secondary)', padding: 30 }}>Bu tarih aralığı için veri yok</td></tr>}
+                  {sorted.length === 0 && <tr><td colSpan={9} style={{ ...tdStyle, textAlign: 'center', color: COLORS.sub, padding: 30 }}>Bu tarih aralığında veri yok</td></tr>}
                 </tbody>
               </table>
             </div>

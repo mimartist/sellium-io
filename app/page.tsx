@@ -1,14 +1,17 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
-import DashboardShell from './components/DashboardShell'
-import Sidebar from './components/Sidebar'
 import {
   Bar, LineChart, Line, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer, ComposedChart,
 } from 'recharts'
+import KpiCard from '@/components/ui/KpiCard'
+import { KpiIcons } from '@/components/ui/KpiIcons'
+import AIInsights from '@/components/ui/AIInsights'
+import { ImgPlaceholder } from '@/components/ui/Badges'
+import { useProductImages } from '@/hooks/useProductImages'
+import { COLORS, CARD_STYLE, SELECT_STYLE } from '@/lib/design-tokens'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -16,17 +19,17 @@ const supabase = createClient(
 )
 
 const MARKETPLACE_OPTIONS = [
-  { value: 'all', label: 'All Marketplaces', flag: '🌍' },
-  { value: 'Amazon.de', label: 'Amazon.de', flag: '🇩🇪' },
-  { value: 'Amazon.fr', label: 'Amazon.fr', flag: '🇫🇷' },
-  { value: 'Amazon.es', label: 'Amazon.es', flag: '🇪🇸' },
-  { value: 'Amazon.it', label: 'Amazon.it', flag: '🇮🇹' },
-  { value: 'Amazon.co.uk', label: 'Amazon.co.uk', flag: '🇬🇧' },
-  { value: 'Amazon.nl', label: 'Amazon.nl', flag: '🇳🇱' },
-  { value: 'Amazon.pl', label: 'Amazon.pl', flag: '🇵🇱' },
-  { value: 'Amazon.ie', label: 'Amazon.ie', flag: '🇮🇪' },
-  { value: 'Amazon.com.be', label: 'Amazon.com.be', flag: '🇧🇪' },
-  { value: 'Amazon.se', label: 'Amazon.se', flag: '🇸🇪' },
+  { value: 'all', label: 'All Marketplaces', flag: '\u{1F30D}' },
+  { value: 'Amazon.de', label: 'Amazon.de', flag: '\u{1F1E9}\u{1F1EA}' },
+  { value: 'Amazon.fr', label: 'Amazon.fr', flag: '\u{1F1EB}\u{1F1F7}' },
+  { value: 'Amazon.es', label: 'Amazon.es', flag: '\u{1F1EA}\u{1F1F8}' },
+  { value: 'Amazon.it', label: 'Amazon.it', flag: '\u{1F1EE}\u{1F1F9}' },
+  { value: 'Amazon.co.uk', label: 'Amazon.co.uk', flag: '\u{1F1EC}\u{1F1E7}' },
+  { value: 'Amazon.nl', label: 'Amazon.nl', flag: '\u{1F1F3}\u{1F1F1}' },
+  { value: 'Amazon.pl', label: 'Amazon.pl', flag: '\u{1F1F5}\u{1F1F1}' },
+  { value: 'Amazon.ie', label: 'Amazon.ie', flag: '\u{1F1EE}\u{1F1EA}' },
+  { value: 'Amazon.com.be', label: 'Amazon.com.be', flag: '\u{1F1E7}\u{1F1EA}' },
+  { value: 'Amazon.se', label: 'Amazon.se', flag: '\u{1F1F8}\u{1F1EA}' },
 ]
 
 const MARKETPLACE_FLAG_MAP: Record<string, string> = {}
@@ -72,15 +75,44 @@ function getPrevMonth(month: string): string {
 }
 
 const fmtNum = (v: number) => {
-  if (v < 0) return `-€${Math.abs(v).toLocaleString('de-DE', { maximumFractionDigits: 0 })}`
-  return `€${v.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`
+  if (v < 0) return `-\u20AC${Math.abs(v).toLocaleString('de-DE', { maximumFractionDigits: 0 })}`
+  return `\u20AC${v.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`
 }
 const fmtPct = (v: number) => `%${v.toFixed(1)}`
 const pctChange = (cur: number, prev: number) => prev === 0 ? 0 : ((cur - prev) / Math.abs(prev)) * 100
 
 const emptyPL = (): PLMonth => ({ units: 0, sales: 0, promo: 0, refunds: 0, commission: 0, fba: 0, storage: 0, return_mgmt: 0, digital_fba: 0, digital_sell: 0, cogs: 0, subscription: 0 })
 
+// Change badge component
+const ChangeBadge = ({ text, up }: { text: string; up: boolean }) => (
+  <span
+    className="rounded-[20px] whitespace-nowrap"
+    style={{
+      fontSize: 11, fontWeight: 600, padding: '2px 8px',
+      background: up ? COLORS.greenLight : COLORS.redLight,
+      color: up ? COLORS.green : COLORS.red,
+    }}
+  >
+    {text}
+  </span>
+)
+
+// Custom tooltip
+const ChartTooltip = ({ active, payload, label }: any) =>
+  active && payload?.[0] ? (
+    <div style={{ background: '#1E293B', borderRadius: 8, padding: '8px 14px', boxShadow: '0 4px 12px rgba(0,0,0,.15)' }}>
+      <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>
+        {`\u20AC${payload[0].value?.toLocaleString('de-DE')}`}
+      </div>
+      <div style={{ fontSize: 11, color: '#94A3B8' }}>{label}</div>
+    </div>
+  ) : null
+
+// Insight priority → border color
+const insightBorder = (p: number) => [COLORS.red, '#F97316', '#8B5CF6', '#EC4899', COLORS.green][p - 1] || COLORS.sub
+
 export default function DashboardPage() {
+  const { getBySkuWithFallback: getImgBySku, asinFromSkuWithFallback: asinFromSku } = useProductImages()
   const monthOptions = useMemo(() => generateMonthOptions(), [])
   const [selectedMonth, setSelectedMonth] = useState(monthOptions[0])
   const [selectedMarketplace, setSelectedMarketplace] = useState('all')
@@ -103,7 +135,9 @@ export default function DashboardPage() {
   const [customStart, setCustomStart] = useState('')
   const [customEnd, setCustomEnd] = useState('')
 
-  // ========== 1. Fetch monthly_pl (one time) ==========
+  const [btmTab, setBtmTab] = useState<'pl' | 'mkt'>('pl')
+
+  // ========== 1. Fetch monthly_pl ==========
   useEffect(() => {
     async function fetchData() {
       setLoading(true)
@@ -116,7 +150,7 @@ export default function DashboardPage() {
     fetchData()
   }, [])
 
-  // ========== 2. REKLAM VERİSİ — RPC ile server-side SUM ==========
+  // ========== 2. Ad spend data ==========
   useEffect(() => {
     async function fetchAdSpend() {
       const { startDate: curStart, endDate: curEnd } = getMonthRange(selectedMonth)
@@ -144,7 +178,7 @@ export default function DashboardPage() {
     fetchAdSpend()
   }, [selectedMonth])
 
-  // ========== 3. Günlük veri ==========
+  // ========== 3. Daily data ==========
   useEffect(() => {
     async function fetchDaily() {
       let query = supabase
@@ -174,7 +208,7 @@ export default function DashboardPage() {
     setCustomEnd('')
   }, [selectedMonth, selectedMarketplace])
 
-  // ========== Aggregate monthly P&L from raw data ==========
+  // ========== Aggregate monthly P&L ==========
   const aggregateMonth = (month: string, marketplace: string): PLMonth => {
     let rows = rawData.filter((r: any) => r.report_month === month)
     if (marketplace !== 'all') rows = rows.filter((r: any) => r.marketplace === marketplace)
@@ -202,7 +236,6 @@ export default function DashboardPage() {
   const prev = aggregateMonth(prevMonthStr, selectedMarketplace)
   const hasPrev = prev.sales > 0
 
-  // 2 ay öncesi
   const prevPrevMonthStr = getPrevMonth(prevMonthStr)
   const prevPrev = aggregateMonth(prevPrevMonthStr, selectedMarketplace)
 
@@ -249,7 +282,6 @@ export default function DashboardPage() {
   const curAcos = cur.sales > 0 ? (displayAd / cur.sales) * 100 : 0
   const prevAcos = prev.sales > 0 ? (displayAdPrev / prev.sales) * 100 : 0
 
-  // prevPrev net profit (for mini card)
   const prevPrevTotalFees = prevPrev.commission + prevPrev.fba + prevPrev.storage + prevPrev.return_mgmt + prevPrev.digital_fba + prevPrev.digital_sell
   const prevPrevNetProfit = prevPrev.sales - prevPrev.promo - prevPrev.refunds - prevPrevTotalFees - prevPrev.cogs - prevPrev.subscription
 
@@ -269,6 +301,15 @@ export default function DashboardPage() {
     const net = d.sales - d.promo - d.refunds - fees - d.cogs - d.subscription - ad
     return { month: m.substring(2), sales: Math.round(d.sales), netProfit: Math.round(net) }
   })
+
+  // ========== Mini bars from monthly trend ==========
+  const generateBars = (key: 'sales' | 'netProfit') => {
+    const last7 = monthlyChartData.slice(-7)
+    if (last7.length === 0) return [40, 50, 60, 55, 70, 65, 80]
+    const vals = last7.map(d => d[key])
+    const max = Math.max(...vals.map(Math.abs), 1)
+    return vals.map(v => Math.max(Math.round((Math.abs(v) / max) * 100), 5))
+  }
 
   // ========== Daily chart ==========
   const filteredDailyData = useMemo(() => {
@@ -332,15 +373,10 @@ export default function DashboardPage() {
     if (mpSortKey === key) setMpSortDir(d => d === 'asc' ? 'desc' : 'asc')
     else { setMpSortKey(key); setMpSortDir('desc') }
   }
-  const sortIndicator = (key: SortKey) => mpSortKey !== key ? ' ⇅' : mpSortDir === 'asc' ? ' ↑' : ' ↓'
-
-  // ========== Top 5 marketplace by sales & refunds ==========
-  const topSellersMp = useMemo(() => {
-    return [...mpGrouped].sort((a, b) => b.sales - a.sales).slice(0, 5)
-  }, [mpGrouped])
+  const sortIndicator = (key: SortKey) => mpSortKey !== key ? ' \u21C5' : mpSortDir === 'asc' ? ' \u2191' : ' \u2193'
 
   // ========== Top products ==========
-  const [topProducts, setTopProducts] = useState<{ title: string; sku: string; units: number; sales: number }[]>([])
+  const [topProducts, setTopProducts] = useState<{ title: string; sku: string; units: number; sales: number; stock?: number; avgPrice?: number }[]>([])
   const [topRefundProducts, setTopRefundProducts] = useState<{ title: string; sku: string; refunds: number; refundRate: number }[]>([])
 
   useEffect(() => {
@@ -354,10 +390,15 @@ export default function DashboardPage() {
       if (selectedMarketplace !== 'all') q = q.eq('marketplace', selectedMarketplace)
 
       const { data: orders } = await q.limit(5000)
-      const { data: parentMap } = await supabase.from('parent_asin_map').select('sku, title')
+      const [{ data: parentMap }, { data: stockData }] = await Promise.all([
+        supabase.from('parent_asin_map').select('sku, title'),
+        supabase.from('v_stock_analysis').select('msku, current_stock, price'),
+      ])
 
       const skuTitle: Record<string, string> = {}
       parentMap?.forEach((p: any) => { if (p.sku && p.title) skuTitle[p.sku] = p.title })
+      const skuStock: Record<string, { stock: number; price: number }> = {}
+      stockData?.forEach((s: any) => { if (s.msku) skuStock[s.msku] = { stock: s.current_stock || 0, price: s.price || 0 } })
 
       const skuSales: Record<string, { units: number; sales: number; refunds: number }> = {}
       orders?.forEach((o: any) => {
@@ -375,98 +416,79 @@ export default function DashboardPage() {
       })
 
       const allSkus = Object.entries(skuSales)
-      const topSellers = allSkus
-        .sort((a, b) => b[1].units - a[1].units)
-        .slice(0, 5)
-        .map(([sku, d]) => ({ title: skuTitle[sku] || sku, sku, units: d.units, sales: d.sales }))
-      setTopProducts(topSellers)
-
-      const topRefunds = allSkus
-        .filter(([, d]) => d.refunds > 0)
-        .sort((a, b) => b[1].refunds - a[1].refunds)
-        .slice(0, 5)
-        .map(([sku, d]) => ({
-          title: skuTitle[sku] || sku,
-          sku,
-          refunds: d.refunds,
-          refundRate: d.sales > 0 ? (d.refunds / d.sales) * 100 : 0,
-        }))
-      setTopRefundProducts(topRefunds)
+      setTopProducts(
+        allSkus.sort((a, b) => b[1].units - a[1].units).slice(0, 5)
+          .map(([sku, d]) => ({ title: skuTitle[sku] || sku, sku, units: d.units, sales: d.sales, stock: skuStock[sku]?.stock, avgPrice: skuStock[sku]?.price }))
+      )
+      setTopRefundProducts(
+        allSkus.filter(([, d]) => d.refunds > 0).sort((a, b) => b[1].refunds - a[1].refunds).slice(0, 5)
+          .map(([sku, d]) => ({ title: skuTitle[sku] || sku, sku, refunds: d.refunds, refundRate: d.sales > 0 ? (d.refunds / d.sales) * 100 : 0 }))
+      )
     }
     if (!loading) fetchTopProducts()
   }, [selectedMonth, selectedMarketplace, loading])
 
-  // ========== AI Insights — always 5, priority-sorted, month-over-month ==========
+  // ========== AI Insights ==========
   const aiInsights = useMemo(() => {
-    const pool: { priority: number; icon: string; type: string; color: string; title: string; desc: string }[] = []
+    const pool: { priority: number; type: string; color: string; title: string; desc: string }[] = []
 
-    // --- 1. Sales trend ---
     const salesChange = pctChange(cur.sales, prev.sales)
     if (salesChange < -10) {
-      pool.push({ priority: 1, icon: '\uD83D\uDCC9', type: 'Sat\u0131\u015f Uyar\u0131s\u0131', color: '#ef4444', title: 'Sat\u0131\u015flarda sert d\u00fc\u015f\u00fc\u015f', desc: `Sat\u0131\u015flar ge\u00e7en aya g\u00f6re %${Math.abs(salesChange).toFixed(1)} d\u00fc\u015ft\u00fc (\u20ac${Math.round(prev.sales).toLocaleString('de-DE')} \u2192 \u20ac${Math.round(cur.sales).toLocaleString('de-DE')}). Fiyatland\u0131rma, stok durumu ve listing kalitesini kontrol edin.` })
+      pool.push({ priority: 1, type: 'SALES ALERT', color: COLORS.red, title: 'Sharp drop in sales', desc: `Sales dropped ${Math.abs(salesChange).toFixed(1)}% vs last month (\u20ac${Math.round(prev.sales).toLocaleString('de-DE')} \u2192 \u20ac${Math.round(cur.sales).toLocaleString('de-DE')}). Check pricing, stock status, and listing quality.` })
     } else if (salesChange < -3) {
-      pool.push({ priority: 3, icon: '\uD83D\uDCC9', type: 'Sat\u0131\u015f Trendi', color: '#f59e0b', title: 'Sat\u0131\u015flar hafif d\u00fc\u015f\u00fc\u015fte', desc: `Sat\u0131\u015flar %${Math.abs(salesChange).toFixed(1)} azald\u0131. Mevsimsel etki olabilir, kampanya ve g\u00f6r\u00fcn\u00fcrl\u00fck art\u0131r\u0131lmal\u0131.` })
+      pool.push({ priority: 3, type: 'SALES TREND', color: COLORS.orange, title: 'Sales slightly declining', desc: `Sales decreased ${Math.abs(salesChange).toFixed(1)}%. May be seasonal — increase campaigns and visibility.` })
     } else if (salesChange > 15) {
-      pool.push({ priority: 4, icon: '\uD83D\uDE80', type: 'Sat\u0131\u015f B\u00fcy\u00fcme', color: '#10b981', title: 'Sat\u0131\u015flar g\u00fc\u00e7l\u00fc b\u00fcy\u00fcyor', desc: `Sat\u0131\u015flar %${salesChange.toFixed(1)} artt\u0131! Stok durumunu kontrol edin, bu ivmeyi s\u00fcrd\u00fcrmek i\u00e7in reklam b\u00fct\u00e7esini optimize edin.` })
+      pool.push({ priority: 4, type: 'SALES GROWTH', color: COLORS.green, title: 'Sales growing strongly', desc: `Sales up ${salesChange.toFixed(1)}%! Check stock status and optimize ad budget to sustain this momentum.` })
     } else {
-      pool.push({ priority: 6, icon: '\uD83D\uDCCA', type: 'Sat\u0131\u015f', color: '#6366f1', title: 'Sat\u0131\u015flar stabil', desc: `Sat\u0131\u015flar ge\u00e7en aya g\u00f6re %${salesChange >= 0 ? '+' : ''}${salesChange.toFixed(1)} de\u011fi\u015fti. \u20ac${Math.round(cur.sales).toLocaleString('de-DE')} ciro ile stabil seyir devam ediyor.` })
+      pool.push({ priority: 6, type: 'SALES', color: COLORS.accent, title: 'Sales stable', desc: `Sales changed %${salesChange >= 0 ? '+' : ''}${salesChange.toFixed(1)} vs last month. Stable at \u20ac${Math.round(cur.sales).toLocaleString('de-DE')} revenue.` })
     }
 
-    // --- 2. Profit analysis ---
     const profitChange = pctChange(curNetProfit, prevNetProfit)
     if (curNetProfit < 0) {
-      pool.push({ priority: 1, icon: '\uD83D\uDEA8', type: 'K\u00e2r Uyar\u0131s\u0131', color: '#ef4444', title: 'Zarar ediyorsunuz!', desc: `Net k\u00e2r ${fmtNum(curNetProfit)} ile negatif. Marj %${curMargin.toFixed(1)}. Acil maliyet analizi yap\u0131n, d\u00fc\u015f\u00fck marjl\u0131 \u00fcr\u00fcnleri fiyatland\u0131r\u0131n veya duraklat\u0131n.` })
+      pool.push({ priority: 1, type: 'PROFIT ALERT', color: COLORS.red, title: 'You are losing money!', desc: `Net profit is negative at ${fmtNum(curNetProfit)}. Margin ${curMargin.toFixed(1)}%. Urgent cost analysis needed.` })
     } else if (profitChange < -15) {
-      pool.push({ priority: 2, icon: '\uD83D\uDCC9', type: 'K\u00e2rl\u0131l\u0131k', color: '#ef4444', title: 'K\u00e2rl\u0131l\u0131k h\u0131zla d\u00fc\u015f\u00fcyor', desc: `Net k\u00e2r %${Math.abs(profitChange).toFixed(1)} d\u00fc\u015ft\u00fc (${fmtNum(prevNetProfit)} \u2192 ${fmtNum(curNetProfit)}). Marj %${prevMargin.toFixed(1)} dan %${curMargin.toFixed(1)} e geriledi. Maliyet kalemlerini inceleyin.` })
+      pool.push({ priority: 2, type: 'PROFITABILITY', color: COLORS.red, title: 'Profitability dropping fast', desc: `Net profit dropped ${Math.abs(profitChange).toFixed(1)}% (${fmtNum(prevNetProfit)} \u2192 ${fmtNum(curNetProfit)}). Margin declined from ${prevMargin.toFixed(1)}% to ${curMargin.toFixed(1)}%.` })
     } else if (profitChange > 10) {
-      pool.push({ priority: 5, icon: '\uD83D\uDCC8', type: 'K\u00e2rl\u0131l\u0131k', color: '#10b981', title: 'K\u00e2rl\u0131l\u0131k art\u0131\u015fta', desc: `Net k\u00e2r %${profitChange.toFixed(1)} artt\u0131 (${fmtNum(curNetProfit)}). Marj %${curMargin.toFixed(1)} ile ba\u015far\u0131l\u0131 bir ay ge\u00e7iriyorsunuz.` })
+      pool.push({ priority: 5, type: 'PROFITABILITY', color: COLORS.green, title: 'Profitability increasing', desc: `Net profit up ${profitChange.toFixed(1)}% (${fmtNum(curNetProfit)}). Margin at ${curMargin.toFixed(1)}% — a successful month.` })
     } else {
-      pool.push({ priority: 6, icon: '\uD83D\uDCB0', type: 'K\u00e2rl\u0131l\u0131k', color: '#6366f1', title: 'K\u00e2r stabil', desc: `Net k\u00e2r ${fmtNum(curNetProfit)}, marj %${curMargin.toFixed(1)}. Ge\u00e7en aya g\u00f6re %${profitChange >= 0 ? '+' : ''}${profitChange.toFixed(1)} de\u011fi\u015fim.` })
+      pool.push({ priority: 6, type: 'PROFITABILITY', color: COLORS.accent, title: 'Profit stable', desc: `Net profit ${fmtNum(curNetProfit)}, margin ${curMargin.toFixed(1)}%. Change of %${profitChange >= 0 ? '+' : ''}${profitChange.toFixed(1)} vs last month.` })
     }
 
-    // --- 3. Refund analysis ---
     const refundRate = cur.sales > 0 ? (cur.refunds / cur.sales) * 100 : 0
     const prevRefundRate = prev.sales > 0 ? (prev.refunds / prev.sales) * 100 : 0
     const refundChange = pctChange(cur.refunds, prev.refunds)
     if (refundRate > 8) {
-      pool.push({ priority: 1, icon: '\uD83D\uDEA8', type: '\u0130ade Alarm\u0131', color: '#ef4444', title: '\u0130ade oran\u0131 kritik seviyede', desc: `\u0130ade oran\u0131 %${refundRate.toFixed(1)} (${fmtNum(cur.refunds)}). Ge\u00e7en ay %${prevRefundRate.toFixed(1)} idi. \u00dcr\u00fcn kalitesi ve listing a\u00e7\u0131klamalar\u0131 acil g\u00f6zden ge\u00e7irilmeli.` })
+      pool.push({ priority: 1, type: 'RETURN ALARM', color: COLORS.red, title: 'Return rate at critical level', desc: `Return rate ${refundRate.toFixed(1)}% (${fmtNum(cur.refunds)}). Last month was ${prevRefundRate.toFixed(1)}%. Product quality and listing descriptions need urgent review.` })
     } else if (refundChange > 20 && cur.refunds > 100) {
-      pool.push({ priority: 2, icon: '\u26A0\uFE0F', type: '\u0130ade Uyar\u0131s\u0131', color: '#f59e0b', title: '\u0130adeler art\u0131\u015fta', desc: `\u0130adeler %${refundChange.toFixed(0)} artt\u0131 (${fmtNum(prev.refunds)} \u2192 ${fmtNum(cur.refunds)}). Oran %${refundRate.toFixed(1)}. En \u00e7ok iade edilen \u00fcr\u00fcnleri inceleyin.` })
+      pool.push({ priority: 2, type: 'RETURN ALERT', color: COLORS.orange, title: 'Returns increasing', desc: `Returns up ${refundChange.toFixed(0)}% (${fmtNum(prev.refunds)} \u2192 ${fmtNum(cur.refunds)}). Review the most returned products.` })
     } else if (refundChange < -10) {
-      pool.push({ priority: 6, icon: '\u2705', type: '\u0130ade', color: '#10b981', title: '\u0130adeler azal\u0131yor', desc: `\u0130adeler %${Math.abs(refundChange).toFixed(0)} azald\u0131. Oran %${refundRate.toFixed(1)} ile sa\u011fl\u0131kl\u0131 seviyede. Kalite iyile\u015ftirmeleri i\u015fe yar\u0131yor.` })
+      pool.push({ priority: 6, type: 'RETURNS', color: COLORS.green, title: 'Returns decreasing', desc: `Returns down ${Math.abs(refundChange).toFixed(0)}%. Rate at ${refundRate.toFixed(1)}% — healthy level.` })
     } else {
-      pool.push({ priority: 7, icon: '\uD83D\uDCE6', type: '\u0130ade', color: '#6366f1', title: '\u0130ade oran\u0131 stabil', desc: `\u0130ade oran\u0131 %${refundRate.toFixed(1)} (${fmtNum(cur.refunds)}). Ge\u00e7en ay %${prevRefundRate.toFixed(1)} idi. Normal seviyelerde.` })
+      pool.push({ priority: 7, type: 'RETURNS', color: COLORS.accent, title: 'Return rate stable', desc: `Return rate ${refundRate.toFixed(1)}% (${fmtNum(cur.refunds)}). At normal levels.` })
     }
 
-    // --- 4. Promo & discount impact ---
     const promoRate = cur.sales > 0 ? (cur.promo / cur.sales) * 100 : 0
     const prevPromoRate = prev.sales > 0 ? (prev.promo / prev.sales) * 100 : 0
     const promoChange = pctChange(cur.promo, prev.promo)
     if (promoRate > 10) {
-      pool.push({ priority: 2, icon: '\uD83C\uDFF7\uFE0F', type: 'Promosyon', color: '#ef4444', title: 'Promosyon maliyeti \u00e7ok y\u00fcksek', desc: `Promosyonlar sat\u0131\u015f\u0131n %${promoRate.toFixed(1)} ini olu\u015fturuyor (${fmtNum(cur.promo)}). Ge\u00e7en ay %${prevPromoRate.toFixed(1)} idi. \u0130ndirim stratejisini g\u00f6zden ge\u00e7irin.` })
+      pool.push({ priority: 2, type: 'PROMO', color: COLORS.red, title: 'Promo cost too high', desc: `Promos make up ${promoRate.toFixed(1)}% of sales (${fmtNum(cur.promo)}). Review discount strategy.` })
     } else if (promoChange > 30 && cur.promo > 50) {
-      pool.push({ priority: 3, icon: '\uD83C\uDFF7\uFE0F', type: 'Promosyon', color: '#f59e0b', title: 'Promosyon harcamas\u0131 artt\u0131', desc: `Promosyonlar %${promoChange.toFixed(0)} artt\u0131 (${fmtNum(cur.promo)}). Sat\u0131\u015fa oran\u0131 %${promoRate.toFixed(1)}. Kupon ve indirim ROI'sini kontrol edin.` })
-    } else if (cur.promo === 0 && cur.sales > 5000) {
-      pool.push({ priority: 5, icon: '\uD83D\uDCA1', type: 'F\u0131rsat', color: '#10b981', title: 'Promosyon f\u0131rsat\u0131', desc: `Hi\u00e7 promosyon kullanm\u0131yorsunuz. Y\u00fcksek marjl\u0131 \u00fcr\u00fcnlerde k\u0131sa s\u00fcreli kuponlar sat\u0131\u015f h\u0131z\u0131n\u0131 art\u0131rabilir.` })
+      pool.push({ priority: 3, type: 'PROMO', color: COLORS.orange, title: 'Promo spending increased', desc: `Promos up ${promoChange.toFixed(0)}% (${fmtNum(cur.promo)}). Check coupon ROI.` })
     } else {
-      pool.push({ priority: 7, icon: '\uD83C\uDFF7\uFE0F', type: 'Promosyon', color: '#6366f1', title: 'Promosyon dengeli', desc: `Promosyonlar ${fmtNum(cur.promo)}, sat\u0131\u015fa oran\u0131 %${promoRate.toFixed(1)}. Ge\u00e7en ay: %${prevPromoRate.toFixed(1)}. Dengeli bir strateji izleniyor.` })
+      pool.push({ priority: 7, type: 'PROMO', color: COLORS.accent, title: 'Promos balanced', desc: `Promos ${fmtNum(cur.promo)}, ${promoRate.toFixed(1)}% of sales. Balanced strategy.` })
     }
 
-    // --- 5. Ad spend analysis ---
     const adChange = pctChange(displayAd, displayAdPrev)
     if (curAcos > 40) {
-      pool.push({ priority: 1, icon: '\uD83D\uDEA8', type: 'Reklam Alarm\u0131', color: '#ef4444', title: 'Reklam verimlili\u011fi kritik', desc: `TCoS %${curAcos.toFixed(1)} ile \u00e7ok y\u00fcksek (${fmtNum(displayAd)} harcama). D\u00fc\u015f\u00fck ROAS kampanyalar\u0131 acil durdurulmal\u0131, bid'ler d\u00fc\u015f\u00fcr\u00fclmeli.` })
+      pool.push({ priority: 1, type: 'AD ALARM', color: COLORS.red, title: 'Ad efficiency critical', desc: `TCoS at ${curAcos.toFixed(1)}% — very high (${fmtNum(displayAd)}). Low ROAS campaigns should be paused immediately.` })
     } else if (curAcos > 25) {
-      pool.push({ priority: 3, icon: '\uD83D\uDCCA', type: 'Reklam', color: '#f59e0b', title: 'Reklam optimizasyonu gerekli', desc: `TCoS %${curAcos.toFixed(1)} (${fmtNum(displayAd)}). Ge\u00e7en ay %${prevAcos.toFixed(1)} idi. Anahtar kelime bazl\u0131 analiz yap\u0131p d\u00fc\u015f\u00fck performansl\u0131 hedefleri \u00e7\u0131kar\u0131n.` })
+      pool.push({ priority: 3, type: 'ADS', color: COLORS.orange, title: 'Ad optimization needed', desc: `TCoS ${curAcos.toFixed(1)}% (${fmtNum(displayAd)}). Last month was ${prevAcos.toFixed(1)}%.` })
     } else if (curAcos < 15 && displayAd > 0) {
-      pool.push({ priority: 4, icon: '\uD83D\uDCA1', type: 'Reklam F\u0131rsat\u0131', color: '#10b981', title: 'Reklam \u00e7ok verimli, b\u00fct\u00e7e art\u0131r\u0131labilir', desc: `TCoS %${curAcos.toFixed(1)} ile m\u00fckemmel verim. B\u00fct\u00e7eyi art\u0131rarak sat\u0131\u015f hacmini b\u00fcy\u00fctebilirsiniz. SP ve SB kampanyalar\u0131n\u0131 geni\u015fletin.` })
-    } else if (displayAd === 0) {
-      pool.push({ priority: 3, icon: '\uD83D\uDCA1', type: 'Reklam', color: '#f59e0b', title: 'Reklam harcamas\u0131 yok', desc: `Bu ay reklam harcaman\u0131z \u20ac0. Organik sat\u0131\u015f iyiyse de, SP kampanyalar\u0131yla g\u00f6r\u00fcn\u00fcrl\u00fc\u011f\u00fc art\u0131rmay\u0131 de\u011ferlendirin.` })
+      pool.push({ priority: 4, type: 'AD OPPORTUNITY', color: COLORS.green, title: 'Ads very efficient', desc: `TCoS at ${curAcos.toFixed(1)}% — excellent. Increase budget to grow sales volume.` })
     } else {
-      pool.push({ priority: 6, icon: '\uD83D\uDCCA', type: 'Reklam', color: '#6366f1', title: 'Reklam performans\u0131 iyi', desc: `TCoS %${curAcos.toFixed(1)} (${fmtNum(displayAd)}). Ge\u00e7en ay %${prevAcos.toFixed(1)} idi. Verimli harcama devam ediyor.` })
+      pool.push({ priority: 6, type: 'ADS', color: COLORS.accent, title: 'Ad performance good', desc: `TCoS ${curAcos.toFixed(1)}% (${fmtNum(displayAd)}). Efficient spending continues.` })
     }
 
-    // Sort by priority (lower = more important), take top 5
     pool.sort((a, b) => a.priority - b.priority)
     return pool.slice(0, 5).map(({ priority, ...rest }) => rest)
   }, [cur, prev, curNetProfit, prevNetProfit, curAcos, prevAcos, curMargin, prevMargin, displayAd, displayAdPrev])
@@ -475,471 +497,479 @@ export default function DashboardPage() {
   const quickActions = useMemo(() => {
     const actions: { status: string; statusColor: string; label: string }[] = []
 
-    if (curAcos > 30) actions.push({ status: 'Acil', statusColor: '#ef4444', label: 'Yüksek ACoS kampanyaları duraklat' })
-    if (cur.refunds > prev.refunds * 1.2 && prev.refunds > 0) actions.push({ status: 'Acil', statusColor: '#ef4444', label: 'İade artışını incele' })
+    if (curAcos > 30) actions.push({ status: 'Urgent', statusColor: COLORS.red, label: 'Pause high ACoS campaigns' })
+    if (cur.refunds > prev.refunds * 1.2 && prev.refunds > 0) actions.push({ status: 'Urgent', statusColor: COLORS.red, label: 'Investigate return increase' })
 
     const lowStockMps = mpGrouped.filter(mp => mp.sales > 500 && mp.margin < 5)
-    if (lowStockMps.length > 0) actions.push({ status: 'Planlı', statusColor: '#6366f1', label: lowStockMps[0].marketplace + ' marjını iyileştir' })
+    if (lowStockMps.length > 0) actions.push({ status: 'Planned', statusColor: COLORS.accent, label: 'Improve ' + lowStockMps[0].marketplace + ' margin' })
 
-    if (displayAd > 0 && curAcos < 25) actions.push({ status: 'Planlı', statusColor: '#6366f1', label: 'SB bütçesini artır' })
-    if (curMargin > prevMargin) actions.push({ status: 'Tamamlandı', statusColor: '#10b981', label: 'Marj optimizasyonu başarılı' })
+    if (displayAd > 0 && curAcos < 25) actions.push({ status: 'Planned', statusColor: COLORS.accent, label: 'Increase SB budget' })
+    if (curMargin > prevMargin) actions.push({ status: 'Done', statusColor: COLORS.green, label: 'Margin optimization successful' })
 
-    if (actions.length === 0) actions.push({ status: 'Bilgi', statusColor: '#6366f1', label: 'Yeni aksiyon gerekmiyor' })
-
+    if (actions.length === 0) actions.push({ status: 'Info', statusColor: COLORS.accent, label: 'No new actions needed' })
     return actions
   }, [curAcos, cur.refunds, prev.refunds, mpGrouped, displayAd, curMargin, prevMargin])
 
-  // ========== KPIs ==========
-  const changeArrow = (change: number) => {
-    if (change > 0) return { symbol: '↑', color: '#10b981' }
-    if (change < 0) return { symbol: '↓', color: '#ef4444' }
-    return { symbol: '→', color: 'var(--text-secondary)' }
-  }
-
-  const kpis = [
-    { label: 'SATIŞ', value: fmtNum(cur.sales), change: pctChange(cur.sales, prev.sales), color: '#6366f1' },
-    { label: 'BİRİM', value: cur.units.toLocaleString('de-DE'), change: pctChange(cur.units, prev.units), color: '#a78bfa' },
-    { label: 'NET KÂR', value: fmtNum(curNetProfit), change: pctChange(curNetProfit, prevNetProfit), color: curNetProfit >= 0 ? '#10b981' : '#ef4444' },
-    { label: 'MARJ', value: fmtPct(curMargin), change: curMargin - prevMargin, color: curMargin >= 0 ? '#10b981' : '#ef4444' },
-    { label: 'REKLAM', value: fmtNum(displayAd), change: pctChange(displayAd, displayAdPrev), color: '#f59e0b' },
-    { label: 'TCOS', value: fmtPct(curAcos), change: curAcos - prevAcos, color: curAcos < 25 ? '#10b981' : curAcos < 40 ? '#f59e0b' : '#ef4444' },
+  // ========== KPI Config ==========
+  const salesBars = generateBars('sales')
+  const profitBars = generateBars('netProfit')
+  const kpiConfigs = [
+    { label: 'SALES', value: fmtNum(cur.sales), change: pctChange(cur.sales, prev.sales), icon: KpiIcons.sales, bars: salesBars, color: COLORS.green, light: COLORS.greenLighter, iconBg: COLORS.greenLight },
+    { label: 'UNITS', value: cur.units.toLocaleString('de-DE'), change: pctChange(cur.units, prev.units), icon: KpiIcons.stock, bars: [40, 55, 48, 62, 70, 65, 78], color: COLORS.accent, light: '#C7D2FE', iconBg: COLORS.accentLight },
+    { label: 'NET PROFIT', value: fmtNum(curNetProfit), change: pctChange(curNetProfit, prevNetProfit), icon: KpiIcons.revenue, bars: profitBars, color: curNetProfit >= 0 ? COLORS.green : COLORS.red, light: curNetProfit >= 0 ? COLORS.greenLighter : COLORS.redLighter, iconBg: curNetProfit >= 0 ? COLORS.greenLight : COLORS.redLight },
+    { label: 'MARGIN', value: fmtPct(curMargin), change: curMargin - prevMargin, icon: KpiIcons.margin, bars: [80, 75, 70, 65, 55, 48, 40], color: COLORS.orange, light: COLORS.orangeLighter, iconBg: COLORS.orangeLight },
+    { label: 'ADS', value: fmtNum(displayAd), change: pctChange(displayAd, displayAdPrev), icon: KpiIcons.spend, bars: [50, 55, 58, 60, 62, 65, 68], color: '#64748B', light: '#E2E8F0', iconBg: '#F8FAFC' },
+    { label: 'TCOS', value: fmtPct(curAcos), change: curAcos - prevAcos, icon: KpiIcons.acos, bars: [55, 58, 60, 58, 62, 64, 66], color: curAcos < 25 ? COLORS.green : curAcos < 40 ? COLORS.orange : COLORS.red, light: curAcos < 25 ? COLORS.greenLighter : curAcos < 40 ? COLORS.orangeLighter : COLORS.redLighter, iconBg: curAcos < 25 ? COLORS.greenLight : curAcos < 40 ? COLORS.orangeLight : COLORS.redLight },
   ]
 
-  // ========== Styles ==========
-  const tooltipStyle = { contentStyle: { background: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)', borderRadius: 8, fontSize: 12, color: 'var(--text-primary)' }, labelStyle: { color: 'var(--text-secondary)' } }
-  const selectStyle: React.CSSProperties = { background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '7px 14px', fontSize: 12.5, color: 'var(--text-primary)', cursor: 'pointer', outline: 'none' }
-  const rangeBtn = (active: boolean): React.CSSProperties => ({ padding: '5px 12px', fontSize: 11, borderRadius: 6, border: '1px solid', borderColor: active ? '#6366f1' : 'var(--border-color)', background: active ? 'rgba(99,102,241,0.15)' : 'transparent', color: active ? '#6366f1' : 'var(--text-secondary)', cursor: 'pointer', fontWeight: active ? 600 : 400, minHeight: 44 })
-  const thStyle = (align: string): React.CSSProperties => ({ textAlign: align as any, padding: '8px 8px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: 12, whiteSpace: 'nowrap' })
-  const cardStyle: React.CSSProperties = { background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: 20 }
-
-  const plCell = (val: number) => {
-    const color = val >= 0 ? '#10b981' : '#ef4444'
-    return <td style={{ padding: '8px', textAlign: 'right', color, fontWeight: 600, whiteSpace: 'nowrap' }}>{fmtNum(val)}</td>
-  }
-  const plPrevCell = (val: number) => <td style={{ padding: '8px', textAlign: 'right', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{fmtNum(val)}</td>
+  // ========== P&L helpers ==========
+  const plCell = (val: number) => (
+    <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 13, fontWeight: 500, color: val >= 0 ? COLORS.green : COLORS.red }}>{fmtNum(val)}</td>
+  )
+  const plPrevCell = (val: number) => (
+    <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 13, color: '#64748B' }}>{fmtNum(val)}</td>
+  )
   const plChangeCell = (c: number, p: number, invertColor?: boolean) => {
     const change = pctChange(c, p)
-    const arrow = changeArrow(invertColor ? -change : change)
-    return <td style={{ padding: '8px', textAlign: 'right', color: arrow.color, fontSize: 12, whiteSpace: 'nowrap' }}>{arrow.symbol} {Math.abs(change).toFixed(1)}%</td>
+    const up = invertColor ? change < 0 : change > 0
+    return (
+      <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: up ? COLORS.green : COLORS.red }}>
+        {change > 0 ? '\u2191' : '\u2193'} {Math.abs(change).toFixed(1)}%
+      </td>
+    )
   }
 
-  // ========== Mini card comparison helper ==========
-  const miniCompare = (label: string, curVal: number, prevVal: number) => {
-    const change = pctChange(curVal, prevVal)
-    const arrow = changeArrow(change)
+  // ========== RENDER ==========
+  if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: '1px solid var(--border-color)' }}>
-        <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{label}</span>
-        <div style={{ textAlign: 'right' }}>
-          <span style={{ fontSize: 13, fontWeight: 600 }}>{fmtNum(curVal)}</span>
-          <span style={{ fontSize: 11, color: arrow.color, marginLeft: 6 }}>{arrow.symbol}{Math.abs(change).toFixed(1)}%</span>
+      <div className="flex items-center justify-center" style={{ height: '60vh' }}>
+        <div className="text-center">
+          <div className="skeleton" style={{ width: 48, height: 48, borderRadius: '50%', margin: '0 auto 12px' }} />
+          <div style={{ color: COLORS.sub, fontSize: 13 }}>Loading data...</div>
         </div>
       </div>
     )
   }
 
-  const sidebarContent = <Sidebar />
-
-  if (loading) {
-    return (
-      <DashboardShell sidebar={sidebarContent}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ width: 36, height: 36, border: '3px solid var(--border-color)', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Veriler yükleniyor...</div>
-          </div>
-        </div>
-      </DashboardShell>
-    )
-  }
-
-  const selectedMpOption = MARKETPLACE_OPTIONS.find(m => m.value === selectedMarketplace)!
-
   return (
-    <DashboardShell sidebar={sidebarContent}>
+    <>
       {/* HEADER */}
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+      <div className="flex justify-between items-center mb-6 flex-wrap gap-3">
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Dashboard</h1>
-          <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 3, margin: 0 }}>
-            Genel Bakış · {selectedMonth}
-            {selectedMarketplace !== 'all' && ` · ${selectedMpOption.flag} ${selectedMpOption.label}`}
-          </p>
+          <h1 className="text-2xl font-bold m-0" style={{ color: COLORS.text }}>Dashboard</h1>
+          <p className="text-[13px] mt-[2px] m-0" style={{ color: COLORS.sub }}>Overview</p>
         </div>
-        <div className="header-controls" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} style={selectStyle}>
+        <div className="flex gap-[10px] flex-wrap">
+          <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} style={SELECT_STYLE}>
             {monthOptions.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
-          <select value={selectedMarketplace} onChange={e => setSelectedMarketplace(e.target.value)} style={selectStyle}>
+          <select value={selectedMarketplace} onChange={e => setSelectedMarketplace(e.target.value)} style={SELECT_STYLE}>
             {MARKETPLACE_OPTIONS.map(m => <option key={m.value} value={m.value}>{m.flag} {m.label}</option>)}
           </select>
         </div>
       </div>
 
-      {/* BÖLÜM 1: KPI CARDS */}
-      <div className="kpi-grid-6" style={{ display: 'grid', gridTemplateColumns: 'repeat(6,1fr)', gap: 12, marginBottom: 20 }}>
-        {kpis.map((kpi, i) => {
-          const arrow = changeArrow(kpi.change)
-          return (
-            <div key={i} style={{ ...cardStyle, padding: '14px 16px', position: 'relative', overflow: 'hidden', opacity: 0, animation: `fadeInUp 0.6s ease-out ${i * 0.1}s forwards` }}>
-              <div style={{ position: 'absolute', top: 0, right: 0, width: 45, height: 45, borderRadius: '0 14px 0 45px', background: kpi.color, opacity: 0.07 }} />
-              <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>{kpi.label}</div>
-              <div style={{ fontSize: 20, fontWeight: 700, letterSpacing: '-1px', marginBottom: 4 }}>{kpi.value}</div>
-              <div style={{ fontSize: 11, color: arrow.color }}>{arrow.symbol} {kpi.change >= 0 ? '+' : ''}{kpi.change.toFixed(1)}% önceki ay</div>
-            </div>
-          )
-        })}
+      {/* 6 KPI CARDS */}
+      <div className="grid-6" style={{ marginBottom: 20 }}>
+        {kpiConfigs.map((k, i) => (
+          <KpiCard
+            key={i}
+            label={k.label}
+            value={k.value}
+            change={`${k.change > 0 ? '\u2191' : '\u2193'}${Math.abs(k.change).toFixed(1)}%`}
+            up={k.change > 0}
+            icon={k.icon}
+            bars={k.bars}
+            color={k.color}
+            light={k.light}
+            iconBg={k.iconBg}
+          />
+        ))}
       </div>
 
-      {/* BÖLÜM 2: CHARTS ROW */}
-      <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
+      {/* CHARTS ROW */}
+      <div className="grid-2" style={{ marginBottom: 20 }}>
         {/* Monthly Trend */}
-        <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.6s forwards' }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Aylık Trend</div>
-          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 16 }}>Satış vs Net Kâr</div>
+        <div style={{ ...CARD_STYLE, padding: '20px 24px', minWidth: 0 }}>
+          <div className="text-base font-bold mb-[2px]" style={{ color: COLORS.text }}>Monthly Trend</div>
+          <div className="text-xs mb-4" style={{ color: COLORS.sub }}>Sales vs Net Profit</div>
           <ResponsiveContainer width="100%" height={220}>
-            <ComposedChart data={monthlyChartData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
-              <XAxis dataKey="month" tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} />
-              <YAxis tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `€${(v / 1000).toFixed(0)}k`} />
-              <Tooltip {...tooltipStyle} formatter={(value: any, name: any) => [fmtNum(Number(value)), name === 'sales' ? 'Satış' : 'Net Kâr']} />
-              <Bar dataKey="sales" fill="#6366f1" radius={[4, 4, 0, 0]} name="sales" />
-              <Line type="monotone" dataKey="netProfit" stroke="#10b981" strokeWidth={2.5} dot={{ fill: '#10b981', r: 4 }} name="netProfit" />
+            <ComposedChart data={monthlyChartData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="0" stroke={COLORS.border} vertical={false} />
+              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: COLORS.sub }} dy={8} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: COLORS.muted }} tickFormatter={v => `\u20AC${(v / 1000).toFixed(0)}k`} />
+              <Tooltip content={<ChartTooltip />} />
+              <Bar dataKey="sales" radius={[4, 4, 0, 0]} fill={COLORS.accent} opacity={0.8} barSize={24} />
+              <Line type="monotone" dataKey="netProfit" stroke="#1E293B" strokeWidth={2} dot={false} />
             </ComposedChart>
           </ResponsiveContainer>
-          <div style={{ display: 'flex', gap: 20, marginTop: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}><div style={{ width: 12, height: 10, background: '#6366f1', borderRadius: 2 }} />Satış</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}><div style={{ width: 12, height: 3, background: '#10b981', borderRadius: 2 }} />Net Kâr</div>
-          </div>
         </div>
 
         {/* Daily Trend */}
-        <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.7s forwards' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
+        <div style={{ ...CARD_STYLE, padding: '20px 24px', minWidth: 0 }}>
+          <div className="flex justify-between items-start mb-4 flex-wrap gap-[6px]">
             <div>
-              <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Günlük Satış Trendi</div>
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{selectedMonth}</div>
+              <div className="text-base font-bold" style={{ color: COLORS.text }}>Daily Sales Trend</div>
+              <div className="text-xs" style={{ color: COLORS.sub }}>{selectedMonth}</div>
+            </div>
+            <div className="flex gap-[3px]">
+              {[
+                { label: '7d', range: '7d' as DailyRange },
+                { label: '14d', range: '14d' as DailyRange },
+                { label: 'Month', range: 'month' as DailyRange },
+                { label: 'Custom', range: 'custom' as DailyRange },
+              ].map(t => (
+                <button
+                  key={t.range}
+                  onClick={() => setDailyRange(t.range)}
+                  className="cursor-pointer"
+                  style={{
+                    padding: '4px 8px', borderRadius: 6, border: '1px solid #E2E8F0',
+                    background: dailyRange === t.range ? '#1E293B' : '#fff',
+                    color: dailyRange === t.range ? '#fff' : '#64748B',
+                    fontSize: 10, fontWeight: 500,
+                  }}
+                >
+                  {t.label}
+                </button>
+              ))}
             </div>
           </div>
-          <div className="daily-range-bar" style={{ display: 'flex', gap: 6, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-            <button onClick={() => setDailyRange('7d')} style={rangeBtn(dailyRange === '7d')}>Son 7 gün</button>
-            <button onClick={() => setDailyRange('14d')} style={rangeBtn(dailyRange === '14d')}>Son 14 gün</button>
-            <button onClick={() => setDailyRange('month')} style={rangeBtn(dailyRange === 'month')}>Bu ay</button>
-            <button onClick={() => setDailyRange('custom')} style={rangeBtn(dailyRange === 'custom')}>Özel aralık</button>
-            {dailyRange === 'custom' && (
-              <>
-                <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} style={{ ...selectStyle, padding: '4px 8px', fontSize: 11 }} />
-                <span style={{ color: 'var(--text-secondary)', fontSize: 11 }}>–</span>
-                <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} style={{ ...selectStyle, padding: '4px 8px', fontSize: 11 }} />
-              </>
-            )}
-          </div>
+          {dailyRange === 'custom' && (
+            <div className="flex gap-2 mb-3 items-center flex-wrap">
+              <input type="date" value={customStart} onChange={e => setCustomStart(e.target.value)} style={{ ...SELECT_STYLE, padding: '4px 8px', fontSize: 11 }} />
+              <span style={{ color: COLORS.sub, fontSize: 11 }}>\u2013</span>
+              <input type="date" value={customEnd} onChange={e => setCustomEnd(e.target.value)} style={{ ...SELECT_STYLE, padding: '4px 8px', fontSize: 11 }} />
+            </div>
+          )}
           {dailyChartData.length > 0 ? (
-            <ResponsiveContainer width="100%" height={190}>
-              <LineChart data={dailyChartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
-                <XAxis dataKey="day" tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} tickFormatter={v => `€${(v / 1000).toFixed(0)}k`} />
-                <Tooltip {...tooltipStyle} formatter={(value: any, name: any) => [fmtNum(Number(value)), name === 'sales' ? 'Satış' : 'Net Kâr']} />
-                <Line type="monotone" dataKey="sales" stroke="#6366f1" strokeWidth={2} dot={false} />
-                <Line type="monotone" dataKey="netProfit" stroke="#10b981" strokeWidth={2} dot={false} />
-              </LineChart>
+            <ResponsiveContainer width="100%" height={200}>
+              <ComposedChart data={dailyChartData} margin={{ top: 5, right: 5, left: -10, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="0" stroke={COLORS.border} vertical={false} />
+                <XAxis dataKey="day" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: COLORS.sub }} dy={6} />
+                <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 10, fill: COLORS.muted }} />
+                <Tooltip content={<ChartTooltip />} />
+                <Line type="monotone" dataKey="sales" stroke={COLORS.accent} strokeWidth={2} dot={false} />
+                <Line type="monotone" dataKey="netProfit" stroke={COLORS.green} strokeWidth={1.5} dot={false} strokeDasharray="4 4" />
+              </ComposedChart>
             </ResponsiveContainer>
           ) : (
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 190, color: 'var(--text-secondary)', fontSize: 13 }}>Bu ay için günlük veri bulunamadı</div>
+            <div className="flex items-center justify-center" style={{ height: 200, color: COLORS.sub, fontSize: 13 }}>
+              No daily data found for this month
+            </div>
           )}
-          <div style={{ display: 'flex', gap: 20, marginTop: 8 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}><div style={{ width: 12, height: 3, background: '#6366f1', borderRadius: 2 }} />Satış</div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}><div style={{ width: 12, height: 3, background: '#10b981', borderRadius: 2 }} />Net Kâr</div>
-          </div>
         </div>
       </div>
 
-      {/* BÖLÜM 3: MINI CARDS */}
-      <div className="mini-card-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 20 }}>
-        {/* Bu Ay vs Geçen Ay */}
-        <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.8s forwards', position: 'relative', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg, #6366f1, #818cf8)', opacity: 0.06 }} />
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 3, height: 16, borderRadius: 2, background: '#6366f1', display: 'inline-block' }} />
-            Bu Ay vs Ge\u00e7en Ay
-          </div>
-          {miniCompare('Sat\u0131\u015f', cur.sales, prev.sales)}
-          {miniCompare('Net K\u00e2r', curNetProfit, prevNetProfit)}
-          {miniCompare('Birim', cur.units, prev.units)}
-          {miniCompare('Reklam', displayAd, displayAdPrev)}
-        </div>
-
-        {/* Geçen Ay vs 2 Ay Önce */}
-        <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.85s forwards', position: 'relative', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg, #a78bfa, #c4b5fd)', opacity: 0.06 }} />
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 3, height: 16, borderRadius: 2, background: '#a78bfa', display: 'inline-block' }} />
-            Ge\u00e7en Ay vs 2 Ay \u00d6nce
-          </div>
-          {miniCompare('Sat\u0131\u015f', prev.sales, prevPrev.sales)}
-          {miniCompare('Net K\u00e2r', prevNetProfit, prevPrevNetProfit)}
-          {miniCompare('Birim', prev.units, prevPrev.units)}
-          {miniCompare('\u0130ade', prev.refunds, prevPrev.refunds)}
-        </div>
-
-        {/* En Çok Satan Ürünler */}
-        <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.9s forwards', position: 'relative', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg, #10b981, #34d399)', opacity: 0.06 }} />
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 3, height: 16, borderRadius: 2, background: '#10b981', display: 'inline-block' }} />
-            {'\uD83C\uDFC6'} En \u00c7ok Satan \u00dcr\u00fcnler
-          </div>
-          {topProducts.length > 0 ? topProducts.map((p, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 8px', marginBottom: 4, borderRadius: 8, background: i === 0 ? 'rgba(16,185,129,0.06)' : 'transparent', gap: 8, transition: 'background 0.15s' }}>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: 10, color: '#6366f1', fontWeight: 600, marginBottom: 1 }}>{p.sku}</div>
-                <div style={{ fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title.substring(0, 30)}</div>
-                <div style={{ fontSize: 9.5, color: 'var(--text-muted)', marginTop: 1 }}>{p.units.toLocaleString('de-DE')} adet</div>
+      {/* 4 MINI CARDS */}
+      <div className="grid-4" style={{ marginBottom: 20 }}>
+        {/* Ayin Sampiyonu */}
+        {topProducts.length > 0 ? (() => {
+          const champ = topProducts[0]
+          const champImg = getImgBySku(champ.sku)
+          const champAsin = asinFromSku(champ.sku)
+          const champName = (champ.title || champ.sku).substring(0, 50)
+          return (
+            <div style={{ ...CARD_STYLE, padding: '18px 20px', position: 'relative', overflow: 'hidden' }}>
+              <div style={{ position: 'absolute', top: 10, right: 12, fontSize: 28, opacity: 0.12 }}>🏆</div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                <div style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FEF3C7', fontSize: 16 }}>🏆</div>
+                <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Champion of the Month</span>
               </div>
-              <span style={{ fontSize: 13, fontWeight: 700, flexShrink: 0, color: '#10b981' }}>{fmtNum(p.sales)}</span>
+              <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 14 }}>
+                {champImg?.image_url ? (
+                  <a href={champAsin ? `/products/${champAsin}` : '#'} style={{ flexShrink: 0, lineHeight: 0 }}>
+                    <img src={champImg.image_url} alt="" style={{ width: 64, height: 64, borderRadius: 10, objectFit: 'cover', border: `1px solid ${COLORS.border}` }} />
+                  </a>
+                ) : <ImgPlaceholder size={64} />}
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 160 }}>{champName}</div>
+                  <div style={{ fontSize: 11, color: COLORS.sub, marginTop: 2 }}>{champ.sku}</div>
+                </div>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
+                <div>
+                  <div style={{ fontSize: 10, color: COLORS.sub, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Units Sold</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.accent }}>{champ.units.toLocaleString('de-DE')}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: COLORS.sub, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Revenue</div>
+                  <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.green }}>{fmtNum(champ.sales)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: COLORS.sub, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>In Stock</div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: (champ.stock || 0) === 0 ? COLORS.red : (champ.stock || 0) < 20 ? COLORS.orange : COLORS.text }}>{champ.stock != null ? champ.stock.toLocaleString('de-DE') : '—'}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: 10, color: COLORS.sub, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Avg Price</div>
+                  <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.text }}>{champ.avgPrice ? `€${champ.avgPrice.toFixed(2)}` : '—'}</div>
+                </div>
+              </div>
             </div>
-          )) : topSellersMp.map((mp, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: i < topSellersMp.length - 1 ? '1px solid var(--border-color)' : 'none' }}>
-              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{MARKETPLACE_FLAG_MAP[mp.marketplace] || ''} {mp.marketplace.replace('Amazon.', '')}</span>
-              <span style={{ fontSize: 12, fontWeight: 600 }}>{fmtNum(mp.sales)}</span>
+          )
+        })() : (
+          <div style={{ ...CARD_STYLE, padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 12, color: COLORS.sub }}>Loading champion...</span>
+          </div>
+        )}
+
+        {/* Bu Ay vs Gecen */}
+        <div style={{ ...CARD_STYLE, padding: '18px 20px' }}>
+          <div className="flex items-center gap-2 mb-[14px]">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: COLORS.accentLight, color: COLORS.accent }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M18 20V10M12 20V4M6 20v-6" stroke="currentColor" strokeWidth="2" /></svg>
+            </div>
+            <span className="text-sm font-bold" style={{ color: COLORS.text }}>This Month vs Last</span>
+          </div>
+          {[
+            { l: 'Sales', v: fmtNum(cur.sales), c: pctChange(cur.sales, prev.sales) },
+            { l: 'Net Profit', v: fmtNum(curNetProfit), c: pctChange(curNetProfit, prevNetProfit) },
+            { l: 'Units', v: cur.units.toLocaleString('de-DE'), c: pctChange(cur.units, prev.units) },
+            { l: 'Ads', v: fmtNum(displayAd), c: pctChange(displayAd, displayAdPrev) },
+          ].map(r => (
+            <div key={r.l} className="flex justify-between items-center py-2" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+              <span className="text-[13px]" style={{ color: '#64748B' }}>{r.l}</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold" style={{ color: COLORS.text }}>{r.v}</span>
+                <ChangeBadge text={`${r.c > 0 ? '\u2191' : '\u2193'}${Math.abs(r.c).toFixed(1)}%`} up={r.c > 0} />
+              </div>
             </div>
           ))}
         </div>
 
-        {/* En Çok İade Ürünler */}
-        <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.95s forwards', position: 'relative', overflow: 'hidden' }}>
-          <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: 'linear-gradient(135deg, #ef4444, #f87171)', opacity: 0.06 }} />
-          <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
-            <span style={{ width: 3, height: 16, borderRadius: 2, background: '#ef4444', display: 'inline-block' }} />
-            {'\u26A0\uFE0F'} En \u00c7ok \u0130ade \u00dcr\u00fcnler
+        {/* En Cok Satan */}
+        <div style={{ ...CARD_STYLE, padding: '18px 20px' }}>
+          <div className="flex items-center gap-2 mb-[14px]">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#FEF3C7', color: COLORS.orange }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" strokeWidth="2" /></svg>
+            </div>
+            <span className="text-sm font-bold" style={{ color: COLORS.text }}>Top Sellers</span>
           </div>
-          {topRefundProducts.length > 0 ? topRefundProducts.map((p, i) => (
-            <div key={i} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '7px 8px', marginBottom: 4, borderRadius: 8, background: i === 0 ? 'rgba(239,68,68,0.06)' : 'transparent', gap: 8 }}>
-              <div style={{ minWidth: 0, flex: 1 }}>
-                <div style={{ fontSize: 10, color: '#6366f1', fontWeight: 600, marginBottom: 1 }}>{p.sku}</div>
-                <div style={{ fontSize: 11, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{p.title.substring(0, 30)}</div>
-              </div>
-              <div style={{ textAlign: 'right', flexShrink: 0 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: '#ef4444' }}>{fmtNum(p.refunds)}</div>
-                <div style={{ fontSize: 9, color: 'var(--text-muted)' }}>%{p.refundRate.toFixed(1)}</div>
-              </div>
+          {topProducts.length > 0 ? topProducts.map((p, i) => (
+            <div key={i} className="flex justify-between items-center py-2" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+              <span className="text-[13px] font-semibold cursor-pointer" style={{ color: COLORS.accent }}>{p.sku}</span>
+              <span className="text-sm font-bold" style={{ color: COLORS.text }}>{fmtNum(p.sales)}</span>
             </div>
           )) : (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '20px 10px', color: 'var(--text-muted)' }}>
-              <div style={{ fontSize: 28, marginBottom: 8, opacity: 0.3 }}>{'\u2705'}</div>
-              <div style={{ fontSize: 12, fontWeight: 500 }}>\u0130ade verisi bulunamad\u0131</div>
-              <div style={{ fontSize: 10, marginTop: 4 }}>Bu d\u00f6nemde iade kayd\u0131 yok</div>
-            </div>
+            <div className="text-center py-4" style={{ color: COLORS.sub, fontSize: 12 }}>Loading product data...</div>
           )}
         </div>
-      </div>
 
-      {/* BÖLÜM 4: AI ÖNERILER + HIZLI AKSİYONLAR */}
-      <div className="ai-grid" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 14, marginBottom: 20 }}>
-        {/* AI Öneriler */}
-        <div style={{ ...cardStyle, background: 'var(--ai-gradient)', border: '1px solid var(--border-color)', opacity: 0, animation: 'fadeInUp 0.6s ease-out 1s forwards' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-            <span style={{ fontSize: 18 }}>{'\uD83E\uDD16'}</span>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>AI Öneriler</div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)' }}>Yapay zeka tabanlı içgörüler</div>
+        {/* Hizli Aksiyonlar */}
+        <div style={{ ...CARD_STYLE, padding: '18px 20px' }}>
+          <div className="flex items-center gap-2 mb-[14px]">
+            <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#FDF2F8', color: '#EC4899' }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" strokeWidth="2" /></svg>
             </div>
+            <span className="text-sm font-bold" style={{ color: COLORS.text }}>Quick Actions</span>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            {aiInsights.map((insight, i) => (
-              <div key={i} style={{ background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 10, padding: '12px 14px', borderLeft: `3px solid ${insight.color}` }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
-                  <span>{insight.icon}</span>
-                  <span style={{ fontSize: 10, color: insight.color, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{insight.type}</span>
-                </div>
-                <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{insight.title}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>{insight.desc}</div>
+          {quickActions.map((a, i) => (
+            <div key={i} className="flex items-center justify-between mb-1 rounded-lg" style={{ padding: '10px 12px', background: '#F8FAFC' }}>
+              <div className="flex items-center gap-2">
+                <div className="rounded-full" style={{ width: 6, height: 6, background: a.statusColor }} />
+                <span className="text-xs font-medium" style={{ color: COLORS.text }}>{a.label}</span>
               </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Hızlı Aksiyonlar */}
-        <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 1.05s forwards' }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 14 }}>Hızlı Aksiyonlar</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {quickActions.map((action, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px', background: 'var(--bg-elevated)', borderRadius: 8, border: '1px solid var(--border-color)' }}>
-                <div style={{ width: 8, height: 8, borderRadius: '50%', background: action.statusColor, flexShrink: 0 }} />
-                <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 12, fontWeight: 500 }}>{action.label}</div>
-                  <div style={{ fontSize: 10, color: action.statusColor, marginTop: 2 }}>{action.status}</div>
-                </div>
-              </div>
-            ))}
-          </div>
+              <span className="text-[10px] font-semibold" style={{ color: a.statusColor }}>{a.status}</span>
+            </div>
+          ))}
         </div>
       </div>
 
-      {/* BÖLÜM 5: P&L TABLE */}
-      <div style={{ ...cardStyle, marginBottom: 20, opacity: 0, animation: 'fadeInUp 0.6s ease-out 1.1s forwards' }}>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>P&L Tablosu</div>
-        <div className="pl-table-wrap" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-            <thead>
-              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <th style={thStyle('left')}>Kalem</th>
-                <th style={thStyle('right')}>{selectedMonth}</th>
-                {hasPrev && <th style={thStyle('right')}>{prevMonthStr}</th>}
-                <th style={thStyle('right')}>Değişim</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <td style={{ padding: '8px' }}>Sales</td>
-                {plCell(cur.sales)}
-                {hasPrev && plPrevCell(prev.sales)}
-                {plChangeCell(cur.sales, prev.sales)}
-              </tr>
-              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <td style={{ padding: '8px' }}>Promo</td>
-                {plCell(-cur.promo)}
-                {hasPrev && plPrevCell(-prev.promo)}
-                {plChangeCell(cur.promo, prev.promo, true)}
-              </tr>
-              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <td style={{ padding: '8px' }}>Refunds</td>
-                {plCell(-cur.refunds)}
-                {hasPrev && plPrevCell(-prev.refunds)}
-                {plChangeCell(cur.refunds, prev.refunds, true)}
-              </tr>
-              {/* Amazon Fees - expandable */}
-              <tr style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer' }} onClick={() => setFeesExpanded(!feesExpanded)}>
-                <td style={{ padding: '8px' }}>{feesExpanded ? '▼' : '▶'} Amazon Fees</td>
-                {plCell(-curTotalFees)}
-                {hasPrev && plPrevCell(-prevTotalFees)}
-                {plChangeCell(curTotalFees, prevTotalFees, true)}
-              </tr>
-              {feesExpanded && (
-                <>
-                  {[
+      {/* AI ONERILER */}
+      <AIInsights
+        title="AI Insights"
+        subtitle="AI-powered recommendations"
+        insights={aiInsights.map((ins, i) => ({
+          type: ins.type,
+          title: ins.title,
+          desc: ins.desc,
+          color: insightBorder(i + 1),
+        }))}
+      />
+
+      {/* P&L + MARKETPLACE TABBED */}
+      <div style={{ ...CARD_STYLE, padding: 0, overflow: 'hidden' }}>
+        <div className="flex" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+          {[
+            { id: 'pl' as const, l: 'P&L Table' },
+            { id: 'mkt' as const, l: 'Marketplace Breakdown' },
+          ].map(t => (
+            <button
+              key={t.id}
+              onClick={() => setBtmTab(t.id)}
+              className="cursor-pointer"
+              style={{
+                padding: '14px 24px', border: 'none', background: 'transparent',
+                fontSize: 14, fontWeight: btmTab === t.id ? 600 : 400,
+                color: btmTab === t.id ? COLORS.accent : COLORS.sub,
+                borderBottom: btmTab === t.id ? `2px solid ${COLORS.accent}` : '2px solid transparent',
+              }}
+            >
+              {t.l}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ padding: '20px 24px' }}>
+          {btmTab === 'pl' && (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: `2px solid ${COLORS.border}` }}>
+                    {['Item', selectedMonth, ...(hasPrev ? [prevMonthStr] : []), 'Change'].map(h => (
+                      <th key={h} style={{ padding: '10px 12px', textAlign: h === 'Kalem' ? 'left' : 'right', fontSize: 12, fontWeight: 600, color: COLORS.sub }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {/* Sales */}
+                  <tr className="table-row-hover" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, color: COLORS.text }}>Sales</td>
+                    {plCell(cur.sales)}
+                    {hasPrev && plPrevCell(prev.sales)}
+                    {plChangeCell(cur.sales, prev.sales)}
+                  </tr>
+                  {/* Promo */}
+                  <tr className="table-row-hover" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, color: COLORS.text }}>Promo</td>
+                    {plCell(-cur.promo)}
+                    {hasPrev && plPrevCell(-prev.promo)}
+                    {plChangeCell(cur.promo, prev.promo, true)}
+                  </tr>
+                  {/* Refunds */}
+                  <tr className="table-row-hover" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, color: COLORS.text }}>Refunds</td>
+                    {plCell(-cur.refunds)}
+                    {hasPrev && plPrevCell(-prev.refunds)}
+                    {plChangeCell(cur.refunds, prev.refunds, true)}
+                  </tr>
+                  {/* Amazon Fees - expandable */}
+                  <tr className="table-row-hover cursor-pointer" onClick={() => setFeesExpanded(!feesExpanded)} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, color: COLORS.text }}>{feesExpanded ? '\u25BC' : '\u25B6'} Amazon Fees</td>
+                    {plCell(-curTotalFees)}
+                    {hasPrev && plPrevCell(-prevTotalFees)}
+                    {plChangeCell(curTotalFees, prevTotalFees, true)}
+                  </tr>
+                  {feesExpanded && [
                     { label: 'Commission', curV: cur.commission, prevV: prev.commission },
                     { label: 'FBA Fees', curV: cur.fba, prevV: prev.fba },
                     { label: 'Storage & Aged', curV: cur.storage, prevV: prev.storage },
                     { label: 'Return Management', curV: cur.return_mgmt, prevV: prev.return_mgmt },
                     { label: 'Digital Services', curV: cur.digital_fba + cur.digital_sell, prevV: prev.digital_fba + prev.digital_sell },
                   ].map((sub, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid var(--border-color)', background: 'var(--bg-sub-row)' }}>
-                      <td style={{ padding: '8px 12px 8px 32px', fontSize: 12, color: 'var(--text-secondary)' }}>{sub.label}</td>
-                      <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, color: '#ef4444' }}>{fmtNum(-sub.curV)}</td>
-                      {hasPrev && <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, color: 'var(--text-secondary)' }}>{fmtNum(-sub.prevV)}</td>}
+                    <tr key={i} style={{ borderBottom: `1px solid ${COLORS.border}`, background: '#FAFBFE' }}>
+                      <td style={{ padding: '10px 12px 10px 32px', fontSize: 12, color: COLORS.sub }}>{sub.label}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 12, color: COLORS.red }}>{fmtNum(-sub.curV)}</td>
+                      {hasPrev && <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 12, color: '#64748B' }}>{fmtNum(-sub.prevV)}</td>}
                       {plChangeCell(sub.curV, sub.prevV, true)}
                     </tr>
                   ))}
-                </>
-              )}
-              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <td style={{ padding: '8px' }}>COGS</td>
-                {plCell(-cur.cogs)}
-                {hasPrev && plPrevCell(-prev.cogs)}
-                {plChangeCell(cur.cogs, prev.cogs, true)}
-              </tr>
-              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <td style={{ padding: '8px' }}>Subscription</td>
-                {plCell(-cur.subscription)}
-                {hasPrev && plPrevCell(-prev.subscription)}
-                {plChangeCell(cur.subscription, prev.subscription, true)}
-              </tr>
-              {/* Advertising - expandable */}
-              <tr style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer' }} onClick={() => setAdsExpanded(!adsExpanded)}>
-                <td style={{ padding: '8px' }}>{adsExpanded ? '▼' : '▶'} Advertising (SP + SB)</td>
-                {plCell(-displayAd)}
-                {hasPrev && plPrevCell(-displayAdPrev)}
-                {plChangeCell(displayAd, displayAdPrev, true)}
-              </tr>
-              {adsExpanded && (
-                <>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'var(--bg-sub-row)' }}>
-                    <td style={{ padding: '8px 12px 8px 32px', fontSize: 12, color: 'var(--text-secondary)' }}>SP (Sponsored Products)</td>
-                    <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, color: '#ef4444' }}>{fmtNum(-displaySp)}</td>
-                    {hasPrev && <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, color: 'var(--text-secondary)' }}>{fmtNum(-displaySpPrev)}</td>}
-                    {plChangeCell(displaySp, displaySpPrev, true)}
+                  {/* COGS */}
+                  <tr className="table-row-hover" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, color: COLORS.text }}>COGS</td>
+                    {plCell(-cur.cogs)}
+                    {hasPrev && plPrevCell(-prev.cogs)}
+                    {plChangeCell(cur.cogs, prev.cogs, true)}
                   </tr>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)', background: 'var(--bg-sub-row)' }}>
-                    <td style={{ padding: '8px 12px 8px 32px', fontSize: 12, color: 'var(--text-secondary)' }}>SB (Sponsored Brands)</td>
-                    <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, color: '#ef4444' }}>{fmtNum(-displaySb)}</td>
-                    {hasPrev && <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, color: 'var(--text-secondary)' }}>{fmtNum(-displaySbPrev)}</td>}
-                    {plChangeCell(displaySb, displaySbPrev, true)}
+                  {/* Subscription */}
+                  <tr className="table-row-hover" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, color: COLORS.text }}>Subscription</td>
+                    {plCell(-cur.subscription)}
+                    {hasPrev && plPrevCell(-prev.subscription)}
+                    {plChangeCell(cur.subscription, prev.subscription, true)}
                   </tr>
-                </>
-              )}
-              {/* Net Profit */}
-              <tr style={{ borderTop: '2px solid var(--border-color)', background: 'rgba(99,102,241,0.04)' }}>
-                <td style={{ padding: '12px', fontWeight: 700 }}>Net Profit</td>
-                <td style={{ padding: '12px', textAlign: 'right', fontWeight: 700, fontSize: 15, color: curNetProfit >= 0 ? '#10b981' : '#ef4444' }}>{fmtNum(curNetProfit)}</td>
-                {hasPrev && <td style={{ padding: '12px', textAlign: 'right', color: 'var(--text-secondary)', fontWeight: 600 }}>{fmtNum(prevNetProfit)}</td>}
-                <td style={{ padding: '12px', textAlign: 'right', color: changeArrow(pctChange(curNetProfit, prevNetProfit)).color, fontSize: 12, fontWeight: 600 }}>
-                  {changeArrow(pctChange(curNetProfit, prevNetProfit)).symbol} {Math.abs(pctChange(curNetProfit, prevNetProfit)).toFixed(1)}%
-                </td>
-              </tr>
-              <tr style={{ background: 'rgba(99,102,241,0.04)' }}>
-                <td style={{ padding: '10px 12px', fontWeight: 600 }}>Margin %</td>
-                <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 700, color: curMargin >= 0 ? '#10b981' : '#ef4444' }}>{fmtPct(curMargin)}</td>
-                {hasPrev && <td style={{ padding: '10px 12px', textAlign: 'right', color: 'var(--text-secondary)' }}>{fmtPct(prevMargin)}</td>}
-                <td style={{ padding: '10px 12px', textAlign: 'right', color: changeArrow(curMargin - prevMargin).color, fontSize: 12 }}>
-                  {changeArrow(curMargin - prevMargin).symbol} {Math.abs(curMargin - prevMargin).toFixed(1)}pp
-                </td>
-              </tr>
-            </tbody>
-          </table>
+                  {/* Advertising - expandable */}
+                  <tr className="table-row-hover cursor-pointer" onClick={() => setAdsExpanded(!adsExpanded)} style={{ borderBottom: `1px solid ${COLORS.border}` }}>
+                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, color: COLORS.text }}>{adsExpanded ? '\u25BC' : '\u25B6'} Advertising</td>
+                    {plCell(-displayAd)}
+                    {hasPrev && plPrevCell(-displayAdPrev)}
+                    {plChangeCell(displayAd, displayAdPrev, true)}
+                  </tr>
+                  {adsExpanded && [
+                    { label: 'SP (Sponsored Products)', curV: displaySp, prevV: displaySpPrev },
+                    { label: 'SB (Sponsored Brands)', curV: displaySb, prevV: displaySbPrev },
+                  ].map((sub, i) => (
+                    <tr key={i} style={{ borderBottom: `1px solid ${COLORS.border}`, background: '#FAFBFE' }}>
+                      <td style={{ padding: '10px 12px 10px 32px', fontSize: 12, color: COLORS.sub }}>{sub.label}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 12, color: COLORS.red }}>{fmtNum(-sub.curV)}</td>
+                      {hasPrev && <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 12, color: '#64748B' }}>{fmtNum(-sub.prevV)}</td>}
+                      {plChangeCell(sub.curV, sub.prevV, true)}
+                    </tr>
+                  ))}
+                  {/* Net Profit */}
+                  <tr style={{ borderTop: `2px solid ${COLORS.border}`, background: '#FAFBFE' }}>
+                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 700, color: COLORS.text }}>{'\u25B8'} Net Profit</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 13, fontWeight: 700, color: curNetProfit >= 0 ? COLORS.green : COLORS.red }}>{fmtNum(curNetProfit)}</td>
+                    {hasPrev && <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 13, color: '#64748B' }}>{fmtNum(prevNetProfit)}</td>}
+                    {plChangeCell(curNetProfit, prevNetProfit)}
+                  </tr>
+                  {/* Margin */}
+                  <tr style={{ background: '#FAFBFE' }}>
+                    <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 700, color: COLORS.text }}>{'\u25B8'} Margin %</td>
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 13, fontWeight: 700, color: curMargin >= 0 ? COLORS.green : COLORS.red }}>{fmtPct(curMargin)}</td>
+                    {hasPrev && <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 13, color: '#64748B' }}>{fmtPct(prevMargin)}</td>}
+                    <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: curMargin >= prevMargin ? COLORS.green : COLORS.red }}>
+                      {curMargin >= prevMargin ? '\u2191' : '\u2193'} {Math.abs(curMargin - prevMargin).toFixed(1)}pp
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {btmTab === 'mkt' && (
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 800 }}>
+                <thead>
+                  <tr style={{ borderBottom: `2px solid ${COLORS.border}` }}>
+                    {([
+                      { key: 'marketplace' as SortKey, label: 'Marketplace', align: 'left' },
+                      { key: 'sales' as SortKey, label: 'Sales \u2193', align: 'right' },
+                      { key: 'units' as SortKey, label: 'Units', align: 'right' },
+                      { key: 'fees' as SortKey, label: 'Amazon Fees', align: 'right' },
+                      { key: 'adSpend' as SortKey, label: 'Ads', align: 'right' },
+                      { key: 'cogs' as SortKey, label: 'COGS', align: 'right' },
+                      { key: 'netProfit' as SortKey, label: 'Net Profit', align: 'right' },
+                      { key: 'margin' as SortKey, label: 'Margin', align: 'right' },
+                    ]).map(h => (
+                      <th
+                        key={h.key}
+                        onClick={() => handleMpSort(h.key)}
+                        className="cursor-pointer select-none whitespace-nowrap"
+                        style={{ padding: '10px 12px', textAlign: h.align as any, fontSize: 12, fontWeight: 600, color: mpSortKey === h.key ? COLORS.accent : COLORS.sub }}
+                      >
+                        {h.label}{sortIndicator(h.key)}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {mpRows.map((mp, i) => (
+                    <tr
+                      key={i}
+                      className="table-row-hover cursor-pointer"
+                      style={{ borderBottom: `1px solid ${COLORS.border}` }}
+                      onClick={() => setSelectedMarketplace(mp.marketplace)}
+                    >
+                      <td style={{ padding: '10px 12px', fontSize: 13, fontWeight: 500, color: COLORS.text }}>{MARKETPLACE_FLAG_MAP[mp.marketplace] || '\u{1F30D}'} {mp.marketplace}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 13, fontWeight: 600, color: COLORS.text }}>{fmtNum(mp.sales)}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 13, color: '#64748B' }}>{mp.units}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 13, color: COLORS.red }}>{fmtNum(mp.fees)}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 13, color: COLORS.orange }}>{fmtNum(mp.adSpend)}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 13, color: '#64748B' }}>{fmtNum(mp.cogs)}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 13, fontWeight: 600, color: mp.netProfit >= 0 ? COLORS.green : COLORS.red }}>{fmtNum(mp.netProfit)}</td>
+                      <td style={{ padding: '10px 12px', textAlign: 'right', fontSize: 13, fontWeight: 600, color: mp.margin >= 0 ? COLORS.green : COLORS.red }}>{fmtPct(mp.margin)}</td>
+                    </tr>
+                  ))}
+                  {mpRows.length === 0 && (
+                    <tr><td colSpan={8} style={{ padding: 20, textAlign: 'center', color: COLORS.sub }}>No marketplace data found for this month</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          )}
         </div>
       </div>
-
-      {/* BÖLÜM 6: MARKETPLACE BREAKDOWN */}
-      {selectedMarketplace === 'all' && (
-        <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 1.2s forwards' }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Marketplace Kırılımı</div>
-          <div className="mp-table-wrap" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                  {([
-                    { key: 'marketplace' as SortKey, label: 'Marketplace', align: 'left' },
-                    { key: 'sales' as SortKey, label: 'Satış', align: 'right' },
-                    { key: 'units' as SortKey, label: 'Birim', align: 'right' },
-                    { key: 'fees' as SortKey, label: 'Amazon Fees', align: 'right' },
-                    { key: 'adSpend' as SortKey, label: 'Reklam', align: 'right' },
-                    { key: 'cogs' as SortKey, label: 'COGS', align: 'right' },
-                    { key: 'netProfit' as SortKey, label: 'Net Kâr', align: 'right' },
-                    { key: 'margin' as SortKey, label: 'Marj', align: 'right' },
-                  ]).map(h => (
-                    <th key={h.key} onClick={() => handleMpSort(h.key)} style={{ ...thStyle(h.align), color: mpSortKey === h.key ? '#6366f1' : 'var(--text-secondary)', cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }}>
-                      {h.label}{sortIndicator(h.key)}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {mpRows.map((mp, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer', transition: 'background 0.15s' }}
-                    onMouseEnter={e => (e.currentTarget.style.background = 'rgba(99,102,241,0.04)')}
-                    onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                    onClick={() => setSelectedMarketplace(mp.marketplace)}
-                  >
-                    <td style={{ padding: '10px 12px', fontWeight: 500 }}>{MARKETPLACE_FLAG_MAP[mp.marketplace] || '🌍'} {mp.marketplace}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right' }}>{fmtNum(mp.sales)}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right' }}>{mp.units.toLocaleString('de-DE')}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#ef4444' }}>{fmtNum(mp.fees)}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#f59e0b' }}>{fmtNum(mp.adSpend)}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', color: '#ef4444' }}>{fmtNum(mp.cogs)}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: mp.netProfit >= 0 ? '#10b981' : '#ef4444' }}>{fmtNum(mp.netProfit)}</td>
-                    <td style={{ padding: '10px 12px', textAlign: 'right', fontWeight: 600, color: mp.margin >= 0 ? '#10b981' : '#ef4444' }}>{fmtPct(mp.margin)}</td>
-                  </tr>
-                ))}
-                {mpRows.length === 0 && (
-                  <tr><td colSpan={8} style={{ padding: 20, textAlign: 'center', color: 'var(--text-secondary)' }}>Bu ay için marketplace verisi bulunamadı</td></tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
-    </DashboardShell>
+    </>
   )
 }

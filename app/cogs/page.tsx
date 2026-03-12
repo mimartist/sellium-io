@@ -2,12 +2,15 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import DashboardShell from '../components/DashboardShell'
-import Sidebar from '../components/Sidebar'
 import {
-  Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
-  BarChart, ScatterChart, Scatter, ZAxis, Cell,
+  ScatterChart, Scatter, XAxis, YAxis, ZAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell,
 } from 'recharts'
+import KpiCard from '@/components/ui/KpiCard'
+import { KpiIcons } from '@/components/ui/KpiIcons'
+import AIInsights, { type Insight } from '@/components/ui/AIInsights'
+import { ImgPlaceholder } from '@/components/ui/Badges'
+import { useProductImages } from '@/hooks/useProductImages'
+import { COLORS, CARD_STYLE, SELECT_STYLE, TH_STYLE } from '@/lib/design-tokens'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -135,6 +138,7 @@ async function fetchAll(query: any): Promise<any[]> {
 }
 
 export default function COGSPage() {
+  const { getBySku, asinFromSku, getByAsin } = useProductImages()
   const monthOptions = useMemo(() => generateMonthOptions(), [])
   const [selectedMonth, setSelectedMonth] = useState(monthOptions[0])
   const [selectedMarketplace, setSelectedMarketplace] = useState('all')
@@ -151,6 +155,8 @@ export default function COGSPage() {
   const [editingGroup, setEditingGroup] = useState<string | null>(null)
   const [editPackCost, setEditPackCost] = useState('')
   const [editOtherCost, setEditOtherCost] = useState('')
+  const [costTab, setCostTab] = useState<string>('combined')
+  const [isMobile, setIsMobile] = useState(false)
 
   // ========== FETCH ==========
   const fetchData = useCallback(async () => {
@@ -352,6 +358,19 @@ export default function COGSPage() {
 
   useEffect(() => { fetchData() }, [fetchData])
 
+  useEffect(() => {
+    const check = () => setIsMobile(window.innerWidth < 768)
+    check()
+    window.addEventListener('resize', check)
+    return () => window.removeEventListener('resize', check)
+  }, [])
+
+  useEffect(() => {
+    if (isMobile && costTab === 'combined') setCostTab('breakdown')
+    if (!isMobile && (costTab === 'breakdown' || costTab === 'edit')) setCostTab('combined')
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isMobile])
+
   // ========== 3-Level grouping: Parent ASIN > Color Group > SKU ==========
   const parentGroups = useMemo(() => {
     // Step 1: Group SKUs into color groups (LEFT(sku,7))
@@ -472,20 +491,21 @@ export default function COGSPage() {
     }))
   }, [skuRows])
 
-  // ========== Waterfall ==========
-  const waterfallData = useMemo(() => {
+  // ========== Cost Bars ==========
+  const costBarsData = useMemo(() => {
     if (!sel) return []
     return [
-      { name: 'Satış Fiyatı', value: sel.avgPrice, fill: '#22c55e' },
-      { name: 'COGS', value: -sel.cogs, fill: '#ef4444' },
-      { name: 'Komisyon', value: -sel.commission, fill: '#ef4444' },
-      { name: 'FBA Kargo', value: -sel.fba, fill: '#ef4444' },
-      { name: 'Depolama', value: -sel.storage, fill: '#f59e0b' },
-      { name: 'İade+Digital', value: -(sel.returnMgmt + sel.digital), fill: '#f59e0b' },
-      { name: 'Reklam', value: -sel.adSpend, fill: '#f59e0b' },
-      { name: 'Net Kâr', value: sel.profitPerUnit, fill: sel.profitPerUnit >= 0 ? '#3b82f6' : '#ef4444' },
+      { label: 'Selling price', value: sel.avgPrice, color: COLORS.costBars[0] },
+      { label: 'COGS', value: -sel.cogs, color: COLORS.costBars[1] },
+      { label: 'Commission', value: -sel.commission, color: COLORS.costBars[2] },
+      { label: 'FBA Shipping', value: -sel.fba, color: COLORS.costBars[3] },
+      { label: 'Storage', value: -sel.storage, color: COLORS.costBars[4] },
+      { label: 'Returns+Digital', value: -(sel.returnMgmt + sel.digital), color: COLORS.costBars[5] },
+      { label: 'Ads', value: -sel.adSpend, color: COLORS.costBars[6] },
+      { label: 'Net profit', value: sel.profitPerUnit, color: COLORS.profitBar },
     ]
   }, [sel])
+  const maxBarVal = useMemo(() => costBarsData.length > 0 ? Math.max(...costBarsData.map(b => Math.abs(b.value))) : 1, [costBarsData])
 
   // ========== Discount simulator ==========
   const discountTable = useMemo(() => {
@@ -533,6 +553,58 @@ export default function COGSPage() {
     return sorted[Math.floor(sorted.length / 2)].x
   }, [scatterData])
 
+  // ========== AI Insights ==========
+  const aiInsights = useMemo((): Insight[] => {
+    if (skuRows.length === 0) return []
+    const insights: Insight[] = []
+
+    // Worst SKU by ad spend ratio
+    const sorted = [...skuRows].filter(r => r.adSpend > 0).sort((a, b) => (b.adSpend / b.avgPrice) - (a.adSpend / a.avgPrice))
+    const worstAd = sorted[0]
+    if (worstAd && worstAd.margin < 5) {
+      insights.push({
+        type: 'PROFITABILITY',
+        title: `${worstAd.skuGroup} ${worstAd.margin < 0 ? 'is losing money' : 'has low margin'} — high ad cost`,
+        desc: `Ad spend per unit ${fmtEur(worstAd.adSpend)} consumes ${((worstAd.adSpend / worstAd.avgPrice) * 100).toFixed(0)}% of the selling price in ${worstAd.skuGroup} group. ${fmtEur(worstAd.profitPerUnit)} ${worstAd.margin < 0 ? 'loss' : 'profit'} per unit. Reduce ad budget and focus on organic sales.`,
+        color: COLORS.red,
+      })
+    }
+
+    // Best margin SKU with low volume
+    const bestMarginLowVol = [...skuRows].filter(r => r.margin > 30).sort((a, b) => a.units - b.units)[0]
+    if (bestMarginLowVol) {
+      insights.push({
+        type: 'EFFICIENCY',
+        title: `${bestMarginLowVol.skuGroup} is a star — increase traffic`,
+        desc: `Efficient with ${bestMarginLowVol.margin.toFixed(1)}% margin but only ${bestMarginLowVol.units} units sold. Increase SP campaign bids to drive more traffic.`,
+        color: COLORS.accent,
+      })
+    }
+
+    // Commission threshold opportunity
+    const nearThreshold = skuRows.filter(r => r.avgPrice > 19 && r.avgPrice < 21)
+    if (nearThreshold.length > 0) {
+      const groups = [...new Set(nearThreshold.map(r => r.skuGroup))]
+      insights.push({
+        type: 'COST',
+        title: `Commission threshold opportunity — ${groups.length} product groups near 20€`,
+        desc: `${groups.join(', ')} products are at the 20€ commission threshold. Pricing at 19.99€ reduces commission from 15% to 10% — ~1€ savings per unit.`,
+        color: COLORS.green,
+      })
+    }
+
+    if (insights.length === 0) {
+      insights.push({
+        type: 'INFO',
+        title: `Overview — ${lossMakingSkus.length} loss-making SKUs`,
+        desc: `Average margin ${avgMargin.toFixed(1)}%. ${lossMakingSkus.length > 0 ? `${lossMakingSkus.length} SKUs are losing money — review their ad and cost structure.` : 'All products are profitable.'}`,
+        color: COLORS.accent,
+      })
+    }
+
+    return insights
+  }, [skuRows, avgMargin, lossMakingSkus])
+
   // ========== Save COGS ==========
   const saveCost = async (skuPrefix: string) => {
     try {
@@ -544,7 +616,7 @@ export default function COGSPage() {
       await supabase.from('sku_cogs').insert({
         sku_prefix: skuPrefix, pack_cost_eur: newPackCost, other_cost_eur: newOtherCost,
         unit_cost_eur: newPackCost, valid_from: today, valid_to: null,
-        notes: `Manuel güncelleme - ${today}`,
+        notes: `Manual update - ${today}`,
       })
       setEditingGroup(null)
       fetchData()
@@ -560,94 +632,95 @@ export default function COGSPage() {
   }
   const sortIcon = (key: SortKey) => sortKey !== key ? ' ⇅' : sortDir === 'asc' ? ' ↑' : ' ↓'
 
-  const marginBadge = (margin: number) => {
-    let bg = '#22c55e20', color = '#22c55e'
-    if (margin < 10) { bg = '#ef444420'; color = '#ef4444' }
-    else if (margin < 30) { bg = '#f59e0b20'; color = '#f59e0b' }
-    return <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: bg, color }}>{fmtPct(margin)}</span>
-  }
+  const marginColor = (m: number) => m >= 35 ? COLORS.green : m >= 25 ? COLORS.orange : m >= 15 ? '#FB923C' : m >= 0 ? COLORS.orange : COLORS.red
 
-  // ========== Styles ==========
-  const cardStyle: React.CSSProperties = { background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: 20 }
-  const selectStyle: React.CSSProperties = { background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '7px 14px', fontSize: 12.5, color: 'var(--text-primary)', cursor: 'pointer', outline: 'none' }
-  const th: React.CSSProperties = { padding: '8px 6px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: 10.5, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }
-  const td: React.CSSProperties = { padding: '6px', fontSize: 11.5, fontFamily: 'monospace' }
-  const tooltipStyle = { contentStyle: { background: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)', borderRadius: 8, fontSize: 12, color: 'var(--text-primary)' }, labelStyle: { color: 'var(--text-secondary)' } }
-  const btnStyle: React.CSSProperties = { padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 600, cursor: 'pointer', border: 'none', minHeight: 44 }
+  const marginBadge = (margin: number) => {
+    const c = marginColor(margin)
+    return <span style={{ padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 600, background: `${c}18`, color: c }}>{fmtPct(margin)}</span>
+  }
 
   if (loading) {
     return (
-      <DashboardShell sidebar={<Sidebar />}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ width: 36, height: 36, border: '3px solid var(--border-color)', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Veriler yükleniyor...</div>
-          </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 36, height: 36, border: `3px solid ${COLORS.border}`, borderTopColor: COLORS.accent, borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+          <div style={{ color: COLORS.sub, fontSize: 13 }}>Loading data...</div>
         </div>
-      </DashboardShell>
+      </div>
     )
   }
 
   return (
-    <DashboardShell sidebar={<Sidebar />}>
+    <>
       {/* Header */}
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>COGS & Karlılık</h1>
-          <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '3px 0 0' }}>SKU bazlı maliyet ve kârlılık analizi · {selectedMonth}</p>
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: COLORS.text, margin: 0 }}>COGS & Profitability</h1>
+          <p style={{ fontSize: 13, color: COLORS.sub, margin: '2px 0 0' }}>SKU-level cost and profitability analysis · {selectedMonth}</p>
         </div>
-        <div className="header-controls" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} style={selectStyle}>
+        <div style={{ display: 'flex', gap: 10 }}>
+          <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} style={SELECT_STYLE}>
             {monthOptions.map(m => <option key={m} value={m}>{m}</option>)}
           </select>
-          <select value={selectedMarketplace} onChange={e => setSelectedMarketplace(e.target.value)} style={selectStyle}>
+          <select value={selectedMarketplace} onChange={e => setSelectedMarketplace(e.target.value)} style={SELECT_STYLE}>
             {MARKETPLACE_OPTIONS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
           </select>
         </div>
       </div>
 
-      {/* KPIs */}
-      <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 }}>
-        <div style={{ ...cardStyle, padding: '14px 16px', opacity: 0, animation: 'fadeInUp 0.5s ease-out 0s forwards' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>ORT. MARJ</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: avgMargin >= 0 ? '#22c55e' : '#ef4444' }}>{fmtPct(avgMargin)}</div>
-        </div>
-        <div style={{ ...cardStyle, padding: '14px 16px', opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.1s forwards' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>ZARAR EDEN SKU</div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: lossMakingSkus.length > 0 ? '#ef4444' : '#22c55e' }}>{lossMakingSkus.length}</div>
-        </div>
-        <div style={{ ...cardStyle, padding: '14px 16px', opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.2s forwards' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>EN KÂRLI ÜRÜN</div>
-          {bestSku ? (
-            <>
-              <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                {bestSku.parentTitle ? bestSku.parentTitle.substring(0, 30) : bestSku.sku}
-              </div>
-              <div style={{ fontSize: 11, color: '#22c55e' }}>{fmtEur(bestSku.profitPerUnit)}/birim · {fmtPct(bestSku.margin)}</div>
-            </>
-          ) : <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>—</div>}
-        </div>
-        <div style={{ ...cardStyle, padding: '14px 16px', opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.3s forwards' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>ORT. BREAKEVEN</div>
-          <div style={{ fontSize: 20, fontWeight: 700 }}>{fmtEur(avgBreakeven)}</div>
-          <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 2 }}>Maks indirim: {fmtPct(avgMaxDiscount)}</div>
-        </div>
+      {/* 4 KPI Cards */}
+      <div className="grid-4" style={{ marginBottom: 20 }}>
+        <KpiCard
+          label="AVG. MARGIN" value={fmtPct(avgMargin)}
+          change={lossMakingSkus.length > 0 ? `${lossMakingSkus.length} loss-making` : 'All profitable'} up={avgMargin > 0}
+          icon={KpiIcons.margin} bars={[55, 60, 58, 62, 68, 72, 75]}
+          color={COLORS.green} light={COLORS.greenLighter} iconBg={COLORS.greenLight}
+        />
+        <KpiCard
+          label="LOSS-MAKING SKU" value={String(lossMakingSkus.length)}
+          change={lossMakingSkus.length === 0 ? 'Great!' : 'Review'} up={lossMakingSkus.length === 0}
+          icon={KpiIcons.warning} bars={[90, 85, 78, 72, 68, 60, 55]}
+          color={COLORS.red} light={COLORS.redLighter} iconBg={COLORS.redLight}
+        />
+        <KpiCard
+          label="MOST PROFITABLE" value={bestSku ? bestSku.skuGroup : '—'}
+          change={bestSku ? `${fmtPct(bestSku.margin)} margin` : ''} up={true}
+          icon={KpiIcons.brand} bars={[40, 48, 55, 60, 68, 75, 85]}
+          color={COLORS.accent} light="#C7D2FE" iconBg={COLORS.accentLight}
+        />
+        <KpiCard
+          label="AVG. BREAKEVEN" value={fmtEur(avgBreakeven)}
+          change={`Max disc: ${fmtPct(avgMaxDiscount)}`} up={true}
+          icon={KpiIcons.clock} bars={[65, 62, 60, 58, 56, 55, 54]}
+          color={COLORS.orange} light={COLORS.orangeLighter} iconBg={COLORS.orangeLight}
+        />
       </div>
 
-      {/* 3-Level Table */}
-      <div style={{ ...cardStyle, marginBottom: 16, padding: 16, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.4s forwards' }}>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Ürün Karlılık Tablosu</div>
-        <div className="pl-table-wrap" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      {/* AI Insights */}
+      <AIInsights
+        title="AI Profitability Insights"
+        subtitle="AI-powered cost and profitability recommendations"
+        insights={aiInsights}
+      />
+
+      {/* 3-Level Product Table */}
+      <div style={{ ...CARD_STYLE, padding: 0, marginBottom: 20, overflow: 'hidden' }}>
+        <div style={{ padding: '16px 24px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text }}>Product Profitability Table</div>
+          <div style={{ fontSize: 12, color: COLORS.sub }}>{parentGroups.length} product groups · {skuRows.length} SKU</div>
+        </div>
+        <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
             <thead>
-              <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
-                <th style={{ ...th, textAlign: 'left', minWidth: 200 }}>Ürün</th>
+              <tr style={{ borderBottom: `2px solid ${COLORS.border}` }}>
+                <th style={{ ...TH_STYLE, padding: '8px 10px 8px 20px', textAlign: 'left', minWidth: 200 }}>Product</th>
                 {([
-                  ['units', 'Adet'], ['avgPrice', 'Ort.Fiyat'], ['cogs', 'COGS'], ['commission', 'Komisyon'],
-                  ['fba', 'FBA'], ['storage', 'Depolama'], ['adSpend', 'Reklam'], ['totalCost', 'Top.Maliyet'], ['breakeven', 'Breakeven'],
-                  ['profitPerUnit', 'Kâr/birim'], ['margin', 'Marj%'], ['maxDiscount', 'Maks İnd.%'],
+                  ['units', 'Units'], ['avgPrice', 'Avg.Price'], ['cogs', 'COGS'], ['commission', 'Commission'],
+                  ['fba', 'FBA'], ['storage', 'Storage'], ['adSpend', 'Ads'], ['breakeven', 'Breakeven'],
+                  ['profitPerUnit', 'Profit/unit'], ['margin', 'Margin%'], ['maxDiscount', 'Max Disc.'],
                 ] as const).map(([key, label]) => (
-                  <th key={key} onClick={() => handleSort(key as SortKey)} style={{ ...th, textAlign: 'right', color: sortKey === key ? '#6366f1' : 'var(--text-secondary)' }}>
+                  <th key={key} onClick={() => handleSort(key as SortKey)}
+                    style={{ ...TH_STYLE, padding: '8px 10px', textAlign: 'right', cursor: 'pointer', color: sortKey === key ? COLORS.accent : COLORS.sub }}>
                     {label}{sortIcon(key as SortKey)}
                   </th>
                 ))}
@@ -657,7 +730,6 @@ export default function COGSPage() {
               {parentGroups.map(pg => {
                 const isParentExpanded = expandedParents.has(pg.parentAsin)
                 const skuCount = pg.colorGroups.reduce((s, cg) => s + cg.rows.length, 0)
-                // Get parent SKU prefix (e.g. MMS1000, MMS2000) from first color group
                 const parentSkuPrefix = pg.colorGroups[0]?.skuGroup?.substring(0, 7) || ''
                 const displayTitle = pg.title
                   ? (pg.title.length > 45 ? pg.title.substring(0, 45) + '...' : pg.title)
@@ -667,7 +739,8 @@ export default function COGSPage() {
                   <React.Fragment key={pg.parentAsin}>
                     {/* Level 1: Parent ASIN */}
                     <tr
-                      style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer', transition: 'background 0.15s', background: 'rgba(99,102,241,0.02)' }}
+                      className="cogs-tr"
+                      style={{ borderBottom: `1px solid ${COLORS.border}`, cursor: 'pointer', transition: 'background .15s' }}
                       onClick={() => {
                         setExpandedParents(prev => {
                           const next = new Set(prev)
@@ -679,25 +752,43 @@ export default function COGSPage() {
                           setDiscountPct(0)
                         }
                       }}
-                      onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.06)'}
-                      onMouseLeave={e => e.currentTarget.style.background = 'rgba(99,102,241,0.02)'}
                     >
-                      <td style={{ ...td, fontWeight: 600, fontSize: 12 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                          <span style={{ fontSize: 9, color: 'var(--text-muted)', flexShrink: 0 }}>{isParentExpanded ? '▼' : '▶'}</span>
+                      <td style={{ padding: '8px 10px 8px 20px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                          {(() => {
+                            // Try all child SKUs to find one with an image
+                            let foundInfo = null as any
+                            let foundAsin = null as string | null
+                            for (const cg of pg.colorGroups) {
+                              for (const r of cg.rows) {
+                                const info = getBySku(r.sku)
+                                if (info?.image_url) { foundInfo = info; foundAsin = asinFromSku(r.sku); break }
+                              }
+                              if (foundInfo) break
+                            }
+                            // Also try parent ASIN directly
+                            if (!foundInfo && pg.parentAsin) {
+                              const pInfo = getByAsin(pg.parentAsin)
+                              if (pInfo?.image_url) { foundInfo = pInfo; foundAsin = pg.parentAsin }
+                            }
+                            return foundInfo?.image_url ? (
+                              <a href={`/products/${foundAsin}`} onClick={e => e.stopPropagation()} style={{ lineHeight: 0 }}>
+                                <img src={foundInfo.image_url} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover', border: `1px solid ${COLORS.border}` }} />
+                              </a>
+                            ) : <ImgPlaceholder size={32} />
+                          })()}
                           <div style={{ minWidth: 0 }}>
-                            <div style={{ fontSize: 11, color: '#6366f1', fontWeight: 700, marginBottom: 1 }}>{parentSkuPrefix}</div>
-                            <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', fontSize: 11.5 }}>{displayTitle}</div>
-                            <div style={{ fontSize: 9.5, color: 'var(--text-muted)', fontWeight: 400, marginTop: 1 }}>{skuCount} SKU · {pg.totalUnits.toLocaleString('de-DE')} adet</div>
+                            <div style={{ fontSize: 13, fontWeight: 700, color: COLORS.accent }}>{parentSkuPrefix}</div>
+                            <div style={{ fontSize: 11, color: COLORS.sub, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{skuCount} SKU · {pg.totalUnits.toLocaleString('de-DE')} adet</div>
                           </div>
                         </div>
                       </td>
-                      <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>{pg.totalUnits.toLocaleString('de-DE')}</td>
-                      <td style={{ ...td, textAlign: 'right' }}>{fmtEur(pg.avgPrice)}</td>
-                      <td colSpan={6} />
-                      <td style={{ ...td, textAlign: 'right', fontWeight: 600 }}>{fmtEur(pg.totalCost)}</td>
-                      <td style={{ ...td, textAlign: 'right', color: pg.profitPerUnit >= 0 ? '#22c55e' : '#ef4444', fontWeight: 600 }}>{fmtEur(pg.profitPerUnit)}</td>
-                      <td style={{ ...td, textAlign: 'right' }}>{marginBadge(pg.margin)}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'right', fontSize: 13, fontWeight: 600, color: COLORS.text }}>{pg.totalUnits.toLocaleString('de-DE')}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'right', fontSize: 12, color: '#64748B' }}>{fmtEur(pg.avgPrice)}</td>
+                      <td colSpan={4} />
+                      <td style={{ padding: '8px 10px', textAlign: 'right', fontSize: 12, color: '#64748B' }}>{fmtEur(pg.totalCost)}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: pg.profitPerUnit >= 0 ? COLORS.green : COLORS.red }}>{fmtEur(pg.profitPerUnit)}</td>
+                      <td style={{ padding: '8px 10px', textAlign: 'right' }}>{marginBadge(pg.margin)}</td>
                       <td />
                     </tr>
 
@@ -708,7 +799,8 @@ export default function COGSPage() {
                       return (
                         <React.Fragment key={cg.skuGroup}>
                           <tr
-                            style={{ borderBottom: '1px solid var(--border-color)', cursor: 'pointer', transition: 'background 0.15s', background: 'var(--bg-sub-row)' }}
+                            className="cogs-tr"
+                            style={{ borderBottom: `1px solid ${COLORS.border}`, cursor: 'pointer', background: '#FAFBFE' }}
                             onClick={() => {
                               if (hasMultipleSizes) {
                                 setExpandedGroups(prev => {
@@ -720,50 +812,44 @@ export default function COGSPage() {
                               setSelectedSku(cg.rows[0].sku)
                               setDiscountPct(0)
                             }}
-                            onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.04)'}
-                            onMouseLeave={e => e.currentTarget.style.background = 'var(--bg-sub-row)'}
                           >
-                            <td style={{ ...td, paddingLeft: 24, fontWeight: 500, fontSize: 11.5 }}>
+                            <td style={{ padding: '6px 10px 6px 48px', fontSize: 12, color: COLORS.accent, fontWeight: 500 }}>
                               {hasMultipleSizes && <span style={{ marginRight: 5, fontSize: 8 }}>{isGroupExpanded ? '▼' : '▶'}</span>}
                               {cg.skuGroup}
-                              {hasMultipleSizes && <span style={{ fontSize: 9.5, color: 'var(--text-muted)', marginLeft: 6 }}>({cg.rows.length} beden)</span>}
+                              {hasMultipleSizes && <span style={{ fontSize: 10, color: COLORS.sub, marginLeft: 6 }}>({cg.rows.length} sizes)</span>}
                             </td>
-                            <td style={{ ...td, textAlign: 'right', fontWeight: 500 }}>{cg.totalUnits.toLocaleString('de-DE')}</td>
-                            <td style={{ ...td, textAlign: 'right' }}>{fmtEur(cg.avgPrice)}</td>
-                            <td style={{ ...td, textAlign: 'right' }}>{fmtEur(cg.cogs)}</td>
-                            <td style={{ ...td, textAlign: 'right' }}>{fmtEur(cg.commission)}</td>
-                            <td style={{ ...td, textAlign: 'right' }}>{fmtEur(cg.fba)}</td>
-                            <td style={{ ...td, textAlign: 'right' }}>{fmtEur(cg.storage)}</td>
-                            <td style={{ ...td, textAlign: 'right' }}>{fmtEur(cg.rows.reduce((s, r) => s + r.adSpend * r.units, 0) / cg.totalUnits)}</td>
-                            <td style={{ ...td, textAlign: 'right', fontWeight: 500 }}>{fmtEur(cg.totalCost)}</td>
-                            <td style={{ ...td, textAlign: 'right', color: '#f59e0b' }}>{fmtEur(cg.breakeven)}</td>
-                            <td style={{ ...td, textAlign: 'right', color: cg.profitPerUnit >= 0 ? '#22c55e' : '#ef4444', fontWeight: 500 }}>{fmtEur(cg.profitPerUnit)}</td>
-                            <td style={{ ...td, textAlign: 'right' }}>{marginBadge(cg.margin)}</td>
-                            <td style={{ ...td, textAlign: 'right', color: 'var(--text-secondary)' }}>{fmtPct(cg.maxDiscount)}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: 12, fontWeight: 500, color: COLORS.text }}>{cg.totalUnits.toLocaleString('de-DE')}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: 12, color: '#64748B' }}>{fmtEur(cg.avgPrice)}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: 12, color: '#64748B' }}>{fmtEur(cg.cogs)}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: 12, color: '#64748B' }}>{fmtEur(cg.commission)}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: 12, color: '#64748B' }}>{fmtEur(cg.fba)}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: 12, color: '#64748B' }}>{fmtEur(cg.rows.reduce((s, r) => s + r.adSpend * r.units, 0) / cg.totalUnits)}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: 12, color: '#64748B' }}>{fmtEur(cg.breakeven)}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: cg.profitPerUnit >= 0 ? COLORS.green : COLORS.red }}>{fmtEur(cg.profitPerUnit)}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right' }}>{marginBadge(cg.margin)}</td>
+                            <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: 12, fontWeight: 500, color: cg.maxDiscount > 30 ? COLORS.green : cg.maxDiscount > 15 ? COLORS.orange : COLORS.red }}>{fmtPct(cg.maxDiscount)}</td>
                           </tr>
 
-                          {/* Level 3: Individual SKUs (sizes) */}
+                          {/* Level 3: Individual SKUs */}
                           {isGroupExpanded && cg.rows.map(row => (
                             <tr
                               key={row.sku}
-                              style={{ borderBottom: '1px solid var(--border-color)', background: selectedSku === row.sku ? 'rgba(99,102,241,0.08)' : 'transparent', cursor: 'pointer' }}
+                              style={{ borderBottom: `1px solid ${COLORS.border}`, background: selectedSku === row.sku ? '#F8FAFC' : 'transparent', cursor: 'pointer' }}
                               onClick={e => { e.stopPropagation(); setSelectedSku(row.sku); setDiscountPct(0) }}
                             >
-                              <td style={{ ...td, paddingLeft: 44, fontSize: 10.5, color: selectedSku === row.sku ? '#6366f1' : 'var(--text-secondary)' }}>
+                              <td style={{ padding: '6px 10px 6px 64px', fontSize: 12, color: selectedSku === row.sku ? COLORS.accent : '#64748B', fontWeight: 500 }}>
                                 {selectedSku === row.sku && '● '}{row.sku}
                               </td>
-                              <td style={{ ...td, textAlign: 'right', fontSize: 10.5 }}>{row.units.toLocaleString('de-DE')}</td>
-                              <td style={{ ...td, textAlign: 'right', fontSize: 10.5 }}>{fmtEur(row.avgPrice)}</td>
-                              <td style={{ ...td, textAlign: 'right', fontSize: 10.5 }}>{fmtEur(row.cogs)}</td>
-                              <td style={{ ...td, textAlign: 'right', fontSize: 10.5 }}>{fmtEur(row.commission)}</td>
-                              <td style={{ ...td, textAlign: 'right', fontSize: 10.5 }}>{fmtEur(row.fba)}</td>
-                              <td style={{ ...td, textAlign: 'right', fontSize: 10.5 }}>{fmtEur(row.storage)}</td>
-                              <td style={{ ...td, textAlign: 'right', fontSize: 10.5 }}>{fmtEur(row.adSpend)}</td>
-                              <td style={{ ...td, textAlign: 'right', fontSize: 10.5 }}>{fmtEur(row.totalCost)}</td>
-                              <td style={{ ...td, textAlign: 'right', fontSize: 10.5, color: '#f59e0b' }}>{fmtEur(row.breakeven)}</td>
-                              <td style={{ ...td, textAlign: 'right', fontSize: 10.5, color: row.profitPerUnit >= 0 ? '#22c55e' : '#ef4444' }}>{fmtEur(row.profitPerUnit)}</td>
-                              <td style={{ ...td, textAlign: 'right' }}>{marginBadge(row.margin)}</td>
-                              <td style={{ ...td, textAlign: 'right', fontSize: 10.5, color: 'var(--text-secondary)' }}>{fmtPct(row.maxDiscount)}</td>
+                              <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: 12, color: '#64748B' }}>{row.units.toLocaleString('de-DE')}</td>
+                              <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: 12, color: '#64748B' }}>{fmtEur(row.avgPrice)}</td>
+                              <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: 12, color: '#64748B' }}>{fmtEur(row.cogs)}</td>
+                              <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: 12, color: '#64748B' }}>{fmtEur(row.commission)}</td>
+                              <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: 12, color: '#64748B' }}>{fmtEur(row.fba)}</td>
+                              <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: 12, color: '#64748B' }}>{fmtEur(row.adSpend)}</td>
+                              <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: 12, color: '#64748B' }}>{fmtEur(row.breakeven)}</td>
+                              <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: row.profitPerUnit >= 0 ? COLORS.green : COLORS.red }}>{fmtEur(row.profitPerUnit)}</td>
+                              <td style={{ padding: '6px 10px', textAlign: 'right' }}>{marginBadge(row.margin)}</td>
+                              <td style={{ padding: '6px 10px', textAlign: 'right', fontSize: 12, color: COLORS.sub }}>{fmtPct(row.maxDiscount)}</td>
                             </tr>
                           ))}
                         </React.Fragment>
@@ -773,213 +859,319 @@ export default function COGSPage() {
                 )
               })}
               {parentGroups.length === 0 && (
-                <tr><td colSpan={13} style={{ padding: 30, textAlign: 'center', color: 'var(--text-secondary)' }}>Bu ay için veri bulunamadı</td></tr>
+                <tr><td colSpan={12} style={{ padding: 30, textAlign: 'center', color: COLORS.sub }}>No data found for this month</td></tr>
               )}
             </tbody>
           </table>
         </div>
       </div>
 
-      {/* SKU Selector for detail sections */}
-      {skuRows.length > 0 && (
-        <div style={{ marginBottom: 16 }}>
-          <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 6 }}>Detay görüntülemek için SKU seçin:</div>
-          <select
-            value={selectedSku || ''}
-            onChange={e => { setSelectedSku(e.target.value); setDiscountPct(0) }}
-            style={{ ...selectStyle, width: '100%', maxWidth: 500, padding: '10px 14px', fontSize: 13 }}
-          >
-            {skuOptions.map(opt => (
-              <option key={opt.sku} value={opt.sku}>{opt.label}</option>
-            ))}
-          </select>
-        </div>
-      )}
-
-      {/* Waterfall + Maliyet Düzenleme */}
+      {/* Cost Detail Card — combined tabs */}
       {sel && (
-        <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
-          <div style={{ ...cardStyle, padding: 16, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.5s forwards' }}>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Maliyet Kırılımı</div>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 12 }}>
-              {sel.parentTitle ? sel.parentTitle.substring(0, 35) : sel.sku} · Fiyattan kâra giden yol
+        <div style={{ ...CARD_STYLE, padding: 0, marginBottom: 20, overflow: 'hidden' }}>
+          <div style={{ padding: '16px 24px', borderBottom: `1px solid ${COLORS.border}` }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12, flexWrap: 'wrap', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                {(() => {
+                  const info = getBySku(sel.sku)
+                  const asin = asinFromSku(sel.sku)
+                  return info?.image_url ? (
+                    <a href={`/products/${asin}`} style={{ lineHeight: 0 }}>
+                      <img src={info.image_url} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover', border: `1px solid ${COLORS.border}` }} />
+                    </a>
+                  ) : <ImgPlaceholder size={40} />
+                })()}
+                <div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>{sel.skuGroup}</div>
+                  <div style={{ fontSize: 12, color: COLORS.sub }}>{sel.parentTitle ? sel.parentTitle.substring(0, 40) : sel.sku}</div>
+                </div>
+              </div>
+              <select
+                value={selectedSku || ''}
+                onChange={e => { setSelectedSku(e.target.value); setDiscountPct(0) }}
+                style={{ ...SELECT_STYLE, fontSize: 12 }}
+              >
+                {skuOptions.map(opt => (
+                  <option key={opt.sku} value={opt.sku}>{opt.label}</option>
+                ))}
+              </select>
             </div>
-            <ResponsiveContainer width="100%" height={280}>
-              <BarChart data={waterfallData} layout="vertical" margin={{ left: 10, right: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" horizontal={false} />
-                <XAxis type="number" tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} axisLine={false} tickLine={false} tickFormatter={v => fmtEur(v, 0)} />
-                <YAxis type="category" dataKey="name" tick={{ fill: 'var(--text-secondary)', fontSize: 10.5 }} axisLine={false} tickLine={false} width={72} />
-                <Tooltip {...tooltipStyle} formatter={(value: any) => [fmtEur(Math.abs(n(value))), '']} />
-                <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                  {waterfallData.map((entry, i) => <Cell key={i} fill={entry.fill} />)}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
-            <div style={{ marginTop: 8, padding: '8px 12px', background: 'var(--bg-elevated)', borderRadius: 8, fontSize: 12 }}>
-              <span style={{ color: '#f59e0b', fontWeight: 600 }}>Breakeven: {fmtEur(sel.breakeven)}</span>
-              <span style={{ color: 'var(--text-muted)', marginLeft: 12 }}>Bu fiyatın altında zarar</span>
+            <div style={{ display: 'flex', gap: 0 }}>
+              {isMobile ? (
+                [{ id: 'breakdown', l: 'Cost Breakdown' }, { id: 'edit', l: 'Cost Editing' }, { id: 'discount', l: 'Discount Simulator' }].map(t => (
+                  <button key={t.id} onClick={() => setCostTab(t.id)} style={{
+                    padding: '10px 14px', border: 'none', background: 'transparent', fontSize: 12,
+                    fontWeight: costTab === t.id ? 600 : 400, color: costTab === t.id ? COLORS.accent : COLORS.sub,
+                    borderBottom: costTab === t.id ? `2px solid ${COLORS.accent}` : '2px solid transparent', cursor: 'pointer',
+                  }}>{t.l}</button>
+                ))
+              ) : (
+                [{ id: 'combined', l: 'Cost Breakdown & Editing' }, { id: 'discount', l: 'Discount Simulator' }].map(t => (
+                  <button key={t.id} onClick={() => setCostTab(t.id)} style={{
+                    padding: '10px 20px', border: 'none', background: 'transparent', fontSize: 13,
+                    fontWeight: costTab === t.id ? 600 : 400, color: costTab === t.id ? COLORS.accent : COLORS.sub,
+                    borderBottom: costTab === t.id ? `2px solid ${COLORS.accent}` : '2px solid transparent', cursor: 'pointer',
+                  }}>{t.l}</button>
+                ))
+              )}
             </div>
           </div>
 
-          <div style={{ ...cardStyle, padding: 16, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.55s forwards' }}>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Maliyet Düzenleme</div>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 12 }}>
-              {sel.parentTitle ? sel.parentTitle.substring(0, 35) : sel.skuGroup} · COGS güncelle
-            </div>
+          <div style={{ padding: 24 }}>
+            {/* Desktop: combined side by side */}
+            {costTab === 'combined' && !isMobile && (
+              <div className="grid-2" style={{ alignItems: 'stretch' }}>
+                {/* LEFT: Cost Breakdown */}
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>Cost Breakdown</div>
+                  <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 18 }}>From price to profit</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8, flex: 1 }}>
+                    {costBarsData.map((b, i) => {
+                      const pct = Math.abs(b.value) / maxBarVal * 100
+                      return (
+                        <div key={i} style={{ display: 'flex', alignItems: 'center', flex: 1 }}>
+                          <div style={{ width: 90, textAlign: 'right', paddingRight: 14, fontSize: 12, color: COLORS.sub, fontWeight: 400, flexShrink: 0 }}>{b.label}</div>
+                          <div style={{ flex: 1, position: 'relative', height: 24, background: '#F8FAFC', borderRadius: 6 }}>
+                            <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${pct}%`, background: b.color, borderRadius: 6, minWidth: 4, transition: 'width .3s' }} />
+                          </div>
+                          <div style={{ width: 65, textAlign: 'right', fontSize: 12, fontWeight: 600, color: COLORS.text, flexShrink: 0, paddingLeft: 10 }}>
+                            {b.value >= 0 ? '' : '−'}{Math.abs(b.value).toFixed(2)} €
+                          </div>
+                        </div>
+                      )
+                    })}
+                  </div>
+                  <div style={{ marginTop: 12, padding: '12px 0', display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.red }}>Breakeven: {fmtEur(sel.breakeven)}</span>
+                    <span style={{ fontSize: 12, color: '#64748B' }}>· Below this price you lose money</span>
+                  </div>
+                </div>
 
-            {editingGroup === sel.skuGroup ? (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-                <div>
-                  <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Paketleme Maliyeti (€)</label>
-                  <input type="number" step="0.01" value={editPackCost} onChange={e => setEditPackCost(e.target.value)} style={{ ...selectStyle, width: '100%' }} />
-                </div>
-                <div>
-                  <label style={{ fontSize: 11, color: 'var(--text-secondary)', display: 'block', marginBottom: 4 }}>Diğer Maliyet (€)</label>
-                  <input type="number" step="0.01" value={editOtherCost} onChange={e => setEditOtherCost(e.target.value)} style={{ ...selectStyle, width: '100%' }} />
-                </div>
-                <div style={{ display: 'flex', gap: 8 }}>
-                  <button onClick={() => saveCost(sel.skuGroup)} style={{ ...btnStyle, background: '#6366f1', color: 'white', flex: 1 }}>Kaydet</button>
-                  <button onClick={() => setEditingGroup(null)} style={{ ...btnStyle, background: 'var(--bg-elevated)', color: 'var(--text-secondary)', border: '1px solid var(--border-color)', flex: 1 }}>İptal</button>
+                {/* RIGHT: Cost Edit */}
+                <div style={{ borderLeft: `1px solid ${COLORS.border}`, paddingLeft: 24, display: 'flex', flexDirection: 'column' }}>
+                  <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>Cost Editing</div>
+                  <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 14 }}>Update COGS</div>
+                  {editingGroup === sel.skuGroup ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1 }}>
+                      <div>
+                        <label style={{ fontSize: 11, color: COLORS.sub, display: 'block', marginBottom: 4 }}>Packaging Cost (€)</label>
+                        <input type="number" step="0.01" value={editPackCost} onChange={e => setEditPackCost(e.target.value)} style={{ ...SELECT_STYLE, width: '100%' }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, color: COLORS.sub, display: 'block', marginBottom: 4 }}>Other Cost (€)</label>
+                        <input type="number" step="0.01" value={editOtherCost} onChange={e => setEditOtherCost(e.target.value)} style={{ ...SELECT_STYLE, width: '100%' }} />
+                      </div>
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <button onClick={() => saveCost(sel.skuGroup)} style={{ flex: 1, padding: 12, borderRadius: 10, background: COLORS.accent, color: '#fff', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}>Save</button>
+                        <button onClick={() => setEditingGroup(null)} style={{ flex: 1, padding: 12, borderRadius: 10, background: '#F8FAFC', color: COLORS.sub, fontSize: 13, fontWeight: 600, border: `1px solid ${COLORS.border}`, cursor: 'pointer' }}>Cancel</button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ flex: 1 }}>
+                      {[
+                        { l: 'COGS/unit', v: sel.cogs }, { l: 'Commission/unit', v: sel.commission }, { l: 'FBA Shipping/unit', v: sel.fba },
+                        { l: 'Storage/unit', v: sel.storage }, { l: 'Returns+Digital/unit', v: sel.returnMgmt + sel.digital }, { l: 'Ads/unit', v: sel.adSpend },
+                      ].map((r, i) => (
+                        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: `1px solid #F8FAFC` }}>
+                          <span style={{ fontSize: 13, color: '#64748B' }}>{r.l}</span>
+                          <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>{fmtEur(r.v)}</span>
+                        </div>
+                      ))}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderTop: `2px solid ${COLORS.border}`, marginTop: 4 }}>
+                        <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Total Cost</span>
+                        <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>{fmtEur(sel.totalCost)}</span>
+                      </div>
+                      {!sel.hasEconData && (
+                        <div style={{ fontSize: 11, color: COLORS.orange, marginBottom: 8 }}>Amazon fees are estimated from monthly P&L data.</div>
+                      )}
+                      <button onClick={() => { setEditingGroup(sel.skuGroup); setEditPackCost(sel.cogs.toFixed(2)); setEditOtherCost('0') }}
+                        style={{ width: '100%', padding: 12, borderRadius: 10, background: COLORS.accent, color: '#fff', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
+                        Edit Cost
+                      </button>
+                    </div>
+                  )}
                 </div>
               </div>
-            ) : (
+            )}
+
+            {/* Mobile: breakdown only */}
+            {costTab === 'breakdown' && isMobile && (
               <div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginBottom: 14 }}>
-                  {[
-                    ['COGS/birim', sel.cogs], ['Komisyon/birim', sel.commission], ['FBA Kargo/birim', sel.fba],
-                    ['Depolama/birim', sel.storage], ['İade+Digital/birim', sel.returnMgmt + sel.digital],
-                    ['Reklam/birim', sel.adSpend], ['Toplam Maliyet', sel.totalCost],
-                  ].map(([label, val], i) => (
-                    <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '7px 0', borderBottom: '1px solid var(--border-color)' }}>
-                      <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>{label as string}</span>
-                      <span style={{ fontSize: 12.5, fontWeight: i === 6 ? 700 : 500, fontFamily: 'monospace' }}>{fmtEur(val as number)}</span>
-                    </div>
-                  ))}
+                <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>Cost Breakdown</div>
+                <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 18 }}>From price to profit</div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                  {costBarsData.map((b, i) => {
+                    const pct = Math.abs(b.value) / maxBarVal * 100
+                    return (
+                      <div key={i} style={{ display: 'flex', alignItems: 'center' }}>
+                        <div style={{ width: 80, textAlign: 'right', paddingRight: 10, fontSize: 11, color: COLORS.sub, fontWeight: 400, flexShrink: 0 }}>{b.label}</div>
+                        <div style={{ flex: 1, position: 'relative', height: 22, background: '#F8FAFC', borderRadius: 6 }}>
+                          <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${pct}%`, background: b.color, borderRadius: 6, minWidth: 4 }} />
+                        </div>
+                        <div style={{ width: 60, textAlign: 'right', fontSize: 11, fontWeight: 600, color: COLORS.text, flexShrink: 0, paddingLeft: 8 }}>
+                          {b.value >= 0 ? '' : '−'}{Math.abs(b.value).toFixed(2)} €
+                        </div>
+                      </div>
+                    )
+                  })}
                 </div>
-                <button onClick={() => { setEditingGroup(sel.skuGroup); setEditPackCost(sel.cogs.toFixed(2)); setEditOtherCost('0') }} style={{ ...btnStyle, background: 'var(--bg-elevated)', color: 'var(--text-primary)', border: '1px solid var(--border-color)', width: '100%' }}>
-                  Maliyeti Düzenle
-                </button>
-                {!sel.hasEconData && (
-                  <div style={{ marginTop: 8, fontSize: 10, color: '#f59e0b', padding: '6px 8px', background: 'rgba(245,158,11,0.08)', borderRadius: 6 }}>
-                    Amazon ücretleri aylık P&L verilerinden tahmini hesaplanmıştır.
+                <div style={{ marginTop: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: COLORS.red }}>Breakeven: {fmtEur(sel.breakeven)}</span>
+                  <span style={{ fontSize: 12, color: '#64748B' }}>· Below this price you lose money</span>
+                </div>
+              </div>
+            )}
+
+            {/* Mobile: edit only */}
+            {costTab === 'edit' && isMobile && (
+              <div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>Cost Editing</div>
+                <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 14 }}>Update COGS</div>
+                {editingGroup === sel.skuGroup ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div>
+                      <label style={{ fontSize: 11, color: COLORS.sub, display: 'block', marginBottom: 4 }}>Packaging Cost (€)</label>
+                      <input type="number" step="0.01" value={editPackCost} onChange={e => setEditPackCost(e.target.value)} style={{ ...SELECT_STYLE, width: '100%' }} />
+                    </div>
+                    <div>
+                      <label style={{ fontSize: 11, color: COLORS.sub, display: 'block', marginBottom: 4 }}>Other Cost (€)</label>
+                      <input type="number" step="0.01" value={editOtherCost} onChange={e => setEditOtherCost(e.target.value)} style={{ ...SELECT_STYLE, width: '100%' }} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 8 }}>
+                      <button onClick={() => saveCost(sel.skuGroup)} style={{ flex: 1, padding: 12, borderRadius: 10, background: COLORS.accent, color: '#fff', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}>Save</button>
+                      <button onClick={() => setEditingGroup(null)} style={{ flex: 1, padding: 12, borderRadius: 10, background: '#F8FAFC', color: COLORS.sub, fontSize: 13, fontWeight: 600, border: `1px solid ${COLORS.border}`, cursor: 'pointer' }}>Cancel</button>
+                    </div>
                   </div>
+                ) : (
+                  <>
+                    {[
+                      { l: 'COGS/unit', v: sel.cogs }, { l: 'Commission/unit', v: sel.commission }, { l: 'FBA Shipping/unit', v: sel.fba },
+                      { l: 'Storage/unit', v: sel.storage }, { l: 'Returns+Digital/unit', v: sel.returnMgmt + sel.digital }, { l: 'Ads/unit', v: sel.adSpend },
+                    ].map((r, i) => (
+                      <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid #F8FAFC' }}>
+                        <span style={{ fontSize: 13, color: '#64748B' }}>{r.l}</span>
+                        <span style={{ fontSize: 13, fontWeight: 600, color: COLORS.text }}>{fmtEur(r.v)}</span>
+                      </div>
+                    ))}
+                    <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 0', borderTop: `2px solid ${COLORS.border}`, marginTop: 4 }}>
+                      <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Total Cost</span>
+                      <span style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>{fmtEur(sel.totalCost)}</span>
+                    </div>
+                    {!sel.hasEconData && (
+                      <div style={{ fontSize: 11, color: COLORS.orange, marginTop: 10, marginBottom: 8 }}>Amazon fees are estimated from monthly P&L data.</div>
+                    )}
+                    <button onClick={() => { setEditingGroup(sel.skuGroup); setEditPackCost(sel.cogs.toFixed(2)); setEditOtherCost('0') }}
+                      style={{ width: '100%', padding: 12, borderRadius: 10, background: COLORS.accent, color: '#fff', fontSize: 13, fontWeight: 600, border: 'none', cursor: 'pointer' }}>
+                      Edit Cost
+                    </button>
+                  </>
                 )}
               </div>
             )}
+
+            {/* Discount Simulator */}
+            {costTab === 'discount' && (
+              <div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 16, marginBottom: 4 }}>
+                  <span style={{ fontSize: 12, color: COLORS.sub }}>%0</span>
+                  <div style={{ flex: 1 }}>
+                    <input type="range" min={0} max={50} value={discountPct}
+                      onChange={e => { const v = Number(e.target.value); if (!isNaN(v)) setDiscountPct(v) }}
+                      style={{ width: '100%', accentColor: COLORS.accent }} />
+                  </div>
+                  <span style={{ fontSize: 12, color: COLORS.sub }}>%50</span>
+                </div>
+                <div style={{ textAlign: 'center', fontSize: 15, fontWeight: 700, color: COLORS.accent, marginBottom: 16 }}>%{discountPct} discount</div>
+
+                {selectedDiscountRow && (
+                  <div style={{ display: 'flex', gap: 16, marginBottom: 18, padding: '14px 18px', background: '#F8FAFC', borderRadius: 10 }}>
+                    {[
+                      { l: 'NEW PRICE', v: fmtEur(selectedDiscountRow.newPrice) },
+                      { l: 'PROFIT/UNIT', v: fmtEur(selectedDiscountRow.profit), c: selectedDiscountRow.profit >= 0 ? COLORS.green : COLORS.red },
+                      { l: 'MARGIN', v: fmtPct(selectedDiscountRow.margin), c: selectedDiscountRow.margin >= 0 ? COLORS.green : COLORS.red },
+                    ].map((m, i) => (
+                      <div key={i} style={{ flex: 1, textAlign: 'center' }}>
+                        <div style={{ fontSize: 9, fontWeight: 700, color: COLORS.sub, letterSpacing: '.05em', marginBottom: 3 }}>{m.l}</div>
+                        <div style={{ fontSize: 18, fontWeight: 700, color: m.c || COLORS.text }}>{m.v}</div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: `2px solid ${COLORS.border}` }}>
+                      {['Discount', 'New Price', 'Profit/unit', 'Margin%', 'Status'].map(h => (
+                        <th key={h} style={{ ...TH_STYLE, padding: '7px 10px', textAlign: 'right' }}>{h}</th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {discountTable.map(row => (
+                      <tr key={row.pct} onClick={() => setDiscountPct(row.pct)}
+                        style={{ borderBottom: `1px solid #F8FAFC`, cursor: 'pointer', background: discountPct === row.pct ? `${COLORS.accent}10` : 'transparent' }}>
+                        <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: COLORS.accent }}>%{row.pct}</td>
+                        <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: 12, color: '#64748B' }}>{fmtEur(row.newPrice)}</td>
+                        <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: row.profit >= 0 ? COLORS.green : COLORS.red }}>{fmtEur(row.profit)}</td>
+                        <td style={{ padding: '7px 10px', textAlign: 'right' }}>{marginBadge(row.margin)}</td>
+                        <td style={{ padding: '7px 10px', textAlign: 'right', fontSize: 11 }}>{row.margin >= 15 ? '✅' : row.margin >= 0 ? '⚡' : '⚠️'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div style={{ marginTop: 14, fontSize: 11, color: COLORS.sub }}>
+                  This product can sustain a maximum <span style={{ fontWeight: 600, color: COLORS.green }}>%{sel.maxDiscount.toFixed(0)}</span> discount.
+                  {sel.avgPrice > 20 && (
+                    <span style={{ color: COLORS.orange, marginLeft: 6 }}>If price drops below 20€, the 15%→10% commission advantage kicks in.</span>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
         </div>
       )}
 
-      {/* İndirim Simülatörü + Karlılık Haritası - yan yana */}
-      {sel && (
-        <div className="two-col-grid" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 16 }}>
-        <div style={{ ...cardStyle, padding: 16, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.6s forwards' }}>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>İndirim Simülatörü</div>
-          <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 14 }}>
-            {sel.parentTitle ? sel.parentTitle.substring(0, 40) : sel.sku}
-          </div>
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 6 }}>
-              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>%0</span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: discountPct > sel.maxDiscount ? '#ef4444' : '#6366f1' }}>%{discountPct} indirim</span>
-              <span style={{ fontSize: 12, color: 'var(--text-secondary)' }}>%50</span>
-            </div>
-            <input type="range" min={0} max={50} step={1} value={discountPct}
-              onChange={e => { const v = Number(e.target.value); if (!isNaN(v)) setDiscountPct(v) }}
-              style={{ width: '100%', accentColor: discountPct > sel.maxDiscount ? '#ef4444' : '#6366f1' }}
-            />
-            {selectedDiscountRow && (
-              <div style={{ display: 'flex', gap: 20, marginTop: 10, padding: '10px 14px', background: 'var(--bg-elevated)', borderRadius: 8 }}>
-                <div><span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Yeni Fiyat</span><div style={{ fontSize: 14, fontWeight: 700 }}>{fmtEur(selectedDiscountRow.newPrice)}</div></div>
-                <div><span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Kâr/birim</span><div style={{ fontSize: 14, fontWeight: 700, color: selectedDiscountRow.profit >= 0 ? '#22c55e' : '#ef4444' }}>{fmtEur(selectedDiscountRow.profit)}</div></div>
-                <div><span style={{ fontSize: 10, color: 'var(--text-muted)' }}>Marj</span><div style={{ fontSize: 14, fontWeight: 700, color: selectedDiscountRow.margin >= 0 ? '#22c55e' : '#ef4444' }}>{fmtPct(selectedDiscountRow.margin)}</div></div>
+      {/* Profitability Scatter Map */}
+      <div style={{ ...CARD_STYLE, padding: '20px 24px', marginBottom: 20 }}>
+        <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text, marginBottom: 4 }}>Profitability Map</div>
+        <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 16 }}>X: Units sold · Y: Margin% · Size: Total profit</div>
+        <ResponsiveContainer width="100%" height={320}>
+          <ScatterChart margin={{ top: 10, right: 20, left: 0, bottom: 10 }}>
+            <CartesianGrid strokeDasharray="3 3" stroke={COLORS.border} />
+            <XAxis dataKey="x" type="number" name="Units" tick={{ fontSize: 11, fill: COLORS.sub }} axisLine={false} tickLine={false} />
+            <YAxis dataKey="y" type="number" name="Margin%" tick={{ fontSize: 11, fill: COLORS.sub }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `${v}%`} domain={[-10, 50]} />
+            <ZAxis dataKey="z" range={[80, 500]} />
+            <Tooltip content={({ active, payload }: any) => active && payload?.[0] ? (
+              <div style={{ background: COLORS.text, borderRadius: 8, padding: '10px 16px' }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: '#fff' }}>{payload[0].payload.name}</div>
+                <div style={{ fontSize: 12, color: COLORS.sub }}>{payload[0].payload.x} units · {payload[0].payload.y.toFixed(1)}% margin</div>
               </div>
-            )}
-          </div>
-          <div style={{ overflowX: 'auto' }}>
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12 }}>
-              <thead>
-                <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                  <th style={{ ...th, textAlign: 'left', cursor: 'default' }}>İndirim</th>
-                  <th style={{ ...th, textAlign: 'right', cursor: 'default' }}>Yeni Fiyat</th>
-                  <th style={{ ...th, textAlign: 'right', cursor: 'default' }}>Kâr/birim</th>
-                  <th style={{ ...th, textAlign: 'right', cursor: 'default' }}>Marj%</th>
-                  <th style={{ ...th, textAlign: 'center', cursor: 'default' }}>Durum</th>
-                  <th style={{ ...th, textAlign: 'center', cursor: 'default' }}>Not</th>
-                </tr>
-              </thead>
-              <tbody>
-                {discountTable.map(row => (
-                  <tr key={row.pct} style={{ borderBottom: '1px solid var(--border-color)', background: row.pct === discountPct ? 'rgba(99,102,241,0.08)' : 'transparent', fontWeight: row.pct === discountPct ? 600 : 400 }}>
-                    <td style={td}>%{row.pct}</td>
-                    <td style={{ ...td, textAlign: 'right' }}>{fmtEur(row.newPrice)}</td>
-                    <td style={{ ...td, textAlign: 'right', color: row.profit >= 0 ? '#22c55e' : '#ef4444' }}>{fmtEur(row.profit)}</td>
-                    <td style={{ ...td, textAlign: 'right' }}>{marginBadge(row.margin)}</td>
-                    <td style={{ ...td, textAlign: 'center' }}>{row.status}</td>
-                    <td style={{ ...td, textAlign: 'center', fontSize: 11 }}>{row.commNote}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-          <div style={{ marginTop: 10, fontSize: 11, color: 'var(--text-muted)' }}>
-            Bu ürün maksimum <strong style={{ color: '#f59e0b' }}>%{sel.maxDiscount.toFixed(0)}</strong> indirim kaldırır.
-            {sel.avgPrice >= 20 && sel.avgPrice * (1 - sel.maxDiscount / 100) < 20 && (
-              <span style={{ color: '#06b6d4', marginLeft: 6 }}>Fiyat 20€ altına düşerse komisyon %15→%10 avantajı devreye girer.</span>
-            )}
-          </div>
-        </div>
-
-      {/* Karlılık Haritası - same grid row */}
-      <div style={{ ...cardStyle, padding: 16, opacity: 0, animation: 'fadeInUp 0.5s ease-out 0.7s forwards' }}>
-        <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Karlılık Haritası</div>
-        <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 16 }}>X: Satış adedi · Y: Marj% · Boyut: Toplam kâr</div>
-        <ResponsiveContainer width="100%" height={350}>
-          <ScatterChart margin={{ top: 20, right: 30, bottom: 20, left: 20 }}>
-            <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
-            <XAxis type="number" dataKey="x" name="Adet" tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} />
-            <YAxis type="number" dataKey="y" name="Marj%" tick={{ fill: 'var(--text-secondary)', fontSize: 11 }} axisLine={false} tickLine={false} unit="%" />
-            <ZAxis type="number" dataKey="z" range={[50, 400]} />
-            <Tooltip {...tooltipStyle} content={({ active, payload }: any) => {
-              if (!active || !payload?.[0]) return null
-              const d = payload[0].payload
-              return (
-                <div style={{ background: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)', borderRadius: 8, padding: '8px 12px', fontSize: 12 }}>
-                  <div style={{ fontWeight: 600, marginBottom: 4 }}>{d.name}</div>
-                  <div>Adet: {n(d.x).toLocaleString('de-DE')}</div>
-                  <div>Marj: {fmtPct(d.y)}</div>
-                  <div>Toplam Kâr: {fmtEur(d.profit, 0)}</div>
-                </div>
-              )
-            }} />
+            ) : null} />
             <Scatter data={scatterData}>
               {scatterData.map((entry, i) => {
-                let color = '#6366f1'
-                if (entry.x >= medianUnits && entry.y >= 20) color = '#22c55e'
-                else if (entry.x < medianUnits && entry.y >= 20) color = '#3b82f6'
-                else if (entry.x >= medianUnits && entry.y < 20) color = '#f59e0b'
-                else color = '#ef4444'
-                return <Cell key={i} fill={color} fillOpacity={0.7} />
+                let color: string = COLORS.accent
+                if (entry.x >= medianUnits && entry.y >= 20) color = COLORS.green
+                else if (entry.x < medianUnits && entry.y >= 20) color = COLORS.accent
+                else if (entry.x >= medianUnits && entry.y < 20) color = COLORS.orange
+                else color = COLORS.red
+                return <Cell key={i} fill={color} fillOpacity={0.75} />
               })}
             </Scatter>
           </ScatterChart>
         </ResponsiveContainer>
-        <div style={{ display: 'flex', gap: 16, justifyContent: 'center', marginTop: 8 }}>
+        <div style={{ display: 'flex', gap: 20, justifyContent: 'center', marginTop: 8 }}>
           {[
-            { color: '#22c55e', label: 'Yıldız' },
-            { color: '#3b82f6', label: 'Niş' },
-            { color: '#f59e0b', label: 'Hacim' },
-            { color: '#ef4444', label: 'Sorunlu' },
-          ].map(item => (
-            <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
-              <div style={{ width: 10, height: 10, borderRadius: '50%', background: item.color }} />
-              {item.label}
+            { l: 'Star (>20% & high volume)', c: COLORS.green },
+            { l: 'Niche (>20% & low volume)', c: COLORS.accent },
+            { l: 'Volume (<20% & high volume)', c: COLORS.orange },
+            { l: 'Problem (<20% & low volume)', c: COLORS.red },
+          ].map((lg, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, color: COLORS.sub }}>
+              <div style={{ width: 10, height: 10, borderRadius: '50%', background: lg.c }} />{lg.l}
             </div>
           ))}
         </div>
       </div>
-      </div>
-      )}
-    </DashboardShell>
+    </>
   )
 }

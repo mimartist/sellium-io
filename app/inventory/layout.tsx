@@ -2,33 +2,26 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { DateRangeProvider } from './DateRangeContext'
-import DateRangePicker from './DateRangePicker'
 import { COLORS } from '@/lib/design-tokens'
 
 const tabs = [
-  { label: 'Overview', href: '/ads' },
-  { label: 'Campaigns', href: '/ads/campaigns' },
-  { label: 'Product Performance', href: '/ads/products' },
-  { label: 'Search Terms', href: '/ads/keywords' },
-  { label: 'Brand', href: '/ads/brand' },
+  { label: 'Stock Tracking', href: '/inventory' },
+  { label: 'Order Planning', href: '/inventory/orders' },
+  { label: 'Stock Liquidation', href: '/inventory/melt' },
 ]
 
-export default function AdsLayout({ children }: { children: React.ReactNode }) {
+export default function InventoryLayout({ children }: { children: React.ReactNode }) {
   const pathname = usePathname()
 
   const isActiveTab = (href: string) => {
-    if (href === '/ads') return pathname === '/ads'
+    if (href === '/inventory') return pathname === '/inventory'
     return pathname.startsWith(href)
   }
 
   return (
-    <DateRangeProvider>
-      {/* HEADER: DATE PICKER + TABS */}
+    <>
+      {/* TAB NAVIGATION */}
       <div style={{ marginBottom: 24 }}>
-        <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 12 }}>
-          <DateRangePicker />
-        </div>
         <div style={{ display: 'flex', alignItems: 'center', flexWrap: 'wrap', borderBottom: '1px solid #F1F5F9' }}>
           {tabs.map((tab, idx) => {
             const active = isActiveTab(tab.href)
@@ -56,6 +49,6 @@ export default function AdsLayout({ children }: { children: React.ReactNode }) {
       </div>
 
       {children}
-    </DateRangeProvider>
+    </>
   )
 }

@@ -1,13 +1,17 @@
 'use client'
 
 import { useState, useEffect, useMemo, useCallback } from 'react'
-import Link from 'next/link'
 import { createClient } from '@supabase/supabase-js'
-import DashboardShell from '../components/DashboardShell'
-import Sidebar from '../components/Sidebar'
 import {
   Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart,
 } from 'recharts'
+import KpiCard from '@/components/ui/KpiCard'
+import { KpiIcons } from '@/components/ui/KpiIcons'
+import AIInsights, { type Insight } from '@/components/ui/AIInsights'
+import { StockStatusBadge, ImgPlaceholder } from '@/components/ui/Badges'
+import ProductCell from '@/components/ui/ProductCell'
+import { useProductImages } from '@/hooks/useProductImages'
+import { COLORS, CARD_STYLE, SELECT_STYLE, TH_STYLE, STOCK_STATUS } from '@/lib/design-tokens'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -59,38 +63,14 @@ type SortKey = 'msku' | 'current_stock' | 'inbound_total' | 'avg_daily_sales' | 
 type SortDir = 'asc' | 'desc'
 type MiddleTab = 'ai' | 'lowcvr' | 'stars'
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  out: { label: 'Stoksuz', color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
-  critical: { label: 'Kritik', color: '#f97316', bg: 'rgba(249,115,22,0.1)' },
-  warning: { label: 'Uyari', color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
-  healthy: { label: 'Saglikli', color: '#22c55e', bg: 'rgba(34,197,94,0.1)' },
-  overstock: { label: 'Fazla Stok', color: '#6366f1', bg: 'rgba(99,102,241,0.1)' },
-  dead: { label: 'Olu Stok', color: '#64748b', bg: 'rgba(100,116,139,0.1)' },
-  inactive: { label: 'Inaktif', color: '#94a3b8', bg: 'rgba(148,163,184,0.1)' },
-}
-
 const fmtNum = (v: number) => v.toLocaleString('de-DE', { maximumFractionDigits: 0 })
 const fmtCur = (v: number) => `€${v.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`
 const fmtDec = (v: number, d = 1) => v.toLocaleString('de-DE', { minimumFractionDigits: d, maximumFractionDigits: d })
 
-function AIIcon({ size = 16 }: { size?: number }) {
-  return (
-    <svg width={size} height={size} viewBox="0 0 24 24" fill="none">
-      <defs>
-        <linearGradient id="aiGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-          <stop offset="0%" stopColor="#4285F4" />
-          <stop offset="33%" stopColor="#EA4335" />
-          <stop offset="66%" stopColor="#FBBC05" />
-          <stop offset="100%" stopColor="#34A853" />
-        </linearGradient>
-      </defs>
-      <path d="M12 2L14.5 9.5L22 12L14.5 14.5L12 22L9.5 14.5L2 12L9.5 9.5L12 2Z" fill="url(#aiGrad)" />
-    </svg>
-  )
-}
+const sizeBarColors = COLORS.costBars
 
 function extractSize(sku: string): string {
-  if (!sku) return 'Diger'
+  if (!sku) return 'Other'
   const upper = sku.toUpperCase()
   if (upper.endsWith('XXXL')) return 'XXXL'
   if (upper.endsWith('XXL')) return 'XXL'
@@ -99,23 +79,24 @@ function extractSize(sku: string): string {
   if (upper.endsWith('S')) return 'S'
   if (upper.endsWith('M')) return 'M'
   if (upper.endsWith('L')) return 'L'
-  return 'Diger'
+  return 'Other'
 }
 
-const TURKISH_MONTHS: Record<string, string> = {
-  '01': 'Oca', '02': 'Sub', '03': 'Mar', '04': 'Nis', '05': 'May', '06': 'Haz',
-  '07': 'Tem', '08': 'Agu', '09': 'Eyl', '10': 'Eki', '11': 'Kas', '12': 'Ara',
+const MONTH_ABBR: Record<string, string> = {
+  '01': 'Jan', '02': 'Feb', '03': 'Mar', '04': 'Apr', '05': 'May', '06': 'Jun',
+  '07': 'Jul', '08': 'Aug', '09': 'Sep', '10': 'Oct', '11': 'Nov', '12': 'Dec',
 }
 
 function formatMonthLabel(ym: string): string {
   const [y, m] = ym.split('-')
   const shortYear = y.substring(2)
-  const monthName = TURKISH_MONTHS[m] || m
+  const monthName = MONTH_ABBR[m] || m
   if (m === '01' || m === '03') return `${monthName} ${shortYear}`
   return monthName
 }
 
 export default function InventoryPage() {
+  const { getBySkuWithFallback: getBySku, asinFromSkuWithFallback: asinFromSku } = useProductImages()
   const [data, setData] = useState<StockRow[]>([])
   const [monthlyShipments, setMonthlyShipments] = useState<MonthlyShipment[]>([])
   const [loading, setLoading] = useState(true)
@@ -191,10 +172,10 @@ export default function InventoryPage() {
           deadCount: dead.length,
           deadUnits: dead.reduce((s, d) => s + (d.current_stock || 0), 0),
           lowCvrCount: lowCvr.length,
-          topLowCvr: lowCvr.slice(0, 3).map(d => `${d.msku} (${d.sessions} oturum, CVR %${(d.cvr || 0).toFixed(1)})`).join(', '),
+          topLowCvr: lowCvr.slice(0, 3).map(d => `${d.msku} (${d.sessions} sessions, CVR %${(d.cvr || 0).toFixed(1)})`).join(', '),
           highCvrCount: highCvr.length,
-          topHighCvr: highCvr.slice(0, 5).map(d => `${d.msku} (CVR %${(d.cvr || 0).toFixed(1)}, stok: ${d.current_stock})`).join(', '),
-          sizeDistribution: Object.entries(sizeDist).map(([sz, d]) => `${sz}: ${d.sales} satis, ${d.outCount} stoksuz, ${d.stock} stok`).join(' | '),
+          topHighCvr: highCvr.slice(0, 5).map(d => `${d.msku} (CVR %${(d.cvr || 0).toFixed(1)}, stock: ${d.current_stock})`).join(', '),
+          sizeDistribution: Object.entries(sizeDist).map(([sz, d]) => `${sz}: ${d.sales} sales, ${d.outCount} out of stock, ${d.stock} stock`).join(' | '),
         }
 
         const res = await fetch('/api/stock-insights', {
@@ -253,7 +234,7 @@ export default function InventoryPage() {
       sizes[s].sales += Number(r.sales_year || 0)
       if (r.stock_status === 'out') sizes[s].outCount++
     })
-    const order = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'Diger']
+    const order = ['XS', 'S', 'M', 'L', 'XL', 'XXL', 'XXXL', 'Other']
     return order
       .filter(s => sizes[s])
       .map(name => ({
@@ -282,39 +263,39 @@ export default function InventoryPage() {
   const aiInsights = useMemo(() => {
     const insights: { type: string; title: string; desc: string; detail: string; color: string; priority: number }[] = []
 
-    // 1. Stoksuz kayip — spesifik SKU ve rakamlar
+    // 1. Out of stock loss — specific SKU and numbers
     const outOfStock = data.filter(r => r.stock_status === 'out').sort((a, b) => (b.daily_revenue_loss || 0) - (a.daily_revenue_loss || 0))
     const dailyLoss = outOfStock.reduce((s, r) => s + (r.daily_revenue_loss || 0), 0)
     if (outOfStock.length > 0) {
       const topLoss = outOfStock.slice(0, 3)
       const detailLines = topLoss.map(r => {
-        const cvrInfo = (r.cvr || 0) > 10 ? ` CVR %${fmtDec(r.cvr)} — yuksek donusumlu urun stoksuz!` : ''
-        return `${r.msku}: ${fmtCur(r.daily_revenue_loss || 0)}/gun kayip${cvrInfo}`
+        const cvrInfo = (r.cvr || 0) > 10 ? ` CVR %${fmtDec(r.cvr)} — high-converting product out of stock!` : ''
+        return `${r.msku}: ${fmtCur(r.daily_revenue_loss || 0)}/day loss${cvrInfo}`
       }).join(' | ')
       insights.push({
-        type: 'Stok Kaybi', title: `${outOfStock.length} urun stoksuz, gunluk ${fmtCur(dailyLoss)} kayip`,
-        desc: `Stoksuz urunler nedeniyle gunluk tahmini ${fmtCur(dailyLoss)} gelir kaybediyorsunuz.`,
-        detail: `${detailLines}${outOfStock.length > 3 ? ` ve ${outOfStock.length - 3} urun daha.` : '.'} Acil siparis verin.`,
+        type: 'Stock Loss', title: `${outOfStock.length} products out of stock, daily ${fmtCur(dailyLoss)} loss`,
+        desc: `You are losing an estimated ${fmtCur(dailyLoss)} daily revenue due to out-of-stock products.`,
+        detail: `${detailLines}${outOfStock.length > 3 ? ` and ${outOfStock.length - 3} more products.` : '.'} Place urgent orders.`,
         color: '#ef4444', priority: 1,
       })
     }
 
-    // 2. Kritik stok uyarisi — gun ve satis hizi ile
+    // 2. Critical stock warning — days and sales velocity
     const critical = data.filter(r => r.stock_status === 'critical').sort((a, b) => (a.days_of_stock || 0) - (b.days_of_stock || 0))
     if (critical.length > 0) {
       const topCritical = critical.slice(0, 4)
       const detailLines = topCritical.map(r =>
-        `${r.msku}: ${r.days_of_stock?.toFixed(0) || 0} gun kaldi, ${fmtDec(r.avg_daily_sales || 0)} adet/gun satis`
+        `${r.msku}: ${r.days_of_stock?.toFixed(0) || 0} days left, ${fmtDec(r.avg_daily_sales || 0)} units/day sales`
       ).join(' | ')
       insights.push({
-        type: 'Kritik Stok', title: `${critical.length} urun kritik seviyede`,
-        desc: `Bu urunlerin stoku 7 gun icinde tukenebilir.`,
-        detail: `${detailLines}. Siparis planlama sayfasindan hizli aksiyon alin.`,
+        type: 'Critical Stock', title: `${critical.length} products at critical level`,
+        desc: `These products may run out of stock within 7 days.`,
+        detail: `${detailLines}. Take quick action from the order planning page.`,
         color: '#f97316', priority: 2,
       })
     }
 
-    // 3. CVR firsati — en cok trafik alan dusuk CVR urunler
+    // 3. CVR opportunity — highest traffic low CVR products
     const highTrafficLowCvr = data.filter(r => (r.sessions || 0) > 500 && (r.cvr || 0) < 5 && (r.cvr || 0) > 0)
       .sort((a, b) => (b.sessions || 0) - (a.sessions || 0))
     if (highTrafficLowCvr.length > 0) {
@@ -324,56 +305,56 @@ export default function InventoryPage() {
       }, 0)
       const topItems = highTrafficLowCvr.slice(0, 3)
       const detailLines = topItems.map(r =>
-        `${r.msku}: ${fmtNum(r.sessions || 0)} oturum, CVR %${fmtDec(r.cvr || 0)}, fiyat ${fmtCur(r.price || 0)}`
+        `${r.msku}: ${fmtNum(r.sessions || 0)} sessions, CVR %${fmtDec(r.cvr || 0)}, price ${fmtCur(r.price || 0)}`
       ).join(' | ')
       insights.push({
-        type: 'CVR Firsati', title: `${highTrafficLowCvr.length} urunde CVR iyilestirme firsati`,
-        desc: `Yuksek trafik ama dusuk donus orani. CVR %5'e cikarsa tahmini ek gelir: ${fmtCur(potentialRevenue)}.`,
-        detail: `${detailLines}. Listing optimizasyonu, A+ icerik ve fiyat incelemesi onerilir.`,
+        type: 'CVR Opportunity', title: `${highTrafficLowCvr.length} products with CVR improvement opportunity`,
+        desc: `High traffic but low conversion rate. Estimated additional revenue if CVR reaches 5%: ${fmtCur(potentialRevenue)}.`,
+        detail: `${detailLines}. Listing optimization, A+ content and price review recommended.`,
         color: '#6366f1', priority: 3,
       })
     }
 
-    // 4. Beden analizi — yillik satis ve stoksuz sayisi ile
-    const sizeGroups = sizeDistribution.filter(s => s.name !== 'Diger')
+    // 4. Size analysis — yearly sales and out-of-stock count
+    const sizeGroups = sizeDistribution.filter(s => s.name !== 'Other')
     if (sizeGroups.length > 0) {
       const topSaleSize = [...sizeGroups].sort((a, b) => b.sales - a.sales)[0]
       const mostOutSize = [...sizeGroups].sort((a, b) => b.outCount - a.outCount)[0]
       insights.push({
-        type: 'Beden Analizi', title: `En cok satan beden: ${topSaleSize.name} (${fmtNum(topSaleSize.sales)} adet/yil)`,
-        desc: `En cok stoksuz beden: ${mostOutSize.name} (${mostOutSize.outCount} SKU stoksuz).`,
-        detail: `Beden dagilimi: ${sizeGroups.slice(0, 6).map(s => `${s.name}: ${fmtNum(s.sales)} satis, ${s.outCount} stoksuz`).join(', ')}. Stoksuz bedenlere oncelik verin.`,
+        type: 'Size Analysis', title: `Best selling size: ${topSaleSize.name} (${fmtNum(topSaleSize.sales)} units/year)`,
+        desc: `Most out-of-stock size: ${mostOutSize.name} (${mostOutSize.outCount} SKUs out of stock).`,
+        detail: `Size distribution: ${sizeGroups.slice(0, 6).map(s => `${s.name}: ${fmtNum(s.sales)} sales, ${s.outCount} out of stock`).join(', ')}. Prioritize out-of-stock sizes.`,
         color: '#f59e0b', priority: 4,
       })
     }
 
-    // 5. Depolama maliyeti — spesifik urunler
+    // 5. Storage cost — specific products
     const highStorageFee = data.filter(r => (r.storage_fee_monthly || 0) > 50).sort((a, b) => (b.storage_fee_monthly || 0) - (a.storage_fee_monthly || 0))
     if (highStorageFee.length > 0) {
       const totalHighFee = highStorageFee.reduce((s, r) => s + (r.storage_fee_monthly || 0), 0)
       const topFee = highStorageFee.slice(0, 3)
       const detailLines = topFee.map(r =>
-        `${r.msku}: ${fmtCur(r.storage_fee_monthly || 0)}/ay, ${fmtDec(r.avg_daily_sales || 0)} adet/gun satis, ${r.days_of_stock?.toFixed(0) || '?'} gun stok`
+        `${r.msku}: ${fmtCur(r.storage_fee_monthly || 0)}/month, ${fmtDec(r.avg_daily_sales || 0)} units/day sales, ${r.days_of_stock?.toFixed(0) || '?'} days stock`
       ).join(' | ')
       insights.push({
-        type: 'Maliyet', title: `${highStorageFee.length} urunde yuksek depolama (${fmtCur(totalHighFee)}/ay)`,
-        desc: `Toplam aylik depolama: ${fmtCur(totalStorage)}. Yuksek maliyetli urunler dikkat gerektiriyor.`,
-        detail: `${detailLines}. Dusuk satisli urunlerde removal veya fiyat indirimi dusunun.`,
+        type: 'Cost', title: `${highStorageFee.length} products with high storage (${fmtCur(totalHighFee)}/month)`,
+        desc: `Total monthly storage: ${fmtCur(totalStorage)}. High-cost products need attention.`,
+        detail: `${detailLines}. Consider removal or price reduction for low-selling products.`,
         color: '#f59e0b', priority: 5,
       })
     }
 
-    // 6. Yildiz urunler — stok durumu ile
+    // 6. Star products — stock status
     if (starProducts.length > 0) {
       const topStars = starProducts.slice(0, 3)
       const detailLines = topStars.map(r => {
-        const stockWarn = r.stock_status === 'out' ? ' — STOKSUZ!' : r.stock_status === 'critical' ? ` — ${r.days_of_stock?.toFixed(0)} gun kaldi!` : ` — ${fmtNum(r.current_stock || 0)} adet stok`
-        return `${r.msku}: CVR %${fmtDec(r.cvr || 0)}, ${fmtNum(r.sessions || 0)} oturum${stockWarn}`
+        const stockWarn = r.stock_status === 'out' ? ' — OUT OF STOCK!' : r.stock_status === 'critical' ? ` — ${r.days_of_stock?.toFixed(0)} days left!` : ` — ${fmtNum(r.current_stock || 0)} units in stock`
+        return `${r.msku}: CVR %${fmtDec(r.cvr || 0)}, ${fmtNum(r.sessions || 0)} sessions${stockWarn}`
       }).join(' | ')
       insights.push({
-        type: 'Yildiz Urunler', title: `${starProducts.length} urun %12+ CVR ile parlak performans`,
-        desc: `Bu urunler cok yuksek donus oranina sahip.`,
-        detail: `${detailLines}. Bu urunlerin stokunu asla bitirmeyin ve reklam butcesini artirin.`,
+        type: 'Star Products', title: `${starProducts.length} products with 12%+ CVR performing brilliantly`,
+        desc: `These products have very high conversion rates.`,
+        detail: `${detailLines}. Never let these products go out of stock and increase ad budget.`,
         color: '#22c55e', priority: 6,
       })
     }
@@ -389,446 +370,327 @@ export default function InventoryPage() {
   const sortIndicator = (key: SortKey) => sortKey !== key ? ' ⇅' : sortDir === 'asc' ? ' ↑' : ' ↓'
 
   const getCvrColor = (cvr: number) => {
-    if (cvr >= 12) return '#22c55e'
-    if (cvr >= 8) return 'var(--text-primary)'
-    if (cvr >= 5) return '#f59e0b'
-    return '#ef4444'
+    if (cvr >= 12) return COLORS.green
+    if (cvr >= 8) return COLORS.text
+    if (cvr >= 5) return COLORS.orange
+    return COLORS.red
   }
 
-  const getStatusBadge = (status: string) => {
-    const cfg = STATUS_CONFIG[status] || { label: status, color: 'var(--text-secondary)', bg: 'transparent' }
-    return (
-      <span style={{
-        display: 'inline-block', padding: '2px 8px', borderRadius: 6, fontSize: 10, fontWeight: 600,
-        color: cfg.color, background: cfg.bg, whiteSpace: 'nowrap',
-      }}>
-        {cfg.label}
-      </span>
-    )
-  }
-
-  // Detail panel AI message
   const getDetailMessage = (row: StockRow) => {
     switch (row.stock_status) {
-      case 'out': return `Bu urun stoksuz! Gunluk tahmini ${fmtCur(row.daily_revenue_loss || 0)} gelir kaybediyorsunuz. Acil siparis verin.`
-      case 'critical': return `Stok ${row.days_of_stock?.toFixed(0) || 0} gun icinde tukenecek. Siparis planlama sayfasindan hemen siparis olusturun.`
-      case 'warning': return `Stok seviyesi dusuk (${row.days_of_stock?.toFixed(0) || 0} gun). Yakin zamanda siparis planlayin.`
-      case 'healthy': return `Stok seviyesi saglikli (${row.days_of_stock?.toFixed(0) || 0} gun). Mevcut satis hizinda sorun yok.`
-      case 'overstock': return `Fazla stok! ${row.days_of_stock?.toFixed(0) || 0} gunluk stok var. Depolama maliyetini azaltmak icin promosyon veya fiyat indirimi dusunun.`
-      case 'dead': return `Olu stok. Bu urun satilmiyor. Removal order veya buyuk indirim ile stoku eritmeyi dusunun.`
-      default: return `Urun inaktif durumda. Listing'i kontrol edin.`
+      case 'out': return `This product is out of stock! You are losing an estimated ${fmtCur(row.daily_revenue_loss || 0)} daily revenue. Place an urgent order.`
+      case 'critical': return `Stock will run out in ${row.days_of_stock?.toFixed(0) || 0} days. Create an order immediately from the order planning page.`
+      case 'warning': return `Stock level is low (${row.days_of_stock?.toFixed(0) || 0} days). Plan an order soon.`
+      case 'healthy': return `Stock level is healthy (${row.days_of_stock?.toFixed(0) || 0} days). No issues at current sales velocity.`
+      case 'overstock': return `Overstock! ${row.days_of_stock?.toFixed(0) || 0} days of stock available. Consider promotions or price reductions to lower storage costs.`
+      case 'dead': return `Dead stock. This product is not selling. Consider removal order or deep discount to liquidate stock.`
+      default: return `Product is inactive. Check the listing.`
     }
   }
 
-  // Styles
-  const cardStyle: React.CSSProperties = { background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: 20 }
-  const tooltipStyle = { contentStyle: { background: 'var(--tooltip-bg)', border: '1px solid var(--tooltip-border)', borderRadius: 8, fontSize: 12, color: 'var(--text-primary)' }, labelStyle: { color: 'var(--text-secondary)' } }
-  const thStyle: React.CSSProperties = { textAlign: 'left', padding: '8px 10px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: 12, whiteSpace: 'nowrap', cursor: 'pointer', userSelect: 'none' }
-
-  const sidebarContent = <Sidebar />
+  // Map AI insights to AIInsights component format — show local insights immediately, replace with API results when ready
+  const mappedInsights = useMemo((): Insight[] => {
+    // Always use local insights first, replace with API insights when available
+    if (aiApiInsights) {
+      return aiApiInsights.map((ins: any) => ({
+        type: ins.type,
+        title: ins.title,
+        desc: ins.description,
+        color: ins.color,
+      }))
+    }
+    return aiInsights.map((ins: any) => ({
+      type: ins.type,
+      title: ins.title,
+      desc: ins.detail || ins.desc,
+      color: ins.color,
+    }))
+  }, [aiApiInsights, aiInsights])
 
   if (loading) {
     return (
-      <DashboardShell sidebar={sidebarContent}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ width: 36, height: 36, border: '3px solid var(--border-color)', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Stok verileri yukleniyor...</div>
-          </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 36, height: 36, border: `3px solid ${COLORS.border}`, borderTopColor: COLORS.accent, borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+          <div style={{ color: COLORS.sub, fontSize: 13 }}>Loading inventory data...</div>
         </div>
-      </DashboardShell>
+      </div>
     )
   }
 
   const snapshotDate = data[0]?.snapshot_date || ''
+  const maxSizeSales = Math.max(...sizeDistribution.map(d => d.sales)) || 1
 
   return (
-    <DashboardShell sidebar={sidebarContent}>
-      {/* HEADER */}
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
+    <>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Stok Takibi & Analiz</h1>
-          <p style={{ fontSize: 12, color: 'var(--text-secondary)', marginTop: 3, margin: 0 }}>
-            {snapshotDate && `Son guncelleme: ${snapshotDate} · `}{data.length} SKU
+          <h1 style={{ fontSize: 24, fontWeight: 700, color: COLORS.text, margin: 0 }}>Inventory Tracking & Analysis</h1>
+          <p style={{ fontSize: 13, color: COLORS.sub, margin: '2px 0 0' }}>
+            {snapshotDate && `Last updated: ${snapshotDate} · `}FBA inventory status · {data.length} SKU
           </p>
         </div>
         <div style={{ display: 'flex', gap: 8 }}>
           {statusCounts.out > 0 && (
-            <div style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)', fontSize: 11, fontWeight: 600, color: '#ef4444' }}>
-              {statusCounts.out} Stoksuz · {fmtCur(totalDailyLoss)}/gun kayip
-            </div>
+            <span style={{ fontSize: 12, fontWeight: 600, padding: '4px 12px', borderRadius: 20, background: COLORS.redLight, color: COLORS.red }}>
+              {statusCounts.out} out of stock · {fmtCur(totalDailyLoss)}/day
+            </span>
           )}
           {statusCounts.critical > 0 && (
-            <div style={{ padding: '6px 12px', borderRadius: 8, background: 'rgba(249,115,22,0.1)', border: '1px solid rgba(249,115,22,0.2)', fontSize: 11, fontWeight: 600, color: '#f97316' }}>
-              {statusCounts.critical} Kritik
-            </div>
+            <span style={{ fontSize: 12, fontWeight: 600, padding: '4px 12px', borderRadius: 20, background: COLORS.orangeLight, color: '#D97706' }}>
+              {statusCounts.critical} critical
+            </span>
           )}
         </div>
       </div>
 
-      {/* KPI CARDS */}
-      <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12, marginBottom: 20 }}>
-        {[
-          { label: 'TOPLAM STOK', value: fmtNum(totalStock), color: '#6366f1', filter: 'all' as StockStatus },
-          { label: 'STOKSUZ', value: fmtNum(statusCounts.out), color: '#ef4444', filter: 'out' as StockStatus },
-          { label: 'KRITIK', value: fmtNum(statusCounts.critical), color: '#f97316', filter: 'critical' as StockStatus },
-          { label: 'UYARI', value: fmtNum(statusCounts.warning), color: '#f59e0b', filter: 'warning' as StockStatus },
-          { label: 'SAGLIKLI', value: fmtNum(statusCounts.healthy), color: '#22c55e', filter: 'healthy' as StockStatus },
-          { label: 'FAZLA STOK', value: fmtNum(statusCounts.overstock), color: '#6366f1', filter: 'overstock' as StockStatus },
-          { label: 'OLU STOK', value: fmtNum(statusCounts.dead), color: '#64748b', filter: 'dead' as StockStatus },
-          { label: 'AYLIK DEPOLAMA', value: fmtCur(totalStorage), color: '#f59e0b', filter: 'all' as StockStatus },
-        ].map((kpi, i) => (
-          <div
-            key={i}
-            onClick={() => kpi.filter !== 'all' || i === 0 ? setStatusFilter(kpi.filter) : undefined}
-            style={{
-              ...cardStyle, padding: '14px 16px', position: 'relative', overflow: 'hidden',
-              cursor: 'pointer', opacity: 0, animation: `fadeInUp 0.6s ease-out ${i * 0.08}s forwards`,
-              border: statusFilter === kpi.filter && kpi.filter !== 'all' ? `1px solid ${kpi.color}` : '1px solid var(--border-color)',
-            }}
-          >
-            <div style={{ position: 'absolute', top: -20, right: -20, width: 80, height: 80, borderRadius: '50%', background: kpi.color, opacity: 0.08 }} />
-            <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 700, marginBottom: 6 }}>{kpi.label}</div>
-            <div style={{ fontSize: 13, fontWeight: 600 }}>{kpi.value}</div>
-          </div>
-        ))}
+      {/* 4 KPI Cards */}
+      <div className="grid-4" style={{ marginBottom: 20 }}>
+        <KpiCard label="TOTAL STOCK" value={fmtNum(totalStock)} change={`${data.length} SKU`} up={true}
+          icon={KpiIcons.stock} bars={[50, 55, 60, 58, 62, 65, 68]} color={COLORS.accent} light="#C7D2FE" iconBg={COLORS.accentLight} />
+        <KpiCard label="OUT OF STOCK" value={String(statusCounts.out)} change={`${fmtCur(totalDailyLoss)}/day loss`} up={false}
+          icon={KpiIcons.warning} bars={[90, 85, 80, 75, 72, 68, 65]} color={COLORS.red} light={COLORS.redLighter} iconBg={COLORS.redLight} />
+        <KpiCard label="CRITICAL (<14 DAYS)" value={String(statusCounts.critical)} change="Urgent order" up={false}
+          icon={KpiIcons.clock} bars={[70, 65, 60, 55, 50, 48, 45]} color={COLORS.orange} light={COLORS.orangeLighter} iconBg={COLORS.orangeLight} />
+        <KpiCard label="STORAGE/MONTH" value={fmtCur(totalStorage)} change={`${data.length} records`} up={true}
+          icon={KpiIcons.spend} bars={[60, 62, 65, 63, 60, 58, 55]} color={COLORS.orange} light={COLORS.orangeLighter} iconBg={COLORS.orangeLight} />
       </div>
 
-      {/* MIDDLE SECTION: 2 columns */}
-      <div className="inv-mid-grid" style={{ display: 'grid', gridTemplateColumns: '280px 1fr', gap: 14, marginBottom: 20 }}>
-        {/* LEFT: Charts */}
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-          {/* Monthly shipment trend */}
-          <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.5s forwards' }}>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Aylik Sevkiyat Trendi</div>
-            <ResponsiveContainer width="100%" height={160}>
-              <BarChart data={monthlyShipments}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" />
-                <XAxis dataKey="month" tick={{ fill: 'var(--text-secondary)', fontSize: 9 }} axisLine={false} tickLine={false} tickFormatter={v => formatMonthLabel(v)} />
-                <YAxis tick={{ fill: 'var(--text-secondary)', fontSize: 10 }} axisLine={false} tickLine={false} />
-                <Tooltip {...tooltipStyle} formatter={(value: any) => [fmtNum(Number(value)), 'Adet']} />
-                <Bar dataKey="units" fill="#6366f1" radius={[3, 3, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Size distribution — by yearly sales */}
-          <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.6s forwards' }}>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Beden Dagilimi</div>
-            <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginBottom: 10 }}>Yillik satis toplami</div>
-            {sizeDistribution.map((s, i) => {
-              const maxSales = Math.max(...sizeDistribution.map(d => d.sales)) || 1
-              return (
-                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <span style={{ fontSize: 11, color: 'var(--text-secondary)', width: 36, textAlign: 'right' }}>{s.name}</span>
-                  <div style={{ flex: 1, height: 14, background: 'var(--bg-elevated)', borderRadius: 4, overflow: 'hidden' }}>
-                    <div style={{ height: '100%', width: `${(s.sales / maxSales) * 100}%`, background: s.fill, borderRadius: 4, transition: 'width 0.5s ease' }} />
-                  </div>
-                  <span style={{ fontSize: 10, color: 'var(--text-secondary)', width: 40, textAlign: 'right' }}>{fmtNum(s.sales)}</span>
-                  {s.outCount > 5 && (
-                    <span style={{ fontSize: 9, fontWeight: 600, color: '#ef4444', background: 'rgba(239,68,68,0.1)', padding: '1px 5px', borderRadius: 4, whiteSpace: 'nowrap' }}>{s.outCount} stoksuz</span>
-                  )}
+      {/* Charts: Trend + Size */}
+      <div className="grid-2" style={{ marginBottom: 20 }}>
+        <div style={{ ...CARD_STYLE, padding: '18px 22px' }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>Monthly Sales Trend</div>
+          <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 14 }}>FBA Shipments · last 12 months</div>
+          <ResponsiveContainer width="100%" height={180}>
+            <BarChart data={monthlyShipments} margin={{ top: 5, right: 0, left: -15, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="0" stroke={COLORS.border} vertical={false} />
+              <XAxis dataKey="month" axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: COLORS.sub }} dy={6} tickFormatter={v => formatMonthLabel(v)} />
+              <YAxis axisLine={false} tickLine={false} tick={{ fontSize: 9, fill: COLORS.muted }} />
+              <Tooltip content={({ active, payload, label }: any) => active && payload?.[0] ? (
+                <div style={{ background: COLORS.text, borderRadius: 8, padding: '8px 14px' }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: '#fff' }}>{payload[0].value} units</div>
+                  <div style={{ fontSize: 11, color: COLORS.sub }}>{label}</div>
                 </div>
-              )
-            })}
-            <div style={{ display: 'flex', gap: 10, marginTop: 8 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, color: 'var(--text-secondary)' }}><div style={{ width: 8, height: 8, background: '#ef4444', borderRadius: 2 }} />En cok stoksuz</div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: 9, color: 'var(--text-secondary)' }}><div style={{ width: 8, height: 8, background: '#3b82f6', borderRadius: 2 }} />Fazla stok</div>
-            </div>
-          </div>
+              ) : null} />
+              <Bar dataKey="units" radius={[4, 4, 0, 0]} fill={COLORS.accent} opacity={0.8} barSize={20} />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
 
-        {/* RIGHT: Tabbed panel */}
-        <div style={{ ...cardStyle, opacity: 0, animation: 'fadeInUp 0.6s ease-out 0.55s forwards' }}>
-          {/* Tabs */}
-          <div style={{ display: 'flex', gap: 0, borderBottom: '1px solid var(--border-color)', marginBottom: 16 }}>
-            {([
-              { key: 'ai' as MiddleTab, label: 'AI Oneriler' },
-              { key: 'lowcvr' as MiddleTab, label: 'Dusuk CVR' },
-              { key: 'stars' as MiddleTab, label: 'Yildiz Urunler' },
-            ]).map(tab => (
-              <button
-                key={tab.key}
-                onClick={() => setMiddleTab(tab.key)}
-                style={{
-                  padding: '8px 16px', fontSize: 12, fontWeight: middleTab === tab.key ? 600 : 400,
-                  color: middleTab === tab.key ? '#6366f1' : 'var(--text-secondary)',
-                  borderBottom: middleTab === tab.key ? '2px solid #6366f1' : '2px solid transparent',
-                  background: 'transparent', border: 'none', cursor: 'pointer',
-                }}
-              >
-                {tab.key === 'ai' && <AIIcon size={14} />} {tab.label}
-              </button>
+        <div style={{ ...CARD_STYLE, padding: '18px 22px' }}>
+          <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>Size Distribution</div>
+          <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 14 }}>Based on yearly sales</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {sizeDistribution.map((sz, i) => (
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ width: 36, textAlign: 'right', fontSize: 12, fontWeight: 600, color: COLORS.text }}>{sz.name}</div>
+                <div style={{ flex: 1, position: 'relative', height: 20, background: '#F8FAFC', borderRadius: 5 }}>
+                  <div style={{ position: 'absolute', left: 0, top: 0, height: '100%', width: `${sz.sales / maxSizeSales * 100}%`, background: sizeBarColors[i % sizeBarColors.length], borderRadius: 5, opacity: 0.8 }} />
+                </div>
+                <div style={{ width: 45, textAlign: 'right', fontSize: 11, fontWeight: 600, color: COLORS.text }}>{fmtNum(sz.sales)}</div>
+                {sz.outCount >= 5 && <span style={{ fontSize: 9, fontWeight: 700, padding: '1px 6px', borderRadius: 10, background: COLORS.redLight, color: COLORS.red }}>{sz.outCount}⚠</span>}
+              </div>
             ))}
           </div>
-
-          {/* AI Insights Tab */}
-          {middleTab === 'ai' && (
-            <div style={{ background: 'var(--ai-gradient)', borderRadius: 10, padding: 16 }}>
-              {aiApiLoading && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {Array.from({ length: 6 }).map((_, i) => (
-                    <div key={i} style={{ padding: '12px 14px', border: '1px solid var(--border-color)', borderRadius: 8, borderLeft: '3px solid var(--border-color)' }}>
-                      <div className="skeleton-shimmer" style={{ width: 60, height: 10, borderRadius: 4, background: 'var(--bg-elevated)', marginBottom: 6 }} />
-                      <div className="skeleton-shimmer" style={{ width: '80%', height: 12, borderRadius: 4, background: 'var(--bg-elevated)' }} />
-                    </div>
-                  ))}
-                </div>
-              )}
-              {!aiApiLoading && (aiApiInsights || aiInsights).map((insight: any, i: number) => {
-                const isApi = !!aiApiInsights
-                const title = isApi ? insight.title : insight.title
-                const detail = isApi ? insight.description : insight.detail
-                const color = insight.color
-                const type = insight.type
-                const actionLabel = isApi ? insight.action : 'Siparis Planla'
-                const actionHref = (actionLabel === 'Siparis Planla' || actionLabel === 'Stok Eritme Plani') ? '/inventory/orders' : '#'
-                return (
-                  <div
-                    key={i}
-                    onClick={() => setExpandedInsight(expandedInsight === i ? null : i)}
-                    style={{
-                      borderLeft: `3px solid ${color}`, padding: '10px 14px', marginBottom: 8,
-                      background: 'var(--bg-card)', borderRadius: '0 8px 8px 0', cursor: 'pointer',
-                      border: `1px solid var(--border-color)`, borderLeftColor: color, borderLeftWidth: 3,
-                    }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        <AIIcon size={12} />
-                        <span style={{ fontSize: 9, fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.5px' }}>{type}</span>
-                      </div>
-                      <span style={{ fontSize: 11, color: 'var(--text-secondary)' }}>{expandedInsight === i ? '▲' : '▼'}</span>
-                    </div>
-                    <div style={{ fontSize: 12, fontWeight: 600, marginTop: 4 }}>{title}</div>
-                    {expandedInsight === i && (
-                      <div style={{ marginTop: 8 }}>
-                        <div style={{ fontSize: 11, color: 'var(--text-secondary)', lineHeight: 1.6, marginBottom: 8 }}>{detail}</div>
-                        <Link href={actionHref} style={{
-                          display: 'inline-block', padding: '5px 12px', fontSize: 10, fontWeight: 600, borderRadius: 6,
-                          background: `${color}20`, color, textDecoration: 'none',
-                          border: `1px solid ${color}40`,
-                        }}>
-                          {actionLabel}
-                        </Link>
-                      </div>
-                    )}
-                  </div>
-                )
-              })}
-            </div>
-          )}
-
-          {/* Low CVR Tab */}
-          {middleTab === 'lowcvr' && (
-            <div style={{ overflowX: 'auto' }}>
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8 }}>Oturum &gt; 300 ve CVR &lt; %5 olan urunler</div>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <th style={thStyle}>SKU</th>
-                    <th style={{ ...thStyle, textAlign: 'right' }}>Oturum</th>
-                    <th style={{ ...thStyle, textAlign: 'right' }}>CVR</th>
-                    <th style={{ ...thStyle, textAlign: 'right' }}>Buy Box</th>
-                    <th style={{ ...thStyle, textAlign: 'right' }}>Gelir</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {lowCvrProducts.map((r, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '8px 10px', fontSize: 11 }}>{r.msku}</td>
-                      <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right' }}>{fmtNum(r.sessions || 0)}</td>
-                      <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right', color: getCvrColor(r.cvr || 0), fontWeight: 600 }}>%{fmtDec(r.cvr || 0)}</td>
-                      <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right' }}>%{fmtDec(r.buy_box_pct || 0)}</td>
-                      <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right' }}>{fmtCur(r.revenue || 0)}</td>
-                    </tr>
-                  ))}
-                  {lowCvrProducts.length === 0 && (
-                    <tr><td colSpan={5} style={{ padding: 20, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 12 }}>Dusuk CVR urunu bulunamadi</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
-
-          {/* Star Products Tab */}
-          {middleTab === 'stars' && (
-            <div style={{ overflowX: 'auto' }}>
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)', marginBottom: 8 }}>CVR &gt; %12 olan yildiz urunler</div>
-              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                    <th style={thStyle}>SKU</th>
-                    <th style={{ ...thStyle, textAlign: 'right' }}>CVR</th>
-                    <th style={{ ...thStyle, textAlign: 'right' }}>Oturum</th>
-                    <th style={{ ...thStyle, textAlign: 'right' }}>Stok</th>
-                    <th style={{ ...thStyle, textAlign: 'right' }}>Gelir</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {starProducts.map((r, i) => (
-                    <tr key={i} style={{ borderBottom: '1px solid var(--border-color)' }}>
-                      <td style={{ padding: '8px 10px', fontSize: 11 }}>{r.msku}</td>
-                      <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right', color: '#22c55e', fontWeight: 600 }}>%{fmtDec(r.cvr || 0)}</td>
-                      <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right' }}>{fmtNum(r.sessions || 0)}</td>
-                      <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right' }}>{fmtNum(r.current_stock || 0)}</td>
-                      <td style={{ padding: '8px 10px', fontSize: 12, textAlign: 'right' }}>{fmtCur(r.revenue || 0)}</td>
-                    </tr>
-                  ))}
-                  {starProducts.length === 0 && (
-                    <tr><td colSpan={5} style={{ padding: 20, textAlign: 'center', color: 'var(--text-secondary)', fontSize: 12 }}>Yildiz urun bulunamadi</td></tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
-          )}
         </div>
       </div>
 
-      {/* FILTER BAR */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 14, flexWrap: 'wrap', alignItems: 'center' }}>
-        {(['all', 'out', 'critical', 'warning', 'healthy', 'overstock', 'dead', 'inactive'] as StockStatus[]).map(s => (
-          <button
-            key={s}
-            onClick={() => setStatusFilter(s)}
-            style={{
-              padding: '5px 12px', fontSize: 11, borderRadius: 6, cursor: 'pointer',
-              border: statusFilter === s ? '1px solid #6366f1' : '1px solid var(--border-color)',
-              background: statusFilter === s ? 'rgba(99,102,241,0.15)' : 'transparent',
-              color: statusFilter === s ? '#6366f1' : 'var(--text-secondary)',
-              fontWeight: statusFilter === s ? 600 : 400,
-            }}
-          >
-            {s === 'all' ? `Tumu (${data.length})` : `${STATUS_CONFIG[s]?.label || s} (${statusCounts[s] || 0})`}
-          </button>
-        ))}
-        <input
-          type="text"
-          placeholder="SKU veya urun ara..."
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-          style={{
-            marginLeft: 'auto', padding: '6px 12px', fontSize: 12, borderRadius: 8,
-            background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)',
-            outline: 'none', width: 200,
-          }}
+      {/* Low CVR + Star Products */}
+      <div className="grid-2" style={{ marginBottom: 20 }}>
+        <div style={{ ...CARD_STYLE, padding: '18px 22px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: COLORS.red }} />
+            <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Low CVR Opportunities</span>
+            <span style={{ fontSize: 11, color: COLORS.sub, marginLeft: 4 }}>High traffic, low conversion</span>
+          </div>
+          {lowCvrProducts.slice(0, 5).map((d, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < 4 ? `1px solid #F8FAFC` : 'none' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {getBySku(d.msku)?.image_url ? (
+                  <a href={`/products/${asinFromSku(d.msku)}`} onClick={e => e.stopPropagation()} style={{ lineHeight: 0 }}>
+                    <img src={getBySku(d.msku)!.image_url!} alt="" style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'cover', border: `1px solid ${COLORS.border}` }} />
+                  </a>
+                ) : <ImgPlaceholder size={24} />}
+                <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.accent }}>{d.msku}</span>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 11, color: COLORS.sub }}>{fmtNum(d.sessions || 0)} sessions</span>
+                <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: COLORS.redLight, color: COLORS.red }}>%{fmtDec(d.cvr || 0)}</span>
+              </div>
+            </div>
+          ))}
+          {lowCvrProducts.length === 0 && <div style={{ fontSize: 12, color: COLORS.sub, padding: 16, textAlign: 'center' }}>No low CVR products found</div>}
+        </div>
+
+        <div style={{ ...CARD_STYLE, padding: '18px 22px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 12 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: COLORS.green }} />
+            <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Star Products</span>
+            <span style={{ fontSize: 11, color: COLORS.sub, marginLeft: 4 }}>CVR &gt;12% — increase traffic</span>
+          </div>
+          {starProducts.slice(0, 5).map((d, i) => (
+            <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '8px 0', borderBottom: i < 4 ? `1px solid #F8FAFC` : 'none' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {getBySku(d.msku)?.image_url ? (
+                  <a href={`/products/${asinFromSku(d.msku)}`} onClick={e => e.stopPropagation()} style={{ lineHeight: 0 }}>
+                    <img src={getBySku(d.msku)!.image_url!} alt="" style={{ width: 24, height: 24, borderRadius: 4, objectFit: 'cover', border: `1px solid ${COLORS.border}` }} />
+                  </a>
+                ) : <ImgPlaceholder size={24} />}
+                <div>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.accent }}>{d.msku}</span>
+                  {d.stock_status === 'out' && <span style={{ fontSize: 9, fontWeight: 700, marginLeft: 6, padding: '1px 6px', borderRadius: 8, background: COLORS.redLight, color: COLORS.red }}>OUT OF STOCK</span>}
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: 11, color: COLORS.sub }}>{fmtNum(d.sessions || 0)} sessions</span>
+                <span style={{ fontSize: 11, fontWeight: 700, padding: '2px 8px', borderRadius: 12, background: COLORS.greenLight, color: COLORS.green }}>%{fmtDec(d.cvr || 0)}</span>
+              </div>
+            </div>
+          ))}
+          {starProducts.length === 0 && <div style={{ fontSize: 12, color: COLORS.sub, padding: 16, textAlign: 'center' }}>No star products found</div>}
+        </div>
+      </div>
+
+      {/* AI Insights — show local insights immediately, replace with API results when ready */}
+      {mappedInsights.length > 0 && (
+        <AIInsights
+          title={aiApiLoading ? "AI Inventory Insights ✨" : "AI Inventory Insights"}
+          subtitle={aiApiLoading ? "Generating AI-powered insights..." : "AI-powered recommendations based on inventory and sales data"}
+          insights={mappedInsights}
         />
-        <select
-          value={`${sortKey}-${sortDir}`}
-          onChange={e => {
-            const [k, d] = e.target.value.split('-')
-            setSortKey(k as SortKey)
-            setSortDir(d as SortDir)
-          }}
-          style={{
-            padding: '6px 12px', fontSize: 12, borderRadius: 8,
-            background: 'var(--bg-card)', border: '1px solid var(--border-color)', color: 'var(--text-primary)',
-            cursor: 'pointer', outline: 'none',
-          }}
-        >
-          <option value="daily_revenue_loss-desc">Kayip (Azalan)</option>
-          <option value="current_stock-asc">Stok (Artan)</option>
-          <option value="current_stock-desc">Stok (Azalan)</option>
-          <option value="avg_daily_sales-desc">Gunluk Satis (Azalan)</option>
-          <option value="days_of_stock-asc">Kalan Gun (Artan)</option>
-          <option value="cvr-desc">CVR (Azalan)</option>
-          <option value="sales_30d-desc">30g Satis (Azalan)</option>
+      )}
+
+      {/* Filter Bar */}
+      <div style={{ ...CARD_STYLE, padding: '12px 20px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+          {(['all', 'out', 'critical', 'warning', 'healthy', 'overstock', 'dead', 'inactive'] as StockStatus[]).map(s => {
+            const labels: Record<string, string> = { all: 'All', out: 'Out of Stock', critical: 'Critical', warning: 'Warning', healthy: 'Healthy', overstock: 'Overstock', dead: 'Dead', inactive: 'Inactive' }
+            return (
+              <button key={s} onClick={() => { setStatusFilter(s); setSelectedRow(null) }} style={{
+                padding: '5px 12px', borderRadius: 8, border: '1px solid #E2E8F0', cursor: 'pointer', fontSize: 11, fontWeight: 500,
+                background: statusFilter === s ? COLORS.text : '#fff', color: statusFilter === s ? '#fff' : '#64748B',
+              }}>
+                {s === 'all' ? `${labels[s]} (${data.length})` : `${labels[s]} (${statusCounts[s] || 0})`}
+              </button>
+            )
+          })}
+        </div>
+        <div style={{ flex: 1 }} />
+        <input value={searchQuery} onChange={e => setSearchQuery(e.target.value)} placeholder="Search SKU..."
+          style={{ padding: '7px 14px', borderRadius: 8, border: '1px solid #E2E8F0', fontSize: 12, outline: 'none', width: 140 }} />
+        <select value={`${sortKey}-${sortDir}`} onChange={e => { const [k, d] = e.target.value.split('-'); setSortKey(k as SortKey); setSortDir(d as SortDir) }}
+          style={{ ...SELECT_STYLE, fontSize: 12, padding: '7px 28px 7px 10px' }}>
+          <option value="daily_revenue_loss-desc">Urgency</option>
+          <option value="sales_year-desc">Yearly Sales</option>
+          <option value="cvr-desc">CVR</option>
+          <option value="sessions-desc">Traffic</option>
+          <option value="current_stock-asc">Stock</option>
         </select>
       </div>
 
-      {/* MAIN TABLE */}
-      <div className="table-container" style={{ ...cardStyle, padding: 0, overflow: 'hidden' }}>
+      {/* Main Table */}
+      <div style={{ ...CARD_STYLE, padding: 0, overflow: 'hidden', marginBottom: 20 }}>
         <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, minWidth: 1100 }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 960 }}>
             <thead>
-              <tr style={{ borderBottom: '1px solid var(--border-color)' }}>
-                <th style={thStyle}>Durum</th>
-                <th style={{ ...thStyle, cursor: 'pointer' }} onClick={() => handleSort('msku')}>SKU{sortIndicator('msku')}</th>
-                <th style={thStyle}>Urun Adi</th>
-                <th style={{ ...thStyle, textAlign: 'right', cursor: 'pointer' }} onClick={() => handleSort('current_stock')}>Stok{sortIndicator('current_stock')}</th>
-                <th style={{ ...thStyle, textAlign: 'right', cursor: 'pointer' }} onClick={() => handleSort('inbound_total')}>Yoldaki{sortIndicator('inbound_total')}</th>
-                <th style={{ ...thStyle, textAlign: 'right', cursor: 'pointer' }} onClick={() => handleSort('avg_daily_sales')}>G.Satis{sortIndicator('avg_daily_sales')}</th>
-                <th style={{ ...thStyle, textAlign: 'right', cursor: 'pointer' }} onClick={() => handleSort('sales_30d')}>30g{sortIndicator('sales_30d')}</th>
-                <th style={{ ...thStyle, textAlign: 'right', cursor: 'pointer' }} onClick={() => handleSort('sales_year')}>Yillik{sortIndicator('sales_year')}</th>
-                <th style={{ ...thStyle, textAlign: 'right', cursor: 'pointer' }} onClick={() => handleSort('sessions')}>Oturum{sortIndicator('sessions')}</th>
-                <th style={{ ...thStyle, textAlign: 'right', cursor: 'pointer' }} onClick={() => handleSort('cvr')}>CVR{sortIndicator('cvr')}</th>
-                <th style={{ ...thStyle, textAlign: 'right', cursor: 'pointer' }} onClick={() => handleSort('buy_box_pct')}>BuyBox{sortIndicator('buy_box_pct')}</th>
-                <th style={{ ...thStyle, textAlign: 'right', cursor: 'pointer' }} onClick={() => handleSort('days_of_stock')}>Gun{sortIndicator('days_of_stock')}</th>
-                <th style={{ ...thStyle, textAlign: 'right', cursor: 'pointer' }} onClick={() => handleSort('daily_revenue_loss')}>Kayip/gun{sortIndicator('daily_revenue_loss')}</th>
+              <tr style={{ borderBottom: `2px solid ${COLORS.border}` }}>
+                {[
+                  { k: '' as any, l: 'Status', align: 'left' as const, sort: false },
+                  { k: 'msku' as SortKey, l: 'SKU', align: 'left' as const, sort: true },
+                  { k: 'current_stock' as SortKey, l: 'Stock', align: 'right' as const, sort: true },
+                  { k: 'inbound_total' as SortKey, l: 'Inbound', align: 'right' as const, sort: true },
+                  { k: 'avg_daily_sales' as SortKey, l: 'D.Sales', align: 'right' as const, sort: true },
+                  { k: 'sales_30d' as SortKey, l: '30d', align: 'right' as const, sort: true },
+                  { k: 'sales_year' as SortKey, l: 'Yearly', align: 'right' as const, sort: true },
+                  { k: 'sessions' as SortKey, l: 'Sessions', align: 'right' as const, sort: true },
+                  { k: 'cvr' as SortKey, l: 'CVR', align: 'right' as const, sort: true },
+                  { k: 'buy_box_pct' as SortKey, l: 'Buy Box', align: 'right' as const, sort: true },
+                  { k: 'days_of_stock' as SortKey, l: 'Days Left', align: 'right' as const, sort: true },
+                  { k: 'daily_revenue_loss' as SortKey, l: 'Loss/day', align: 'right' as const, sort: true },
+                ].map((h, hi) => (
+                  <th key={hi} onClick={h.sort ? () => handleSort(h.k) : undefined}
+                    style={{ ...TH_STYLE, padding: '9px 12px', textAlign: h.align, cursor: h.sort ? 'pointer' : 'default', color: sortKey === h.k ? COLORS.accent : COLORS.sub }}>
+                    {h.l}{h.sort ? sortIndicator(h.k) : ''}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {filteredData.slice(0, 100).map((row, i) => (
-                <tr
-                  key={i}
+                <tr key={i} className="stk-tr"
                   onClick={() => setSelectedRow(selectedRow?.msku === row.msku ? null : row)}
-                  style={{
-                    borderBottom: '1px solid var(--border-color)', cursor: 'pointer',
-                    background: selectedRow?.msku === row.msku ? 'var(--bg-elevated)' : 'transparent',
-                    transition: 'background 0.15s',
-                  }}
-                >
-                  <td style={{ padding: '8px 10px' }}>{getStatusBadge(row.stock_status)}</td>
-                  <td style={{ padding: '8px 10px', fontSize: 11, fontWeight: 500 }}>{row.msku}</td>
-                  <td style={{ padding: '8px 10px', fontSize: 11, maxWidth: 200, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{(row.product_name || '').substring(0, 40)}</td>
-                  <td style={{ padding: '8px 10px', textAlign: 'right', fontWeight: 500 }}>{fmtNum(row.current_stock || 0)}</td>
-                  <td style={{ padding: '8px 10px', textAlign: 'right', color: (row.inbound_total || 0) > 0 ? '#6366f1' : 'var(--text-secondary)' }}>{fmtNum(row.inbound_total || 0)}</td>
-                  <td style={{ padding: '8px 10px', textAlign: 'right' }}>{fmtDec(row.avg_daily_sales || 0)}</td>
-                  <td style={{ padding: '8px 10px', textAlign: 'right' }}>{fmtNum(row.sales_30d || 0)}</td>
-                  <td style={{ padding: '8px 10px', textAlign: 'right' }}>{fmtNum(row.sales_year || 0)}</td>
-                  <td style={{ padding: '8px 10px', textAlign: 'right' }}>{fmtNum(row.sessions || 0)}</td>
-                  <td style={{ padding: '8px 10px', textAlign: 'right', color: getCvrColor(row.cvr || 0), fontWeight: 600 }}>%{fmtDec(row.cvr || 0)}</td>
-                  <td style={{ padding: '8px 10px', textAlign: 'right' }}>%{fmtDec(row.buy_box_pct || 0)}</td>
-                  <td style={{ padding: '8px 10px', textAlign: 'right', color: (row.days_of_stock || 0) < 7 ? '#ef4444' : (row.days_of_stock || 0) < 14 ? '#f59e0b' : 'var(--text-primary)', fontWeight: 500 }}>{fmtDec(row.days_of_stock || 0, 0)}</td>
-                  <td style={{ padding: '8px 10px', textAlign: 'right', color: (row.daily_revenue_loss || 0) > 0 ? '#ef4444' : 'var(--text-secondary)', fontWeight: (row.daily_revenue_loss || 0) > 0 ? 600 : 400 }}>{(row.daily_revenue_loss || 0) > 0 ? fmtCur(row.daily_revenue_loss) : '-'}</td>
+                  style={{ borderBottom: `1px solid #F8FAFC`, cursor: 'pointer', background: selectedRow?.msku === row.msku ? '#F0F2FF' : 'transparent', transition: 'background .15s' }}>
+                  <td style={{ padding: '8px 12px' }}><StockStatusBadge status={row.stock_status as keyof typeof STOCK_STATUS} /></td>
+                  <td style={{ padding: '8px 12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      {getBySku(row.msku)?.image_url ? (
+                        <a href={`/products/${asinFromSku(row.msku)}`} onClick={e => e.stopPropagation()} style={{ lineHeight: 0 }}>
+                          <img src={getBySku(row.msku)!.image_url!} alt="" style={{ width: 30, height: 30, borderRadius: 6, objectFit: 'cover', border: `1px solid ${COLORS.border}` }} />
+                        </a>
+                      ) : <ImgPlaceholder size={30} />}
+                      <div>
+                        <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.accent }}>{row.msku}</div>
+                        <div style={{ fontSize: 10, color: COLORS.sub }}>{(row.product_name || '').substring(0, 30)}</div>
+                      </div>
+                    </div>
+                  </td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 13, fontWeight: 600, color: row.current_stock === 0 ? COLORS.red : COLORS.text }}>{fmtNum(row.current_stock || 0)}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, color: (row.inbound_total || 0) > 0 ? COLORS.green : COLORS.muted }}>{(row.inbound_total || 0) > 0 ? fmtNum(row.inbound_total) : '—'}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, color: '#64748B' }}>{fmtDec(row.avg_daily_sales || 0)}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, color: '#64748B' }}>{fmtNum(row.sales_30d || 0)}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: COLORS.text }}>{fmtNum(row.sales_year || 0)}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, color: '#64748B' }}>{fmtNum(row.sessions || 0)}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: getCvrColor(row.cvr || 0) }}>{(row.cvr || 0) > 0 ? `%${fmtDec(row.cvr)}` : '—'}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, color: '#64748B' }}>{(row.buy_box_pct || 0) > 0 ? `%${fmtDec(row.buy_box_pct)}` : '—'}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, color: (row.days_of_stock || 0) <= 14 ? COLORS.red : (row.days_of_stock || 0) <= 30 ? COLORS.orange : '#64748B' }}>{(row.days_of_stock || 999) >= 999 ? '∞' : fmtDec(row.days_of_stock || 0, 0)}</td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', fontSize: 12, fontWeight: 600, color: (row.daily_revenue_loss || 0) > 0 ? COLORS.red : COLORS.muted }}>{(row.daily_revenue_loss || 0) > 0 ? `€${fmtDec(row.daily_revenue_loss, 0)}` : '—'}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         </div>
         {filteredData.length > 100 && (
-          <div style={{ padding: '10px 16px', fontSize: 11, color: 'var(--text-secondary)', borderTop: '1px solid var(--border-color)' }}>
-            {filteredData.length} urunden ilk 100 gosteriliyor
+          <div style={{ padding: '10px 16px', fontSize: 11, color: COLORS.sub, borderTop: `1px solid ${COLORS.border}` }}>
+            Showing first 100 of {filteredData.length} products
           </div>
         )}
       </div>
 
-      {/* DETAIL PANEL */}
+      {/* Detail Panel */}
       {selectedRow && (
-        <div style={{ ...cardStyle, marginTop: 14, opacity: 0, animation: 'fadeInUp 0.4s ease-out forwards' }}>
+        <div style={{ ...CARD_STYLE, padding: 20, marginBottom: 20 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 }}>
             <div>
-              <div style={{ fontSize: 14, fontWeight: 600 }}>{selectedRow.msku}</div>
-              <div style={{ fontSize: 11, color: 'var(--text-secondary)', marginTop: 2 }}>{(selectedRow.product_name || '').substring(0, 60)}</div>
+              <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text }}>{selectedRow.msku}</div>
+              <div style={{ fontSize: 12, color: COLORS.sub, marginTop: 2 }}>{(selectedRow.product_name || '').substring(0, 60)}</div>
             </div>
-            {getStatusBadge(selectedRow.stock_status)}
+            <StockStatusBadge status={selectedRow.stock_status as keyof typeof STOCK_STATUS} />
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 10, marginBottom: 14 }}>
+          <div className="grid-4" style={{ marginBottom: 14, gap: 10 }}>
             {[
-              { label: 'Mevcut Stok', value: fmtNum(selectedRow.current_stock || 0) },
-              { label: 'Yoldaki', value: fmtNum(selectedRow.inbound_total || 0) },
-              { label: 'G. Satis', value: fmtDec(selectedRow.avg_daily_sales || 0) },
-              { label: 'Fiyat', value: fmtCur(selectedRow.price || 0) },
+              { label: 'Current Stock', value: fmtNum(selectedRow.current_stock || 0) },
+              { label: 'Inbound', value: fmtNum(selectedRow.inbound_total || 0) },
+              { label: 'D. Sales', value: fmtDec(selectedRow.avg_daily_sales || 0) },
+              { label: 'Price', value: fmtCur(selectedRow.price || 0) },
               { label: 'CVR', value: `%${fmtDec(selectedRow.cvr || 0)}` },
-              { label: 'Depolama', value: fmtCur(selectedRow.storage_fee_monthly || 0) },
-              { label: 'Iade', value: `%${fmtDec(selectedRow.refund_rate || 0)}` },
+              { label: 'Storage', value: fmtCur(selectedRow.storage_fee_monthly || 0) },
+              { label: 'Refund', value: `%${fmtDec(selectedRow.refund_rate || 0)}` },
+              { label: 'Days Left', value: (selectedRow.days_of_stock || 999) >= 999 ? '∞' : fmtDec(selectedRow.days_of_stock || 0, 0) },
             ].map((m, i) => (
-              <div key={i} style={{ textAlign: 'center', padding: '8px 4px', background: 'var(--bg-elevated)', borderRadius: 8 }}>
-                <div style={{ fontSize: 9, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 4 }}>{m.label}</div>
-                <div style={{ fontSize: 13, fontWeight: 600 }}>{m.value}</div>
+              <div key={i} style={{ textAlign: 'center', padding: '10px 6px', background: '#F8FAFC', borderRadius: 10 }}>
+                <div style={{ fontSize: 9, fontWeight: 700, color: COLORS.sub, letterSpacing: '.05em', marginBottom: 4 }}>{m.label}</div>
+                <div style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>{m.value}</div>
               </div>
             ))}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'flex-start', gap: 8, padding: '10px 14px', background: 'var(--ai-gradient)', borderRadius: 8, border: '1px solid var(--border-color)' }}>
-            <AIIcon size={16} />
-            <div style={{ fontSize: 12, color: 'var(--text-secondary)', lineHeight: 1.5 }}>
-              {getDetailMessage(selectedRow)}
-            </div>
+          <div style={{ padding: '12px 16px', background: 'linear-gradient(160deg, #e2e6ea, #eef0f3, #f5f7fa)', borderRadius: 10, fontSize: 13, color: '#64748B', lineHeight: 1.6 }}>
+            {getDetailMessage(selectedRow)}
           </div>
         </div>
       )}
-    </DashboardShell>
+    </>
   )
 }

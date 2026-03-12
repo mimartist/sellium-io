@@ -25,11 +25,11 @@ export default function LoginPage() {
         router.push('/')
         router.refresh()
       } else {
-        setError('Yanlış şifre')
+        setError('Wrong password')
         setPassword('')
       }
     } catch {
-      setError('Bağlantı hatası')
+      setError('Connection error')
     } finally {
       setLoading(false)
     }
@@ -54,7 +54,7 @@ export default function LoginPage() {
         animation: 'fadeInUp 0.6s ease-out',
         boxSizing: 'border-box',
       }}>
-        {/* Logo / Başlık */}
+        {/* Logo / Title */}
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
           <div style={{
             width: 56,
@@ -82,7 +82,7 @@ export default function LoginPage() {
             fontSize: 14,
             marginTop: 8,
           }}>
-            Dashboard&apos;a erişmek için şifrenizi girin
+            Enter your password to access the Dashboard
           </p>
         </div>
 
@@ -96,7 +96,7 @@ export default function LoginPage() {
               marginBottom: 8,
               fontWeight: 500,
             }}>
-              Şifre
+              Password
             </label>
             <input
               type="password"
@@ -158,7 +158,7 @@ export default function LoginPage() {
               opacity: loading ? 0.7 : 1,
             }}
           >
-            {loading ? 'Giriş yapılıyor...' : 'Giriş Yap'}
+            {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
 

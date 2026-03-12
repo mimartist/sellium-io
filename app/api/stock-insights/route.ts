@@ -3,32 +3,32 @@ import { NextResponse } from 'next/server'
 export async function POST(request: Request) {
   const summary = await request.json()
 
-  const prompt = `Sen bir Amazon FBA stok analisti ve danışmanısın. Aşağıdaki envanter verilerini analiz et ve Türkçe olarak 6 adet stratejik öneri üret.
+  const prompt = `You are an Amazon FBA inventory analyst and consultant. Analyze the following inventory data and produce 6 strategic recommendations in English.
 
-VERİ ÖZETİ:
-- Stoksuz ürünler: ${summary.outOfStockCount} SKU, günlük kayıp: €${summary.totalDailyLoss}
-- En çok kayıp veren stoksuz ürünler: ${summary.topLossProducts}
-- Kritik stok (<14 gün): ${summary.criticalCount} SKU
-- Kritik ürünler: ${summary.topCriticalProducts}
-- Fazla stok (>90 gün): ${summary.overstockCount} SKU, ${summary.overstockUnits} adet
-- Ölü stok (0 satış): ${summary.deadCount} SKU, ${summary.deadUnits} adet
-- Düşük CVR (>300 oturum, <%5 CVR): ${summary.lowCvrCount} ürün — en kötüler: ${summary.topLowCvr}
-- Yıldız ürünler (CVR>%12): ${summary.highCvrCount} ürün — en iyiler: ${summary.topHighCvr}
-- Beden dağılımı: ${summary.sizeDistribution}
+DATA SUMMARY:
+- Out of stock products: ${summary.outOfStockCount} SKUs, daily loss: €${summary.totalDailyLoss}
+- Top loss out-of-stock products: ${summary.topLossProducts}
+- Critical stock (<14 days): ${summary.criticalCount} SKUs
+- Critical products: ${summary.topCriticalProducts}
+- Overstock (>90 days): ${summary.overstockCount} SKUs, ${summary.overstockUnits} units
+- Dead stock (0 sales): ${summary.deadCount} SKUs, ${summary.deadUnits} units
+- Low CVR (>300 sessions, <5% CVR): ${summary.lowCvrCount} products — worst: ${summary.topLowCvr}
+- Star products (CVR>12%): ${summary.highCvrCount} products — best: ${summary.topHighCvr}
+- Size distribution: ${summary.sizeDistribution}
 
-Her öneri için şu JSON formatında yanıt ver (sadece JSON, başka metin yok):
+Respond in the following JSON format for each recommendation (JSON only, no other text):
 [
   {
-    "type": "ACİL|KRİTİK|VERİMLİLİK|BEDEN ANALİZİ|MALİYET|FIRSAT",
-    "title": "Kısa ve etkileyici başlık",
-    "description": "Detaylı açıklama — spesifik SKU'lar, rakamlar ve aksiyon adımları içermeli",
-    "action": "Aksiyon butonu metni",
+    "type": "URGENT|CRITICAL|EFFICIENCY|SIZE ANALYSIS|COST|OPPORTUNITY",
+    "title": "Short and impactful title",
+    "description": "Detailed explanation — should include specific SKUs, numbers and action steps",
+    "action": "Action button text",
     "color": "#ef4444|#f59e0b|#3b82f6|#8b5cf6|#a855f7|#22c55e",
     "priority": 1-6
   }
 ]
 
-6 öneri üret: 1) Stoksuz ürün acil aksiyonu, 2) Kritik stok uyarısı, 3) CVR optimizasyon fırsatı, 4) Beden dağılımı analizi, 5) Fazla stok eritme planı, 6) Yıldız ürün fırsatı.`
+Generate 6 recommendations: 1) Out-of-stock urgent action, 2) Critical stock warning, 3) CVR optimization opportunity, 4) Size distribution analysis, 5) Overstock liquidation plan, 6) Star product opportunity.`
 
   try {
     const apiKey = process.env.ANTHROPIC_API_KEY
@@ -57,12 +57,12 @@ Her öneri için şu JSON formatında yanıt ver (sadece JSON, başka metin yok)
   } catch {
     return NextResponse.json({
       insights: [
-        { type: 'ACİL', title: `${summary.outOfStockCount} SKU stoksuz — günlük €${summary.totalDailyLoss} kayıp!`, description: `En çok kayıp veren ürünler: ${summary.topLossProducts}. Acil sipariş oluşturun.`, action: 'Siparis Planla', color: '#ef4444', priority: 1 },
-        { type: 'KRİTİK', title: `${summary.criticalCount} SKU kritik stok seviyesinde`, description: `14 günden az stoğu kalan ürünler: ${summary.topCriticalProducts}. Hızlı sevkiyat planlanmalı.`, action: 'Kritik Stoklari Gor', color: '#f59e0b', priority: 2 },
-        { type: 'VERİMLİLİK', title: `${summary.lowCvrCount} üründe düşük dönüşüm oranı`, description: `300+ oturum almasına rağmen %5 altında CVR: ${summary.topLowCvr}. Listing optimizasyonu yapılmalı.`, action: 'Listing Iyilestir', color: '#3b82f6', priority: 3 },
-        { type: 'BEDEN ANALİZİ', title: 'Beden bazlı stok dengesizliği tespit edildi', description: `Beden dağılımı: ${summary.sizeDistribution}. Stoksuz bedenlere öncelik verin.`, action: 'Beden Planla', color: '#8b5cf6', priority: 4 },
-        { type: 'MALİYET', title: `${summary.overstockCount} SKU fazla stokta — ${summary.overstockUnits} adet`, description: `90+ gün stoğu olan ürünler depolama maliyeti yaratıyor. İndirim veya FBA geri çekme değerlendirilmeli.`, action: 'Stok Eritme Plani', color: '#a855f7', priority: 5 },
-        { type: 'FIRSAT', title: `${summary.highCvrCount} yıldız ürün fırsatı`, description: `CVR >%12 olan ürünler: ${summary.topHighCvr}. Bu ürünlerin stok seviyelerini artırın.`, action: 'Firsat Planla', color: '#22c55e', priority: 6 },
+        { type: 'URGENT', title: `${summary.outOfStockCount} SKUs out of stock — €${summary.totalDailyLoss}/day loss!`, description: `Top loss products: ${summary.topLossProducts}. Create urgent orders.`, action: 'Plan Order', color: '#ef4444', priority: 1 },
+        { type: 'CRITICAL', title: `${summary.criticalCount} SKUs at critical stock level`, description: `Products with less than 14 days of stock: ${summary.topCriticalProducts}. Fast shipment should be planned.`, action: 'View Critical Stock', color: '#f59e0b', priority: 2 },
+        { type: 'EFFICIENCY', title: `${summary.lowCvrCount} products with low conversion rate`, description: `Despite 300+ sessions, CVR below 5%: ${summary.topLowCvr}. Listing optimization needed.`, action: 'Improve Listings', color: '#3b82f6', priority: 3 },
+        { type: 'SIZE ANALYSIS', title: 'Size-based stock imbalance detected', description: `Size distribution: ${summary.sizeDistribution}. Prioritize out-of-stock sizes.`, action: 'Plan Sizes', color: '#8b5cf6', priority: 4 },
+        { type: 'COST', title: `${summary.overstockCount} SKUs overstocked — ${summary.overstockUnits} units`, description: `Products with 90+ days of stock are generating storage costs. Consider discounts or FBA removal.`, action: 'Liquidation Plan', color: '#a855f7', priority: 5 },
+        { type: 'OPPORTUNITY', title: `${summary.highCvrCount} star product opportunities`, description: `Products with CVR >12%: ${summary.topHighCvr}. Increase stock levels for these products.`, action: 'Plan Opportunity', color: '#22c55e', priority: 6 },
       ],
     })
   }
