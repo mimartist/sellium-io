@@ -15,7 +15,7 @@
 
 @media (max-width: 768px) {
   .grid-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid-4 { grid-template-columns: minmax(0, 1fr); }
 }
 
 /* ═══ TABLE ═══ */
