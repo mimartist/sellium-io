@@ -398,6 +398,7 @@ export default function DashboardPage() {
       let q = supabase
         .from('all_orders')
         .select('sku, quantity, item_price, order_status')
+        .neq('marketplace', 'Non-Amazon')
       if (selectedMonth !== 'all') {
         const { startDate, endDate } = getMonthRange(selectedMonth)
         q = q.gte('purchase_date', startDate).lte('purchase_date', endDate)
