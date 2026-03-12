@@ -8,6 +8,7 @@ import KpiCard from '@/components/ui/KpiCard'
 import { KpiIcons } from '@/components/ui/KpiIcons'
 import AIInsights, { type Insight } from '@/components/ui/AIInsights'
 import { ImgPlaceholder } from '@/components/ui/Badges'
+import { useProductImages } from '@/hooks/useProductImages'
 import { COLORS, CARD_STYLE, TH_STYLE } from '@/lib/design-tokens'
 import { ComposedChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts'
 
@@ -36,6 +37,7 @@ const ChartTooltip = ({ active, payload, label }: any) =>
 
 export default function AdsOverviewPage() {
   const { startDate, endDate, isAllTime } = useDateRange()
+  const { getBySkuWithFallback: getBySku, getByAsin, loaded: imgLoaded } = useProductImages()
   const [loading, setLoading] = useState(true)
   const [rawKpi, setRawKpi] = useState({ spend: 0, sales: 0, acos: 0, roas: 0, clicks: 0, orders: 0 })
   const [campaigns, setCampaigns] = useState<CampRow[]>([])
@@ -189,7 +191,7 @@ export default function AdsOverviewPage() {
   const statusBadge = (s: string) => {
     const m: Record<string, { bg: string; c: string }> = { Active: { bg: '#ECFDF5', c: COLORS.green }, Paused: { bg: '#FFFBEB', c: '#D97706' }, Archived: { bg: '#F8FAFC', c: '#64748B' } }
     const x = m[s] || m.Archived
-    return <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 12, background: x.bg, color: x.c }}>● {s}</span>
+    return <span style={{ fontSize: 10, fontWeight: 600, padding: '2px 8px', borderRadius: 12, background: x.bg, color: x.c, whiteSpace: 'nowrap' }}>● {s}</span>
   }
 
   return (
@@ -282,7 +284,7 @@ export default function AdsOverviewPage() {
             {[
               { title: 'Least Efficient', badge: 'HIGH ACOS', bc: COLORS.red, items: inefficientCamps.map(c => ({ l: c.campaign_name.length > 22 ? c.campaign_name.substring(0, 22) + '…' : c.campaign_name, r: `%${c.acos.toFixed(0)}`, r2: `€${c.spend.toFixed(0)}`, rc: COLORS.red, img: false })) },
               { title: 'Wasted Spend', badge: `€${totalWasted.toFixed(0)} TOTAL`, bc: COLORS.orange, items: wastedTerms.map(t => ({ l: t.term.length > 25 ? t.term.substring(0, 25) + '…' : t.term, r: `€${t.spend.toFixed(2)}`, r2: `${t.clicks} clicks`, rc: COLORS.red, img: false })) },
-              { title: 'Top Products', badge: 'LOW ACOS', bc: COLORS.green, items: bestProducts.map(p => ({ l: p.sku, r: `%${p.acos.toFixed(1)}`, r2: `€${p.sales.toFixed(0)}`, rc: COLORS.green, img: true })) },
+              { title: 'Top Products', badge: 'LOW ACOS', bc: COLORS.green, items: bestProducts.map(p => { const pi = getBySku(p.sku) || getByAsin(p.asin); return { l: p.sku, r: `%${p.acos.toFixed(1)}`, r2: `€${p.sales.toFixed(0)}`, rc: COLORS.green, img: true, imgUrl: pi?.image_url || null } }) },
               { title: 'Top Terms', badge: `${convertingTermCount} CONVERSIONS`, bc: COLORS.accent, items: topTerms.map(t => ({ l: t.term, r: `CVR %${t.cvr.toFixed(0)}`, r2: `€${t.sales.toFixed(0)}`, rc: COLORS.green, img: false })) },
             ].map((c, ci) => (
               <div key={ci} style={{ ...CARD_STYLE, padding: '18px 20px', minWidth: 0, overflow: 'hidden' }}>
@@ -293,7 +295,7 @@ export default function AdsOverviewPage() {
                 {c.items.length > 0 ? c.items.map((it, i) => (
                   <div key={i} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '7px 0', borderBottom: i < 2 ? '1px solid #F8FAFC' : 'none', gap: 8 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 6, minWidth: 0, flex: 1 }}>
-                      {it.img && <ImgPlaceholder size={22} />}
+                      {it.img && ((it as any).imgUrl ? <img src={(it as any).imgUrl} alt="" style={{ width: 22, height: 22, borderRadius: 4, objectFit: 'cover', flexShrink: 0 }} /> : <ImgPlaceholder size={22} />)}
                       <span style={{ fontSize: 11, color: it.img ? COLORS.accent : '#475569', fontWeight: it.img ? 600 : 400, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'block' }}>{it.l}</span>
                     </div>
                     <div style={{ display: 'flex', gap: 6, flexShrink: 0, alignItems: 'center' }}>

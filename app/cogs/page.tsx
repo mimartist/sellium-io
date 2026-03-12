@@ -772,8 +772,8 @@ export default function COGSPage() {
                               if (pInfo?.image_url) { foundInfo = pInfo; foundAsin = pg.parentAsin }
                             }
                             return foundInfo?.image_url ? (
-                              <a href={`/products/${foundAsin}`} onClick={e => e.stopPropagation()} style={{ lineHeight: 0 }}>
-                                <img src={foundInfo.image_url} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover', border: `1px solid ${COLORS.border}` }} />
+                              <a href={`/products/${foundAsin}`} onClick={e => e.stopPropagation()} style={{ lineHeight: 0, flexShrink: 0 }}>
+                                <img src={foundInfo.image_url} alt="" style={{ width: 32, height: 32, borderRadius: 6, objectFit: 'cover', border: `1px solid ${COLORS.border}`, flexShrink: 0 }} />
                               </a>
                             ) : <ImgPlaceholder size={32} />
                           })()}

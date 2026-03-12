@@ -55,6 +55,11 @@ function generateMonthOptions(): string[] {
   const start = new Date(2025, 0)
   const end = new Date(2026, 1)
   let cur = new Date(end)
+  // First the current month, then "all", then the rest
+  const first = `${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`
+  months.push(first)
+  months.push('all')
+  cur.setMonth(cur.getMonth() - 1)
   while (cur >= start) {
     months.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`)
     cur.setMonth(cur.getMonth() - 1)
@@ -69,6 +74,7 @@ function getMonthRange(month: string) {
 }
 
 function getPrevMonth(month: string): string {
+  if (month === 'all') return 'all' // No previous for all time
   const [y, m] = month.split('-').map(Number)
   const d = new Date(y, m - 2, 1)
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
@@ -153,9 +159,11 @@ export default function DashboardPage() {
   // ========== 2. Ad spend data ==========
   useEffect(() => {
     async function fetchAdSpend() {
-      const { startDate: curStart, endDate: curEnd } = getMonthRange(selectedMonth)
-      const prevMonthStr = getPrevMonth(selectedMonth)
-      const { startDate: prevStart, endDate: prevEnd } = getMonthRange(prevMonthStr)
+      const curStart = selectedMonth === 'all' ? '2025-01-01' : getMonthRange(selectedMonth).startDate
+      const curEnd = selectedMonth === 'all' ? '2026-12-31' : getMonthRange(selectedMonth).endDate
+      const prevMonthStr = selectedMonth === 'all' ? 'all' : getPrevMonth(selectedMonth)
+      const prevStart = prevMonthStr === 'all' ? '2024-01-01' : getMonthRange(prevMonthStr).startDate
+      const prevEnd = prevMonthStr === 'all' ? '2024-12-31' : getMonthRange(prevMonthStr).endDate
 
       const [curRes, prevRes] = await Promise.all([
         supabase.rpc('get_ad_spend', { start_date: curStart, end_date: curEnd }),
@@ -184,8 +192,11 @@ export default function DashboardPage() {
       let query = supabase
         .from('daily_pl')
         .select('purchase_day, units, sales, est_net_profit, marketplace')
-        .eq('report_month', selectedMonth)
         .order('purchase_day')
+
+      if (selectedMonth !== 'all') {
+        query = query.eq('report_month', selectedMonth)
+      }
 
       if (selectedMarketplace !== 'all') {
         query = query.eq('marketplace', selectedMarketplace)
@@ -210,7 +221,7 @@ export default function DashboardPage() {
 
   // ========== Aggregate monthly P&L ==========
   const aggregateMonth = (month: string, marketplace: string): PLMonth => {
-    let rows = rawData.filter((r: any) => r.report_month === month)
+    let rows = month === 'all' ? [...rawData] : rawData.filter((r: any) => r.report_month === month)
     if (marketplace !== 'all') rows = rows.filter((r: any) => r.marketplace === marketplace)
 
     const result = emptyPL()
@@ -234,7 +245,7 @@ export default function DashboardPage() {
   const cur = aggregateMonth(selectedMonth, selectedMarketplace)
   const prevMonthStr = getPrevMonth(selectedMonth)
   const prev = aggregateMonth(prevMonthStr, selectedMarketplace)
-  const hasPrev = prev.sales > 0
+  const hasPrev = selectedMonth !== 'all' && prev.sales > 0
 
   const prevPrevMonthStr = getPrevMonth(prevMonthStr)
   const prevPrev = aggregateMonth(prevPrevMonthStr, selectedMarketplace)
@@ -251,7 +262,7 @@ export default function DashboardPage() {
   let displaySbPrev = adSpend.prevSb
 
   if (selectedMarketplace !== 'all') {
-    const allCurRows = rawData.filter((r: any) => r.report_month === selectedMonth)
+    const allCurRows = selectedMonth === 'all' ? [...rawData] : rawData.filter((r: any) => r.report_month === selectedMonth)
     const mpCurSales = allCurRows
       .filter((r: any) => r.marketplace === selectedMarketplace)
       .reduce((s: number, r: any) => s + (Number(r.sales) || 0), 0)
@@ -262,7 +273,7 @@ export default function DashboardPage() {
     displaySp = adSpend.currentSp * curRatio
     displaySb = adSpend.currentSb * curRatio
 
-    const allPrevRows = rawData.filter((r: any) => r.report_month === prevMonthStr)
+    const allPrevRows = prevMonthStr === 'all' ? [...rawData] : rawData.filter((r: any) => r.report_month === prevMonthStr)
     const mpPrevSales = allPrevRows
       .filter((r: any) => r.marketplace === selectedMarketplace)
       .reduce((s: number, r: any) => s + (Number(r.sales) || 0), 0)
@@ -336,7 +347,7 @@ export default function DashboardPage() {
 
   // ========== Marketplace breakdown ==========
   const mpGrouped = useMemo(() => {
-    const filtered = rawData.filter((r: any) => r.report_month === selectedMonth)
+    const filtered = selectedMonth === 'all' ? [...rawData] : rawData.filter((r: any) => r.report_month === selectedMonth)
     const totalSales = filtered.reduce((s: number, r: any) => s + (Number(r.sales) || 0), 0)
 
     const grouped: Record<string, { marketplace: string; units: number; sales: number; fees: number; adSpend: number; cogs: number; refunds: number; netProfit: number; margin: number }> = {}
@@ -381,12 +392,13 @@ export default function DashboardPage() {
 
   useEffect(() => {
     async function fetchTopProducts() {
-      const { startDate, endDate } = getMonthRange(selectedMonth)
       let q = supabase
         .from('all_orders')
         .select('sku, quantity, item_price, order_status')
-        .gte('purchase_date', startDate)
-        .lte('purchase_date', endDate)
+      if (selectedMonth !== 'all') {
+        const { startDate, endDate } = getMonthRange(selectedMonth)
+        q = q.gte('purchase_date', startDate).lte('purchase_date', endDate)
+      }
       if (selectedMarketplace !== 'all') q = q.eq('marketplace', selectedMarketplace)
 
       const { data: orders } = await q.limit(5000)
@@ -561,7 +573,7 @@ export default function DashboardPage() {
         </div>
         <div className="flex gap-[10px] flex-wrap">
           <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} style={SELECT_STYLE}>
-            {monthOptions.map(m => <option key={m} value={m}>{m}</option>)}
+            {monthOptions.map(m => <option key={m} value={m}>{m === 'all' ? '⏳ All Time' : m}</option>)}
           </select>
           <select value={selectedMarketplace} onChange={e => setSelectedMarketplace(e.target.value)} style={SELECT_STYLE}>
             {MARKETPLACE_OPTIONS.map(m => <option key={m.value} value={m.value}>{m.flag} {m.label}</option>)}
@@ -610,7 +622,7 @@ export default function DashboardPage() {
           <div className="flex justify-between items-start mb-4 flex-wrap gap-[6px]">
             <div>
               <div className="text-base font-bold" style={{ color: COLORS.text }}>Daily Sales Trend</div>
-              <div className="text-xs" style={{ color: COLORS.sub }}>{selectedMonth}</div>
+              <div className="text-xs" style={{ color: COLORS.sub }}>{selectedMonth === 'all' ? 'All Time' : selectedMonth}</div>
             </div>
             <div className="flex gap-[3px]">
               {[
@@ -674,7 +686,7 @@ export default function DashboardPage() {
               <div style={{ position: 'absolute', top: 10, right: 12, fontSize: 28, opacity: 0.12 }}>🏆</div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                 <div style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#FEF3C7', fontSize: 16 }}>🏆</div>
-                <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Champion of the Month</span>
+                <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>Bestseller</span>
               </div>
               <div style={{ display: 'flex', gap: 14, alignItems: 'center', marginBottom: 14 }}>
                 {champImg?.image_url ? (
@@ -709,7 +721,7 @@ export default function DashboardPage() {
           )
         })() : (
           <div style={{ ...CARD_STYLE, padding: '18px 20px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <span style={{ fontSize: 12, color: COLORS.sub }}>Loading champion...</span>
+            <span style={{ fontSize: 12, color: COLORS.sub }}>Loading bestseller...</span>
           </div>
         )}
 
@@ -816,7 +828,7 @@ export default function DashboardPage() {
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <thead>
                   <tr style={{ borderBottom: `2px solid ${COLORS.border}` }}>
-                    {['Item', selectedMonth, ...(hasPrev ? [prevMonthStr] : []), 'Change'].map(h => (
+                    {['Item', selectedMonth === 'all' ? 'All Time' : selectedMonth, ...(hasPrev && selectedMonth !== 'all' ? [prevMonthStr] : []), ...(selectedMonth !== 'all' ? ['Change'] : [])].map(h => (
                       <th key={h} style={{ padding: '10px 12px', textAlign: h === 'Kalem' ? 'left' : 'right', fontSize: 12, fontWeight: 600, color: COLORS.sub }}>{h}</th>
                     ))}
                   </tr>

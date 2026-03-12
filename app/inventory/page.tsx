@@ -118,15 +118,15 @@ export default function InventoryPage() {
         .select('*')
       setData(stockData || [])
 
-      const { data: shipments } = await supabase
-        .from('fba_inventory_events')
-        .select('event_date, quantity')
-        .eq('event_type', 'Shipments')
+      const { data: monthlyPl } = await supabase
+        .from('monthly_pl')
+        .select('report_month, units')
+        .order('report_month', { ascending: true })
 
       const monthMap: Record<string, number> = {}
-      shipments?.forEach((s: any) => {
-        const m = (s.event_date || '').substring(0, 7)
-        if (m) monthMap[m] = (monthMap[m] || 0) + Math.abs(Number(s.quantity) || 0)
+      monthlyPl?.forEach((r: any) => {
+        const m = (r.report_month || '').substring(0, 7)
+        if (m) monthMap[m] = (monthMap[m] || 0) + (Number(r.units) || 0)
       })
       const sorted = Object.entries(monthMap)
         .map(([month, units]) => ({ month, units }))
@@ -461,7 +461,7 @@ export default function InventoryPage() {
       <div className="grid-2" style={{ marginBottom: 20 }}>
         <div style={{ ...CARD_STYLE, padding: '18px 22px' }}>
           <div style={{ fontSize: 15, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>Monthly Sales Trend</div>
-          <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 14 }}>FBA Shipments · last 12 months</div>
+          <div style={{ fontSize: 12, color: COLORS.sub, marginBottom: 14 }}>Units sold · last 12 months</div>
           <ResponsiveContainer width="100%" height={180}>
             <BarChart data={monthlyShipments} margin={{ top: 5, right: 0, left: -15, bottom: 0 }}>
               <CartesianGrid strokeDasharray="0" stroke={COLORS.border} vertical={false} />
@@ -539,7 +539,7 @@ export default function InventoryPage() {
                 ) : <ImgPlaceholder size={24} />}
                 <div>
                   <span style={{ fontSize: 12, fontWeight: 600, color: COLORS.accent }}>{d.msku}</span>
-                  {d.stock_status === 'out' && <span style={{ fontSize: 9, fontWeight: 700, marginLeft: 6, padding: '1px 6px', borderRadius: 8, background: COLORS.redLight, color: COLORS.red }}>OUT OF STOCK</span>}
+                  {d.stock_status === 'out' && <span style={{ fontSize: 9, fontWeight: 700, marginLeft: 6, padding: '1px 6px', borderRadius: 8, background: COLORS.redLight, color: COLORS.red, whiteSpace: 'nowrap' }}>OUT OF STOCK</span>}
                 </div>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -625,8 +625,8 @@ export default function InventoryPage() {
                   <td style={{ padding: '8px 12px' }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                       {getBySku(row.msku)?.image_url ? (
-                        <a href={`/products/${asinFromSku(row.msku)}`} onClick={e => e.stopPropagation()} style={{ lineHeight: 0 }}>
-                          <img src={getBySku(row.msku)!.image_url!} alt="" style={{ width: 30, height: 30, borderRadius: 6, objectFit: 'cover', border: `1px solid ${COLORS.border}` }} />
+                        <a href={`/products/${asinFromSku(row.msku)}`} onClick={e => e.stopPropagation()} style={{ lineHeight: 0, flexShrink: 0 }}>
+                          <img src={getBySku(row.msku)!.image_url!} alt="" style={{ width: 30, height: 30, borderRadius: 6, objectFit: 'cover', border: `1px solid ${COLORS.border}`, flexShrink: 0 }} />
                         </a>
                       ) : <ImgPlaceholder size={30} />}
                       <div>
