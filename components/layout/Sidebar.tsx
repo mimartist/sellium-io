@@ -64,6 +64,7 @@ export default function Sidebar({ open, onClose, mobile }: SidebarProps) {
               <Link
                 key={item.href}
                 href={item.href}
+                onClick={mobile ? onClose : undefined}
                 className="flex items-center gap-[10px] px-[14px] py-[11px] my-[2px] rounded-[10px] text-sm no-underline"
                 style={{
                   fontWeight: isActive ? 600 : 500,
