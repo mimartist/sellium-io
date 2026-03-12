@@ -711,13 +711,13 @@ export default function DashboardPage() {
               {/* Header */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                 <div style={{ width: 32, height: 32, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', background: COLORS.accentLight, color: COLORS.accent }}><svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" strokeWidth="2" /></svg></div>
-                <span style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>{t("dashboard.bestseller")}</span>
+                <span className="mc-title" style={{ fontSize: 14, fontWeight: 700, color: COLORS.text }}>{t("dashboard.bestseller")}</span>
               </div>
               {/* Product info: text left, image right */}
               <div style={{ display: 'flex', gap: 14, alignItems: 'flex-start', marginBottom: 14 }}>
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, lineHeight: '1.4' }}>{champName}</div>
-                  <div style={{ fontSize: 11, color: COLORS.sub, marginTop: 3 }}>{champ.sku}</div>
+                  <div className="mc-body" style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' as any, lineHeight: '1.4' }}>{champName}</div>
+                  <div className="mc-sub" style={{ fontSize: 11, color: COLORS.sub, marginTop: 3 }}>{champ.sku}</div>
                 </div>
                 {champImg?.image_url ? (
                   <a href={champAsin ? `/products/${champAsin}` : '#'} style={{ flexShrink: 0, lineHeight: 0 }}>
@@ -728,20 +728,20 @@ export default function DashboardPage() {
               {/* Stats */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px 16px' }}>
                 <div>
-                  <div style={{ fontSize: 10, color: COLORS.sub, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>{t("dashboard.unitsSold")}</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.accent }}>{champ.units.toLocaleString('de-DE')}</div>
+                  <div className="mc-label" style={{ fontSize: 10, color: COLORS.sub, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>{t("dashboard.unitsSold")}</div>
+                  <div className="mc-val-lg" style={{ fontSize: 18, fontWeight: 700, color: COLORS.accent }}>{champ.units.toLocaleString('de-DE')}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: COLORS.sub, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>{t("dashboard.revenue")}</div>
-                  <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.green }}>{fmtNum(champ.sales)}</div>
+                  <div className="mc-label" style={{ fontSize: 10, color: COLORS.sub, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>{t("dashboard.revenue")}</div>
+                  <div className="mc-val-lg" style={{ fontSize: 18, fontWeight: 700, color: COLORS.green }}>{fmtNum(champ.sales)}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: COLORS.sub, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>In Stock</div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: (champ.stock || 0) === 0 ? COLORS.red : (champ.stock || 0) < 20 ? COLORS.orange : COLORS.text }}>{champ.stock != null ? champ.stock.toLocaleString('de-DE') : '—'}</div>
+                  <div className="mc-label" style={{ fontSize: 10, color: COLORS.sub, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>In Stock</div>
+                  <div className="mc-val-sm" style={{ fontSize: 15, fontWeight: 600, color: (champ.stock || 0) === 0 ? COLORS.red : (champ.stock || 0) < 20 ? COLORS.orange : COLORS.text }}>{champ.stock != null ? champ.stock.toLocaleString('de-DE') : '—'}</div>
                 </div>
                 <div>
-                  <div style={{ fontSize: 10, color: COLORS.sub, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Avg Price</div>
-                  <div style={{ fontSize: 15, fontWeight: 600, color: COLORS.text }}>{champ.avgPrice ? `€${champ.avgPrice.toFixed(2)}` : '—'}</div>
+                  <div className="mc-label" style={{ fontSize: 10, color: COLORS.sub, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '.04em' }}>Avg Price</div>
+                  <div className="mc-val-sm" style={{ fontSize: 15, fontWeight: 600, color: COLORS.text }}>{champ.avgPrice ? `€${champ.avgPrice.toFixed(2)}` : '—'}</div>
                 </div>
               </div>
               {/* Past months - text only */}
@@ -749,8 +749,8 @@ export default function DashboardPage() {
                 <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
                   {champHistory.map((h, i) => (
                     <div key={i} style={{ flex: 1, padding: '6px 8px', borderRadius: 8, background: '#F8FAFC' }}>
-                      <div style={{ fontSize: 10, color: COLORS.sub, fontWeight: 500 }}>{h.month}</div>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: COLORS.muted }}>{h.units.toLocaleString('de-DE')} pcs</div>
+                      <div className="mc-sub" style={{ fontSize: 10, color: COLORS.sub, fontWeight: 500 }}>{h.month}</div>
+                      <div className="mc-sub" style={{ fontSize: 12, fontWeight: 600, color: COLORS.muted }}>{h.units.toLocaleString('de-DE')} pcs</div>
                     </div>
                   ))}
                 </div>
@@ -769,18 +769,18 @@ export default function DashboardPage() {
             <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: COLORS.accentLight, color: COLORS.accent }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M18 20V10M12 20V4M6 20v-6" stroke="currentColor" strokeWidth="2" /></svg>
             </div>
-            <span className="text-sm font-bold" style={{ color: COLORS.text }}>{t("dashboard.prevMonth")}</span>
+            <span className="text-sm font-bold mc-title" style={{ color: COLORS.text }}>{t("dashboard.prevMonth")}</span>
           </div>
           {[
-            { l: t("dashboard.sales"), v: fmtNum(cur.sales), c: pctChange(cur.sales, prev.sales) },
-            { l: t("dashboard.netProfit"), v: fmtNum(curNetProfit), c: pctChange(curNetProfit, prevNetProfit) },
-            { l: t("dashboard.totalUnits"), v: cur.units.toLocaleString('de-DE'), c: pctChange(cur.units, prev.units) },
-            { l: t("dashboard.adSpend"), v: fmtNum(displayAd), c: pctChange(displayAd, displayAdPrev) },
+            { l: 'Sales', v: fmtNum(cur.sales), c: pctChange(cur.sales, prev.sales) },
+            { l: 'Profit', v: fmtNum(curNetProfit), c: pctChange(curNetProfit, prevNetProfit) },
+            { l: 'Units', v: cur.units.toLocaleString('de-DE'), c: pctChange(cur.units, prev.units) },
+            { l: 'Ad Spend', v: fmtNum(displayAd), c: pctChange(displayAd, displayAdPrev) },
           ].map(r => (
             <div key={r.l} className="flex justify-between items-center py-2" style={{ borderBottom: `1px solid ${COLORS.border}` }}>
-              <span className="text-[13px]" style={{ color: '#64748B' }}>{r.l}</span>
+              <span className="text-[13px] mc-body" style={{ color: '#64748B' }}>{r.l}</span>
               <div className="flex items-center gap-2">
-                <span className="text-sm font-semibold" style={{ color: COLORS.text }}>{r.v}</span>
+                <span className="text-sm font-semibold mc-body" style={{ color: COLORS.text }}>{r.v}</span>
                 <ChangeBadge text={`${r.c > 0 ? '\u2191' : '\u2193'}${Math.abs(r.c).toFixed(1)}%`} up={r.c > 0} />
               </div>
             </div>
@@ -793,7 +793,7 @@ export default function DashboardPage() {
             <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#FEF3C7', color: COLORS.orange }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" strokeWidth="2" /></svg>
             </div>
-            <span className="text-sm font-bold" style={{ color: COLORS.text }}>{t("dashboard.topProducts")}</span>
+            <span className="text-sm font-bold mc-title" style={{ color: COLORS.text }}>{t("dashboard.topProducts")}</span>
           </div>
           {topProducts.length > 0 ? (() => {
             const maxSales = topProducts[0]?.sales || 1
@@ -806,10 +806,10 @@ export default function DashboardPage() {
                   <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: `${pct}%`, background: `${barColors[i]}15`, borderRadius: 8, transition: 'width 0.5s ease' }} />
                   <div className="flex items-center justify-between" style={{ position: 'relative', padding: '8px 12px' }}>
                     <div className="flex items-center gap-[10px]">
-                      <span className="flex items-center justify-center shrink-0 text-[11px] font-bold" style={{ width: 22, height: 22, borderRadius: '50%', background: barColors[i], color: '#fff' }}>{i + 1}</span>
-                      <span className="text-[13px] font-semibold" style={{ color: COLORS.text }}>{p.sku}</span>
+                      <span className="flex items-center justify-center shrink-0 text-[11px] mc-sub font-bold" style={{ width: 22, height: 22, borderRadius: '50%', background: barColors[i], color: '#fff' }}>{i + 1}</span>
+                      <span className="text-[13px] mc-body font-semibold" style={{ color: COLORS.text }}>{p.sku}</span>
                     </div>
-                    <span className="text-[13px] font-bold" style={{ color: barColors[i] }}>{fmtNum(p.sales)}</span>
+                    <span className="text-[13px] mc-body font-bold" style={{ color: barColors[i] }}>{fmtNum(p.sales)}</span>
                   </div>
                 </div>
               )
@@ -825,15 +825,15 @@ export default function DashboardPage() {
             <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#FDF2F8', color: '#EC4899' }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" stroke="currentColor" strokeWidth="2" /></svg>
             </div>
-            <span className="text-sm font-bold" style={{ color: COLORS.text }}>{t("dashboard.quickActions")}</span>
+            <span className="text-sm font-bold mc-title" style={{ color: COLORS.text }}>{t("dashboard.quickActions")}</span>
           </div>
           {quickActions.map((a, i) => (
             <div key={i} className="flex items-center justify-between mb-1 rounded-lg" style={{ padding: '10px 12px', background: '#F8FAFC' }}>
               <div className="flex items-center gap-2">
                 <div className="rounded-full" style={{ width: 6, height: 6, background: a.statusColor }} />
-                <span className="text-xs font-medium" style={{ color: COLORS.text }}>{a.label}</span>
+                <span className="text-xs mc-body font-medium" style={{ color: COLORS.text }}>{a.label}</span>
               </div>
-              <span className="text-[10px] font-semibold" style={{ color: a.statusColor }}>{a.status}</span>
+              <span className="text-[10px] mc-sub font-semibold" style={{ color: a.statusColor }}>{a.status}</span>
             </div>
           ))}
         </div>

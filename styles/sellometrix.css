@@ -15,7 +15,14 @@
 
 @media (max-width: 768px) {
   .grid-6 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .grid-4 { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+  /* Mini card mobile: titles -1px, body/values -2px */
+  .grid-4 .mc-title { font-size: 13px !important; }
+  .grid-4 .mc-label { font-size: 8px !important; }
+  .grid-4 .mc-val-lg { font-size: 16px !important; }
+  .grid-4 .mc-val-sm { font-size: 13px !important; }
+  .grid-4 .mc-body { font-size: 11px !important; }
+  .grid-4 .mc-sub { font-size: 9px !important; }
 }
 
 /* ═══ TABLE ═══ */
