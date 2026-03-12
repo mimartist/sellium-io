@@ -6,9 +6,9 @@ export function StockStatusBadge({ status }: { status: keyof typeof STOCK_STATUS
   return (
     <span
       className="inline-flex items-center gap-[5px] rounded-[20px]"
-      style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", background: s.bg, color: s.color }}
+      style={{ fontSize: 11, fontWeight: 600, padding: "3px 10px", background: s.bg, color: s.color, whiteSpace: "nowrap" }}
     >
-      <span className="rounded-full" style={{ width: 6, height: 6, background: s.dot }} />
+      <span className="rounded-full shrink-0" style={{ width: 6, height: 6, background: s.dot }} />
       {s.label}
     </span>
   );
@@ -25,7 +25,7 @@ export function CampaignStatusBadge({ status }: { status: string }) {
   return (
     <span
       className="rounded-xl"
-      style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", background: x.bg, color: x.c }}
+      style={{ fontSize: 10, fontWeight: 600, padding: "2px 8px", background: x.bg, color: x.c, whiteSpace: "nowrap" }}
     >
       ● {status}
     </span>

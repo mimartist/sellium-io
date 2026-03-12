@@ -349,10 +349,10 @@ export default function MyProductsPage() {
       {products.length > 0 ? (
         <>
           {/* Search + View Toggle */}
-          <div style={{ ...CARD_STYLE, padding: '10px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ ...CARD_STYLE, padding: '10px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
             <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by ASIN, title, brand, or MSKU..."
-              style={{ flex: 1, padding: '6px 10px', borderRadius: 8, border: '1px solid #E2E8F0', fontSize: 12, outline: 'none', maxWidth: 300 }} />
-            <div style={{ flex: 1 }} />
+              style={{ flex: '1 1 200px', padding: '6px 10px', borderRadius: 8, border: '1px solid #E2E8F0', fontSize: 12, outline: 'none', minWidth: 150 }} />
+            <div style={{ flex: '1 1 0', minWidth: 0 }} />
 
             {/* View Toggle */}
             <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', border: `1px solid ${COLORS.border}` }}>

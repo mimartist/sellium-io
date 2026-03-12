@@ -60,6 +60,7 @@ interface ProductRow {
   refunds: number
   refundRate: number
   avgPrice: number
+  childSkus: string[]
 }
 
 type SortKey = 'units' | 'sales' | 'refunds' | 'refundRate' | 'avgPrice' | 'skuCount'
@@ -80,7 +81,7 @@ async function fetchAll(query: any): Promise<any[]> {
 }
 
 export default function ProductPerformancePage() {
-  const { getByAsin } = useProductImages()
+  const { getByAsin, getBySkuWithFallback, asinFromSkuWithFallback } = useProductImages()
   const monthOptions = useMemo(() => generateMonthOptions(), [])
   const [selectedMonth, setSelectedMonth] = useState(monthOptions[0])
   const [selectedMarketplace, setSelectedMarketplace] = useState('all')
@@ -143,6 +144,7 @@ export default function ProductPerformancePage() {
         refunds: d.refunds,
         refundRate: d.sales > 0 ? (d.refunds / d.sales) * 100 : 0,
         avgPrice: d.units > 0 ? d.sales / d.units : 0,
+        childSkus: [...d.skus],
       }))
 
       setProducts(rows)
@@ -329,14 +331,31 @@ export default function ProductPerformancePage() {
                   onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'transparent'}
                 >
                   <td style={{ ...tdStyle, padding: '10px 12px' }}>
-                    <ProductCell
-                      title={row.title}
-                      subtitle={row.parentAsin}
-                      imageUrl={getByAsin(row.parentAsin)?.image_url}
-                      asin={row.parentAsin}
-                      size={32}
-                      maxWidth={260}
-                    />
+                    {(() => {
+                      // Try parent ASIN first, then child SKUs for image
+                      let imgUrl = getByAsin(row.parentAsin)?.image_url || null
+                      let linkAsin = row.parentAsin
+                      if (!imgUrl) {
+                        for (const sku of row.childSkus) {
+                          const info = getBySkuWithFallback(sku)
+                          if (info?.image_url) {
+                            imgUrl = info.image_url
+                            linkAsin = asinFromSkuWithFallback(sku) || row.parentAsin
+                            break
+                          }
+                        }
+                      }
+                      return (
+                        <ProductCell
+                          title={row.title}
+                          subtitle={row.parentAsin}
+                          imageUrl={imgUrl}
+                          asin={linkAsin}
+                          size={32}
+                          maxWidth={260}
+                        />
+                      )
+                    })()}
                   </td>
                   <td style={{ ...tdStyle, textAlign: 'center', color: COLORS.sub }}>{row.skuCount}</td>
                   <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500 }}>{fmtNum(row.units)}</td>
