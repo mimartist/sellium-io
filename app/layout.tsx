@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import "./globals.css";
 import "./responsive.css";
+import MainLayout from "@/components/layout/MainLayout";
 
 export const metadata: Metadata = {
   title: "Sellometrix.io",
@@ -14,11 +15,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body
-        style={{ fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif' }}
-        className="antialiased"
-      >
-        {children}
+      <body className="antialiased">
+        <MainLayout>{children}</MainLayout>
       </body>
     </html>
   );

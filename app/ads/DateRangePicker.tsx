@@ -2,9 +2,10 @@
 
 import { useState, useRef, useEffect } from 'react'
 import { useDateRange, formatDateTR } from './DateRangeContext'
+import { COLORS } from '@/lib/design-tokens'
 
-const DAYS_TR = ['Pz', 'Pt', 'Sa', 'Ça', 'Pe', 'Cu', 'Ct']
-const MONTHS_TR = ['Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık']
+const DAYS_TR = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa']
+const MONTHS_TR = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December']
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate()
@@ -31,7 +32,7 @@ type Preset = { label: string; getRange: (min: string, max: string) => [string, 
 
 const presets: Preset[] = [
   {
-    label: 'Bugün',
+    label: 'Today',
     getRange: () => {
       const t = new Date()
       const s = toDateStr(t.getFullYear(), t.getMonth(), t.getDate())
@@ -39,7 +40,7 @@ const presets: Preset[] = [
     },
   },
   {
-    label: 'Dün',
+    label: 'Yesterday',
     getRange: () => {
       const t = new Date(); t.setDate(t.getDate() - 1)
       const s = toDateStr(t.getFullYear(), t.getMonth(), t.getDate())
@@ -47,7 +48,7 @@ const presets: Preset[] = [
     },
   },
   {
-    label: 'Son 7 Gün',
+    label: 'Last 7 Days',
     getRange: () => {
       const e = new Date()
       const s = new Date(); s.setDate(s.getDate() - 6)
@@ -55,14 +56,14 @@ const presets: Preset[] = [
     },
   },
   {
-    label: 'Bu Ay',
+    label: 'This Month',
     getRange: () => {
       const t = new Date()
       return [toDateStr(t.getFullYear(), t.getMonth(), 1), toDateStr(t.getFullYear(), t.getMonth(), t.getDate())]
     },
   },
   {
-    label: 'Tüm Zamanlar',
+    label: 'All Time',
     getRange: (min, max) => [min, max],
   },
 ]
@@ -104,7 +105,7 @@ function CalendarMonth({
     <div style={{ minWidth: 240 }}>
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', textAlign: 'center', marginBottom: 6 }}>
         {DAYS_TR.map(d => (
-          <div key={d} style={{ fontSize: 11, color: 'var(--text-secondary)', padding: '4px 0', fontWeight: 600 }}>{d}</div>
+          <div key={d} style={{ fontSize: 11, color: COLORS.sub, padding: '4px 0', fontWeight: 600 }}>{d}</div>
         ))}
       </div>
       {rows.map((row, ri) => (
@@ -124,7 +125,7 @@ function CalendarMonth({
                   padding: '6px 0',
                   fontSize: 12.5,
                   cursor: disabled || !cell.current ? 'default' : 'pointer',
-                  color: (!cell.current || disabled) ? 'var(--text-secondary)' : isEdge ? '#fff' : inRange ? '#6366f1' : 'var(--text-primary)',
+                  color: (!cell.current || disabled) ? COLORS.sub : isEdge ? '#fff' : inRange ? '#6366f1' : COLORS.text,
                   opacity: (!cell.current || disabled) ? 0.3 : 1,
                   background: isEdge ? '#6366f1' : inRange ? 'rgba(99,102,241,0.1)' : 'transparent',
                   borderRadius: isStart ? '50% 0 0 50%' : isEnd ? '0 50% 50% 0' : (isStart && isEnd) ? '50%' : 0,
@@ -158,7 +159,7 @@ export default function DateRangePicker() {
   const [selectingEnd, setSelectingEnd] = useState(false)
   const [leftMonth, setLeftMonth] = useState(0)
   const [leftYear, setLeftYear] = useState(2026)
-  const [activePreset, setActivePreset] = useState<string | null>('Tüm Zamanlar')
+  const [activePreset, setActivePreset] = useState<string | null>('All Time')
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -168,9 +169,9 @@ export default function DateRangePicker() {
       setLeftMonth(p.month)
       setTempStart(startDate)
       setTempEnd(endDate)
-      // Eğer tüm aralık seçiliyse preset'i güncelle
+      // Update preset if full range is selected
       if (startDate === minDate && endDate === maxDate) {
-        setActivePreset('Tüm Zamanlar')
+        setActivePreset('All Time')
       }
     }
   }, [startDate, endDate, minDate, maxDate])
@@ -243,7 +244,7 @@ export default function DateRangePicker() {
 
   const navBtn: React.CSSProperties = {
     background: 'none', border: 'none', cursor: 'pointer', fontSize: 16,
-    color: 'var(--text-secondary)', padding: '4px 8px', borderRadius: 6,
+    color: COLORS.sub, padding: '4px 8px', borderRadius: 6,
     display: 'flex', alignItems: 'center', justifyContent: 'center',
   }
 
@@ -254,9 +255,9 @@ export default function DateRangePicker() {
         className="date-range-trigger"
         style={{
           display: 'inline-flex', alignItems: 'center', gap: 6,
-          background: 'var(--bg-elevated)', border: '1.5px solid var(--border-color)',
+          background: '#fff', border: `1.5px solid ${COLORS.border}`,
           borderRadius: 8, padding: '7px 14px', fontSize: 13,
-          color: 'var(--text-primary)', cursor: 'pointer', outline: 'none',
+          color: COLORS.text, cursor: 'pointer', outline: 'none',
           whiteSpace: 'nowrap', boxShadow: '0 1px 3px rgba(0,0,0,0.08)',
         }}
       >
@@ -272,19 +273,19 @@ export default function DateRangePicker() {
       {open && (
         <div className="date-picker-popup" style={{
           position: 'absolute', top: '100%', right: 0, marginTop: 8,
-          background: 'var(--bg-card)', border: '1px solid var(--border-color)',
-          borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+          background: '#fff', border: `1px solid ${COLORS.border}`,
+          borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.08)',
           zIndex: 1000, display: 'flex', flexDirection: 'column',
           overflow: 'hidden', minWidth: 620,
         }}>
           <div style={{ display: 'flex', flex: 1 }}>
             {/* Presets */}
             <div className="date-picker-presets" style={{
-              borderRight: '1px solid var(--border-color)', padding: '16px 0',
+              borderRight: `1px solid ${COLORS.border}`, padding: '16px 0',
               minWidth: 130, display: 'flex', flexDirection: 'column', gap: 2,
             }}>
-              <div style={{ fontSize: 13, fontWeight: 600, padding: '4px 16px 12px', color: 'var(--text-primary)' }}>
-                Tarih Seç
+              <div style={{ fontSize: 13, fontWeight: 600, padding: '4px 16px 12px', color: COLORS.text }}>
+                Select Date
               </div>
               {presets.map(p => (
                 <button
@@ -293,7 +294,7 @@ export default function DateRangePicker() {
                   style={{
                     background: activePreset === p.label ? 'rgba(99,102,241,0.1)' : 'transparent',
                     border: 'none', padding: '9px 16px', fontSize: 13.5, cursor: 'pointer',
-                    color: activePreset === p.label ? '#6366f1' : 'var(--text-muted)',
+                    color: activePreset === p.label ? '#6366f1' : COLORS.sub,
                     textAlign: 'left', fontWeight: activePreset === p.label ? 600 : 400,
                     transition: 'background 0.15s, color 0.15s',
                   }}
@@ -309,7 +310,7 @@ export default function DateRangePicker() {
               <div style={{ flex: 1, padding: '16px 16px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <button onClick={prevMonth} style={navBtn}>&lt;</button>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{MONTHS_TR[leftMonth]} {leftYear}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>{MONTHS_TR[leftMonth]} {leftYear}</div>
                   <button onClick={nextMonth} style={navBtn}>&gt;</button>
                 </div>
                 <CalendarMonth
@@ -320,10 +321,10 @@ export default function DateRangePicker() {
               </div>
 
               {/* Right Calendar */}
-              <div style={{ flex: 1, padding: '16px 16px', borderLeft: '1px solid var(--border-color)' }}>
+              <div style={{ flex: 1, padding: '16px 16px', borderLeft: `1px solid ${COLORS.border}` }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 12 }}>
                   <button onClick={prevMonth} style={navBtn}>&lt;</button>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{MONTHS_TR[rightMonth]} {rightYear}</div>
+                  <div style={{ fontSize: 14, fontWeight: 600, color: COLORS.text }}>{MONTHS_TR[rightMonth]} {rightYear}</div>
                   <button onClick={nextMonth} style={navBtn}>&gt;</button>
                 </div>
                 <CalendarMonth
@@ -338,17 +339,17 @@ export default function DateRangePicker() {
           {/* Footer */}
           <div style={{
             display: 'flex', justifyContent: 'flex-end', gap: 10,
-            padding: '12px 16px', borderTop: '1px solid var(--border-color)',
+            padding: '12px 16px', borderTop: `1px solid ${COLORS.border}`,
           }}>
             <button
               onClick={handleCancel}
               style={{
-                background: 'var(--bg-elevated)', border: '1px solid var(--border-color)',
+                background: COLORS.bg, border: `1px solid ${COLORS.border}`,
                 borderRadius: 8, padding: '8px 24px', fontSize: 13,
-                color: 'var(--text-primary)', cursor: 'pointer',
+                color: COLORS.text, cursor: 'pointer',
               }}
             >
-              Vazgeç
+              Cancel
             </button>
             <button
               onClick={handleApply}
@@ -359,7 +360,7 @@ export default function DateRangePicker() {
                 opacity: tempStart && tempEnd ? 1 : 0.5, fontWeight: 600,
               }}
             >
-              Uygula
+              Apply
             </button>
           </div>
         </div>

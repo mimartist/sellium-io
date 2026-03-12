@@ -1,279 +1,452 @@
 'use client'
 
-import React, { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@supabase/supabase-js'
-import DashboardShell from '../components/DashboardShell'
-import Sidebar from '../components/Sidebar'
+import Link from 'next/link'
+import { COLORS, CARD_STYLE, TH_STYLE } from '@/lib/design-tokens'
+import { ImgPlaceholder } from '@/components/ui/Badges'
 
 const supabase = createClient(
   process.env.NEXT_PUBLIC_SUPABASE_URL!,
   process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 )
 
-const MARKETPLACE_OPTIONS = [
-  { value: 'all', label: 'Tüm Pazaryerleri' },
-  { value: 'Amazon.de', label: 'Amazon.de' },
-  { value: 'Amazon.fr', label: 'Amazon.fr' },
-  { value: 'Amazon.es', label: 'Amazon.es' },
-  { value: 'Amazon.it', label: 'Amazon.it' },
-  { value: 'Amazon.co.uk', label: 'Amazon.co.uk' },
-  { value: 'Amazon.nl', label: 'Amazon.nl' },
-]
+/* ── Styles ── */
+const tdStyle: React.CSSProperties = { padding: '11px 12px', fontSize: 13, color: '#475569', borderBottom: `1px solid ${COLORS.border}`, whiteSpace: 'nowrap' }
 
-function generateMonthOptions(): string[] {
-  const months: string[] = []
-  const start = new Date(2025, 0)
-  const end = new Date(2026, 1)
-  let cur = new Date(end)
-  while (cur >= start) {
-    months.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}`)
-    cur.setMonth(cur.getMonth() - 1)
-  }
-  return months
+interface ProductEntry {
+  id: number
+  asin: string
+  parent_asin: string | null
+  msku: string | null
+  title: string | null
+  brand: string | null
+  image_url: string | null
+  price: number | null
+  rating: number | null
+  review_count: number | null
+  status: string
+  marketplace: string
+  created_at: string
+  fetched_at: string | null
 }
 
-function getMonthRange(month: string) {
-  const [y, m] = month.split('-').map(Number)
-  const lastDay = new Date(y, m, 0).getDate()
-  return { startDate: `${month}-01`, endDate: `${month}-${String(lastDay).padStart(2, '0')}` }
-}
-
-const n = (v: any) => Number(v) || 0
-const fmtNum = (v: number) => `€${v.toLocaleString('de-DE', { maximumFractionDigits: 0 })}`
-
-interface ProductRow {
+interface ParentGroup {
   parentAsin: string
-  title: string
-  skuCount: number
-  units: number
-  sales: number
-  refunds: number
-  refundRate: number
-  avgPrice: number
+  title: string | null
+  brand: string | null
+  image_url: string | null
+  children: ProductEntry[]
+  minPrice: number | null
+  maxPrice: number | null
+  avgRating: number | null
+  totalReviews: number
 }
 
-type SortKey = 'units' | 'sales' | 'refunds' | 'refundRate' | 'avgPrice' | 'skuCount'
-
-async function fetchAll(query: any): Promise<any[]> {
-  const PAGE = 1000
-  let all: any[] = []
-  let offset = 0
-  while (true) {
-    const { data } = await query.range(offset, offset + PAGE - 1)
-    if (!data || data.length === 0) break
-    all = all.concat(data)
-    if (data.length < PAGE) break
-    offset += PAGE
-  }
-  return all
+const STATUS_STYLES: Record<string, { label: string; bg: string; color: string }> = {
+  pending: { label: 'Pending', bg: 'rgba(245,158,11,0.1)', color: '#F59E0B' },
+  fetching: { label: 'Fetching...', bg: 'rgba(91,95,199,0.1)', color: '#5B5FC7' },
+  active: { label: 'Active', bg: 'rgba(16,185,129,0.1)', color: '#10B981' },
+  error: { label: 'Error', bg: 'rgba(239,68,68,0.1)', color: '#EF4444' },
 }
 
-export default function ProductsPage() {
-  const monthOptions = useMemo(() => generateMonthOptions(), [])
-  const [selectedMonth, setSelectedMonth] = useState(monthOptions[0])
-  const [selectedMarketplace, setSelectedMarketplace] = useState('all')
+type ViewMode = 'child' | 'parent'
+
+export default function MyProductsPage() {
+  const [products, setProducts] = useState<ProductEntry[]>([])
   const [loading, setLoading] = useState(true)
-  const [products, setProducts] = useState<ProductRow[]>([])
-  const [sortKey, setSortKey] = useState<SortKey>('units')
-  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc')
   const [search, setSearch] = useState('')
+  const [viewMode, setViewMode] = useState<ViewMode>('child')
+  const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set())
 
-  useEffect(() => {
-    async function fetchData() {
-      setLoading(true)
-      const { startDate, endDate } = getMonthRange(selectedMonth)
+  const autoFillMsku = useCallback(async (products: any[]) => {
+    const missing = products.filter(p => !p.msku)
+    if (missing.length === 0) return
 
-      let ordersQ = supabase
-        .from('all_orders')
-        .select('sku, marketplace, quantity, item_price, order_status')
-        .gte('purchase_date', startDate)
-        .lte('purchase_date', endDate)
-      if (selectedMarketplace !== 'all') {
-        ordersQ = ordersQ.eq('marketplace', selectedMarketplace)
-      }
+    const { data: inv } = await supabase
+      .from('fba_daily_inventory')
+      .select('asin, msku')
+      .not('asin', 'is', null)
+      .not('msku', 'is', null)
 
-      const [orders, parentMapRes] = await Promise.all([
-        fetchAll(ordersQ),
-        supabase.from('parent_asin_map').select('parent_asin, sku, title'),
-      ])
+    const mskuMap: Record<string, string> = {}
+    ;(inv || []).forEach((r: any) => { if (r.asin && r.msku) mskuMap[r.asin] = r.msku })
 
-      const parentMap = parentMapRes.data || []
-      const skuToParent: Record<string, { parentAsin: string; title: string }> = {}
-      parentMap.forEach((p: any) => {
-        if (p.sku) skuToParent[p.sku] = { parentAsin: p.parent_asin || '', title: p.title || '' }
-      })
+    const toUpdate = missing.filter(p => mskuMap[p.asin])
+    if (toUpdate.length === 0) return
 
-      // Group by parent ASIN
-      const grouped: Record<string, { title: string; skus: Set<string>; units: number; sales: number; refunds: number }> = {}
-      orders.forEach((o: any) => {
-        const sku = o.sku || ''
-        if (!sku) return
-        const info = skuToParent[sku] || { parentAsin: sku.substring(0, 7), title: '' }
-        const key = info.parentAsin || sku.substring(0, 7)
-        if (!grouped[key]) grouped[key] = { title: info.title, skus: new Set(), units: 0, sales: 0, refunds: 0 }
-        grouped[key].skus.add(sku)
-        if (!grouped[key].title && info.title) grouped[key].title = info.title
-
-        if (o.order_status === 'Shipped') {
-          grouped[key].units += n(o.quantity)
-          grouped[key].sales += n(o.item_price)
-        }
-        if (o.order_status === 'Refunded' || o.order_status === 'Return') {
-          grouped[key].refunds += n(o.item_price)
-        }
-      })
-
-      const rows: ProductRow[] = Object.entries(grouped).map(([parentAsin, d]) => ({
-        parentAsin,
-        title: d.title || parentAsin,
-        skuCount: d.skus.size,
-        units: d.units,
-        sales: d.sales,
-        refunds: d.refunds,
-        refundRate: d.sales > 0 ? (d.refunds / d.sales) * 100 : 0,
-        avgPrice: d.units > 0 ? d.sales / d.units : 0,
-      }))
-
-      setProducts(rows)
-      setLoading(false)
+    for (const p of toUpdate) {
+      await supabase.from('product_registry').update({ msku: mskuMap[p.asin] }).eq('asin', p.asin)
     }
-    fetchData()
-  }, [selectedMonth, selectedMarketplace])
 
-  const filtered = useMemo(() => {
-    let rows = products
-    if (search) {
-      const q = search.toLowerCase()
-      rows = rows.filter(r => r.title.toLowerCase().includes(q) || r.parentAsin.toLowerCase().includes(q))
-    }
-    rows = [...rows].sort((a, b) => {
-      const aVal = a[sortKey]
-      const bVal = b[sortKey]
-      return sortDir === 'asc' ? (aVal as number) - (bVal as number) : (bVal as number) - (aVal as number)
-    })
-    return rows
-  }, [products, search, sortKey, sortDir])
+    setProducts(prev => prev.map(p =>
+      !p.msku && mskuMap[p.asin] ? { ...p, msku: mskuMap[p.asin] } : p
+    ))
+  }, [])
 
-  const handleSort = (key: SortKey) => {
-    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    else { setSortKey(key); setSortDir('desc') }
+  const fetchProducts = useCallback(async () => {
+    const { data } = await supabase
+      .from('product_registry')
+      .select('*')
+      .order('created_at', { ascending: false })
+
+    const mapped = (data || []).map((r: any) => ({
+      id: r.id,
+      asin: r.asin,
+      parent_asin: r.parent_asin || null,
+      msku: r.msku || null,
+      title: r.title,
+      brand: r.brand,
+      image_url: r.image_url,
+      price: r.price,
+      rating: r.rating,
+      review_count: r.review_count,
+      status: r.status || 'active',
+      marketplace: r.marketplace || 'Amazon.de',
+      created_at: r.created_at || new Date().toISOString(),
+      fetched_at: r.fetched_at,
+    }))
+    setProducts(mapped)
+    setLoading(false)
+    autoFillMsku(mapped)
+  }, [autoFillMsku])
+
+  useEffect(() => { fetchProducts() }, [fetchProducts])
+
+  const handleDelete = async (asin: string) => {
+    await supabase.from('product_registry').delete().eq('asin', asin)
+    fetchProducts()
   }
-  const sortIcon = (key: SortKey) => sortKey !== key ? ' ⇅' : sortDir === 'asc' ? ' ↑' : ' ↓'
 
-  const cardStyle: React.CSSProperties = { background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 14, padding: 20 }
-  const selectStyle: React.CSSProperties = { background: 'var(--bg-card)', border: '1px solid var(--border-color)', borderRadius: 8, padding: '7px 14px', fontSize: 12.5, color: 'var(--text-primary)', cursor: 'pointer', outline: 'none' }
-  const th: React.CSSProperties = { padding: '10px 8px', color: 'var(--text-secondary)', fontWeight: 500, fontSize: 11, cursor: 'pointer', userSelect: 'none', whiteSpace: 'nowrap' }
-  const td: React.CSSProperties = { padding: '8px', fontSize: 12 }
+  const handleMskuSave = async (asin: string, msku: string) => {
+    const trimmed = msku.trim()
+    await supabase.from('product_registry').update({ msku: trimmed || null }).eq('asin', asin)
+    setProducts(prev => prev.map(p => p.asin === asin ? { ...p, msku: trimmed || null } : p))
+  }
+
+  /* ── Filter ── */
+  const filtered = useMemo(() => {
+    if (!search) return products
+    const q = search.toLowerCase()
+    return products.filter(p =>
+      (p.asin || '').toLowerCase().includes(q) ||
+      (p.title || '').toLowerCase().includes(q) ||
+      (p.brand || '').toLowerCase().includes(q) ||
+      (p.msku || '').toLowerCase().includes(q)
+    )
+  }, [products, search])
+
+  /* ── Parent Grouping ── */
+  const parentGroups = useMemo((): ParentGroup[] => {
+    const groups: Record<string, ProductEntry[]> = {}
+    filtered.forEach(p => {
+      const key = p.parent_asin || p.asin
+      if (!groups[key]) groups[key] = []
+      groups[key].push(p)
+    })
+
+    return Object.entries(groups).map(([parentAsin, children]) => {
+      const prices = children.map(c => c.price).filter((p): p is number => p !== null)
+      const ratings = children.filter(c => c.rating !== null)
+      const rep = children.find(c => c.image_url) || children[0]
+
+      return {
+        parentAsin,
+        title: rep.title,
+        brand: rep.brand,
+        image_url: rep.image_url,
+        children,
+        minPrice: prices.length > 0 ? Math.min(...prices) : null,
+        maxPrice: prices.length > 0 ? Math.max(...prices) : null,
+        avgRating: ratings.length > 0 ? ratings.reduce((s, c) => s + (c.rating || 0), 0) / ratings.length : null,
+        totalReviews: children.reduce((s, c) => s + (c.review_count || 0), 0),
+      }
+    }).sort((a, b) => b.children.length - a.children.length)
+  }, [filtered])
+
+  const toggleParent = (parentAsin: string) => {
+    setExpandedParents(prev => {
+      const next = new Set(prev)
+      if (next.has(parentAsin)) next.delete(parentAsin)
+      else next.add(parentAsin)
+      return next
+    })
+  }
+
+  const pendingCount = products.filter(p => p.status === 'pending').length
+  const activeCount = products.filter(p => p.status === 'active').length
 
   if (loading) {
     return (
-      <DashboardShell sidebar={<Sidebar />}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
-          <div style={{ textAlign: 'center' }}>
-            <div style={{ width: 36, height: 36, border: '3px solid var(--border-color)', borderTopColor: '#6366f1', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
-            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Veriler yükleniyor...</div>
-          </div>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+        <div style={{ textAlign: 'center' }}>
+          <div style={{ width: 36, height: 36, border: `3px solid ${COLORS.border}`, borderTopColor: COLORS.accent, borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 12px' }} />
+          <div style={{ color: COLORS.sub, fontSize: 13 }}>Loading products...</div>
         </div>
-      </DashboardShell>
+      </div>
+    )
+  }
+
+  /* ── Child Row (reused in both views) ── */
+  const renderChildRow = (p: ProductEntry, indent = false) => {
+    const st = STATUS_STYLES[p.status] || STATUS_STYLES.pending
+    return (
+      <tr key={p.id} style={{ borderBottom: `1px solid ${COLORS.border}`, transition: 'background 0.15s', cursor: 'pointer', background: indent ? '#FAFBFC' : 'transparent' }}
+        onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = indent ? '#F1F5F9' : '#FAFBFC'}
+        onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = indent ? '#FAFBFC' : 'transparent'}
+        onClick={() => window.location.href = `/products/${p.asin}`}
+      >
+        <td style={{ ...tdStyle, padding: '10px 12px', paddingLeft: indent ? 44 : 12 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {indent && <span style={{ color: COLORS.border, fontSize: 14 }}>└</span>}
+            {p.image_url ? (
+              <img src={p.image_url} alt="" style={{ width: 36, height: 36, borderRadius: 6, objectFit: 'cover', border: `1px solid ${COLORS.border}` }} />
+            ) : (
+              <ImgPlaceholder size={36} />
+            )}
+            <div style={{ minWidth: 0 }}>
+              <div style={{ fontSize: 13, fontWeight: 500, color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: indent ? 200 : 240 }}>
+                {p.title || 'Awaiting data...'}
+              </div>
+              {p.brand && <div style={{ fontSize: 11, color: COLORS.sub, marginTop: 1 }}>{p.brand}</div>}
+            </div>
+          </div>
+        </td>
+        <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 12, color: COLORS.accent, fontWeight: 500 }}>{p.asin}</td>
+        <td style={{ ...tdStyle, padding: '6px 8px' }} onClick={e => e.stopPropagation()}>
+          <input
+            defaultValue={p.msku || ''}
+            placeholder="—"
+            onBlur={e => handleMskuSave(p.asin, e.target.value)}
+            onKeyDown={e => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur() }}
+            style={{
+              width: 110, padding: '4px 8px', borderRadius: 6, fontSize: 11, fontFamily: 'monospace',
+              border: '1px solid transparent', outline: 'none', color: COLORS.text,
+              background: 'transparent', transition: 'all 0.2s',
+            }}
+            onFocus={e => { e.target.style.border = `1px solid ${COLORS.accent}`; e.target.style.background = '#fff' }}
+            onBlurCapture={e => { e.target.style.border = '1px solid transparent'; e.target.style.background = 'transparent' }}
+          />
+        </td>
+        <td style={{ ...tdStyle, textAlign: 'center' }}>
+          <span style={{ display: 'inline-block', padding: '2px 10px', borderRadius: 6, fontSize: 10, fontWeight: 600, background: st.bg, color: st.color }}>
+            {st.label}
+          </span>
+        </td>
+        <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500 }}>{p.price ? `€${p.price.toLocaleString('de-DE', { minimumFractionDigits: 2 })}` : '—'}</td>
+        <td style={{ ...tdStyle, textAlign: 'right' }}>
+          {p.rating ? (
+            <span style={{ color: p.rating >= 4 ? COLORS.green : p.rating >= 3 ? COLORS.orange : COLORS.red, fontWeight: 500 }}>
+              ★ {p.rating} <span style={{ color: COLORS.sub, fontWeight: 400 }}>({p.review_count || 0})</span>
+            </span>
+          ) : '—'}
+        </td>
+        <td style={{ ...tdStyle, fontSize: 11, color: COLORS.sub }}>
+          {new Date(p.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })}
+        </td>
+        <td style={{ ...tdStyle, textAlign: 'center' }}>
+          <button
+            onClick={(e) => { e.stopPropagation(); handleDelete(p.asin) }}
+            style={{
+              width: 24, height: 24, borderRadius: 6, border: 'none',
+              background: 'transparent', color: COLORS.sub, cursor: 'pointer',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 14, transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = COLORS.redLight; (e.currentTarget as HTMLElement).style.color = COLORS.red }}
+            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = COLORS.sub }}
+            title="Remove product"
+          >
+            ✕
+          </button>
+        </td>
+      </tr>
+    )
+  }
+
+  /* ── Parent Row ── */
+  const renderParentRow = (group: ParentGroup) => {
+    const expanded = expandedParents.has(group.parentAsin)
+    const priceRange = group.minPrice !== null
+      ? group.minPrice === group.maxPrice
+        ? `€${group.minPrice.toLocaleString('de-DE', { minimumFractionDigits: 2 })}`
+        : `€${group.minPrice.toLocaleString('de-DE', { minimumFractionDigits: 2 })} – €${group.maxPrice!.toLocaleString('de-DE', { minimumFractionDigits: 2 })}`
+      : '—'
+
+    return (
+      <>
+        <tr key={group.parentAsin} style={{ borderBottom: `1px solid ${COLORS.border}`, transition: 'background 0.15s', cursor: 'pointer', background: expanded ? 'rgba(91,95,199,0.03)' : 'transparent' }}
+          onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = expanded ? 'rgba(91,95,199,0.05)' : '#FAFBFC'}
+          onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = expanded ? 'rgba(91,95,199,0.03)' : 'transparent'}
+          onClick={() => toggleParent(group.parentAsin)}
+        >
+          <td style={{ ...tdStyle, padding: '10px 12px' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ fontSize: 12, color: COLORS.accent, width: 16, textAlign: 'center', flexShrink: 0, transition: 'transform 0.2s', transform: expanded ? 'rotate(90deg)' : 'rotate(0deg)' }}>▶</span>
+              {group.image_url ? (
+                <img src={group.image_url} alt="" style={{ width: 40, height: 40, borderRadius: 8, objectFit: 'cover', border: `1px solid ${COLORS.border}` }} />
+              ) : (
+                <ImgPlaceholder size={40} />
+              )}
+              <div style={{ minWidth: 0 }}>
+                <div style={{ fontSize: 13, fontWeight: 600, color: COLORS.text, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 220 }}>
+                  {group.title || 'Awaiting data...'}
+                </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+                  {group.brand && <span style={{ fontSize: 11, color: COLORS.sub }}>{group.brand}</span>}
+                  <span style={{ fontSize: 10, fontWeight: 600, padding: '1px 6px', borderRadius: 4, background: COLORS.accentLight, color: COLORS.accent }}>
+                    {group.children.length} variants
+                  </span>
+                </div>
+              </div>
+            </div>
+          </td>
+          <td style={{ ...tdStyle, fontFamily: 'monospace', fontSize: 12, color: COLORS.sub, fontWeight: 500 }}>{group.parentAsin}</td>
+          <td style={{ ...tdStyle, fontSize: 11, color: COLORS.sub }}>—</td>
+          <td style={{ ...tdStyle, textAlign: 'center' }}>
+            <span style={{ fontSize: 10, fontWeight: 600, color: COLORS.sub }}>
+              {group.children.filter(c => c.status === 'active').length}/{group.children.length} active
+            </span>
+          </td>
+          <td style={{ ...tdStyle, textAlign: 'right', fontWeight: 500, fontSize: 12 }}>{priceRange}</td>
+          <td style={{ ...tdStyle, textAlign: 'right' }}>
+            {group.avgRating ? (
+              <span style={{ color: group.avgRating >= 4 ? COLORS.green : group.avgRating >= 3 ? COLORS.orange : COLORS.red, fontWeight: 500 }}>
+                ★ {group.avgRating.toFixed(1)} <span style={{ color: COLORS.sub, fontWeight: 400 }}>({group.totalReviews})</span>
+              </span>
+            ) : '—'}
+          </td>
+          <td style={{ ...tdStyle, fontSize: 11, color: COLORS.sub }}></td>
+          <td style={{ ...tdStyle, textAlign: 'center' }}></td>
+        </tr>
+        {expanded && group.children.map(child => renderChildRow(child, true))}
+      </>
     )
   }
 
   return (
-    <DashboardShell sidebar={<Sidebar />}>
-      <div className="page-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+    <>
+      {/* HEADER */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 700, margin: 0 }}>Ürün Performansı</h1>
-          <p style={{ fontSize: 12, color: 'var(--text-secondary)', margin: '3px 0 0' }}>Ürün bazlı satış ve iade analizi · {selectedMonth}</p>
+          <h1 style={{ fontSize: 24, fontWeight: 700, margin: 0, color: COLORS.text }}>My Products</h1>
+          <p style={{ fontSize: 13, color: COLORS.sub, marginTop: 2, margin: 0 }}>
+            {products.length} products registered · {activeCount} active · {pendingCount} pending
+            {viewMode === 'parent' && ` · ${parentGroups.length} parent groups`}
+          </p>
         </div>
-        <div className="header-controls" style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          <select value={selectedMonth} onChange={e => setSelectedMonth(e.target.value)} style={selectStyle}>
-            {monthOptions.map(m => <option key={m} value={m}>{m}</option>)}
-          </select>
-          <select value={selectedMarketplace} onChange={e => setSelectedMarketplace(e.target.value)} style={selectStyle}>
-            {MARKETPLACE_OPTIONS.map(m => <option key={m.value} value={m.value}>{m.label}</option>)}
-          </select>
-        </div>
+        <Link href="/products/add" style={{ textDecoration: 'none' }}>
+          <button style={{
+            padding: '9px 18px', fontSize: 12, fontWeight: 600, borderRadius: 8,
+            background: COLORS.accent, border: 'none', color: '#fff', cursor: 'pointer',
+          }}>
+            + Add Products
+          </button>
+        </Link>
       </div>
 
-      {/* KPIs */}
-      <div className="kpi-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 10, marginBottom: 16 }}>
-        <div style={{ ...cardStyle, padding: '14px 16px' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 4 }}>TOPLAM ÜRÜN</div>
-          <div style={{ fontSize: 22, fontWeight: 700 }}>{products.length}</div>
-        </div>
-        <div style={{ ...cardStyle, padding: '14px 16px' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 4 }}>TOPLAM SATIŞ</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#6366f1' }}>{fmtNum(products.reduce((s, r) => s + r.sales, 0))}</div>
-        </div>
-        <div style={{ ...cardStyle, padding: '14px 16px' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 4 }}>TOPLAM BİRİM</div>
-          <div style={{ fontSize: 22, fontWeight: 700 }}>{products.reduce((s, r) => s + r.units, 0).toLocaleString('de-DE')}</div>
-        </div>
-        <div style={{ ...cardStyle, padding: '14px 16px' }}>
-          <div style={{ fontSize: 10, color: 'var(--text-secondary)', textTransform: 'uppercase', marginBottom: 4 }}>İADE TOPLAM</div>
-          <div style={{ fontSize: 22, fontWeight: 700, color: '#ef4444' }}>{fmtNum(products.reduce((s, r) => s + r.refunds, 0))}</div>
-        </div>
-      </div>
+      {/* PRODUCTS TABLE */}
+      {products.length > 0 ? (
+        <>
+          {/* Search + View Toggle */}
+          <div style={{ ...CARD_STYLE, padding: '10px 16px', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 10 }}>
+            <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by ASIN, title, brand, or MSKU..."
+              style={{ flex: 1, padding: '6px 10px', borderRadius: 8, border: '1px solid #E2E8F0', fontSize: 12, outline: 'none', maxWidth: 300 }} />
+            <div style={{ flex: 1 }} />
 
-      {/* Search */}
-      <div style={{ marginBottom: 14 }}>
-        <input
-          type="text"
-          placeholder="Ürün ara..."
-          value={search}
-          onChange={e => setSearch(e.target.value)}
-          style={{ ...selectStyle, width: '100%', maxWidth: 400, padding: '10px 14px' }}
-        />
-      </div>
-
-      {/* Table */}
-      <div style={{ ...cardStyle, padding: 16 }}>
-        <div className="pl-table-wrap" style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 700 }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid var(--border-color)' }}>
-                <th style={{ ...th, textAlign: 'left', minWidth: 250 }}>Ürün</th>
-                <th style={th} onClick={() => handleSort('skuCount')}>SKU{sortIcon('skuCount')}</th>
-                <th style={th} onClick={() => handleSort('units')}>Adet{sortIcon('units')}</th>
-                <th style={th} onClick={() => handleSort('sales')}>Satış{sortIcon('sales')}</th>
-                <th style={th} onClick={() => handleSort('avgPrice')}>Ort.Fiyat{sortIcon('avgPrice')}</th>
-                <th style={th} onClick={() => handleSort('refunds')}>İade{sortIcon('refunds')}</th>
-                <th style={th} onClick={() => handleSort('refundRate')}>İade%{sortIcon('refundRate')}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((row, i) => (
-                <tr key={i} style={{ borderBottom: '1px solid var(--border-color)', transition: 'background 0.15s' }}
-                  onMouseEnter={e => e.currentTarget.style.background = 'rgba(99,102,241,0.04)'}
-                  onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            {/* View Toggle */}
+            <div style={{ display: 'flex', borderRadius: 8, overflow: 'hidden', border: `1px solid ${COLORS.border}` }}>
+              {(['child', 'parent'] as ViewMode[]).map(mode => (
+                <button
+                  key={mode}
+                  onClick={() => setViewMode(mode)}
+                  style={{
+                    padding: '5px 14px', fontSize: 11, fontWeight: 600, border: 'none', cursor: 'pointer',
+                    background: viewMode === mode ? COLORS.accent : '#fff',
+                    color: viewMode === mode ? '#fff' : COLORS.sub,
+                    transition: 'all 0.2s',
+                  }}
                 >
-                  <td style={{ ...td, fontWeight: 500 }}>
-                    <div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: 300 }}>{row.title}</div>
-                    <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 1 }}>{row.parentAsin}</div>
-                  </td>
-                  <td style={{ ...td, textAlign: 'center', color: 'var(--text-secondary)' }}>{row.skuCount}</td>
-                  <td style={{ ...td, textAlign: 'right', fontWeight: 500 }}>{row.units.toLocaleString('de-DE')}</td>
-                  <td style={{ ...td, textAlign: 'right', fontWeight: 500 }}>{fmtNum(row.sales)}</td>
-                  <td style={{ ...td, textAlign: 'right' }}>{fmtNum(row.avgPrice)}</td>
-                  <td style={{ ...td, textAlign: 'right', color: '#ef4444' }}>{fmtNum(row.refunds)}</td>
-                  <td style={{ ...td, textAlign: 'right' }}>
-                    <span style={{
-                      padding: '2px 8px', borderRadius: 20, fontSize: 11, fontWeight: 600,
-                      background: row.refundRate > 10 ? '#ef444420' : row.refundRate > 5 ? '#f59e0b20' : '#22c55e20',
-                      color: row.refundRate > 10 ? '#ef4444' : row.refundRate > 5 ? '#f59e0b' : '#22c55e',
-                    }}>
-                      %{row.refundRate.toFixed(1)}
-                    </span>
-                  </td>
-                </tr>
+                  {mode === 'child' ? 'All Variants' : 'By Parent'}
+                </button>
               ))}
-              {filtered.length === 0 && (
-                <tr><td colSpan={7} style={{ padding: 30, textAlign: 'center', color: 'var(--text-secondary)' }}>Veri bulunamadı</td></tr>
-              )}
-            </tbody>
-          </table>
+            </div>
+
+            <span style={{ fontSize: 11, color: COLORS.sub }}>
+              {viewMode === 'child' ? `${filtered.length} of ${products.length} products` : `${parentGroups.length} groups`}
+            </span>
+          </div>
+
+          <div style={{ ...CARD_STYLE, padding: 0, overflow: 'hidden' }}>
+            <div style={{ overflowX: 'auto' }}>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, minWidth: 750 }}>
+                <thead>
+                  <tr style={{ borderBottom: `2px solid ${COLORS.border}` }}>
+                    <th style={{ ...TH_STYLE, padding: '12px 12px', textAlign: 'left', minWidth: 300 }}>Product</th>
+                    <th style={{ ...TH_STYLE, padding: '12px 12px', textAlign: 'left' }}>{viewMode === 'parent' ? 'Parent ASIN' : 'ASIN'}</th>
+                    <th style={{ ...TH_STYLE, padding: '12px 12px', textAlign: 'left' }}>MSKU</th>
+                    <th style={{ ...TH_STYLE, padding: '12px 12px', textAlign: 'center' }}>Status</th>
+                    <th style={{ ...TH_STYLE, padding: '12px 12px', textAlign: 'right' }}>Price</th>
+                    <th style={{ ...TH_STYLE, padding: '12px 12px', textAlign: 'right' }}>Rating</th>
+                    <th style={{ ...TH_STYLE, padding: '12px 12px', textAlign: 'left' }}>Added</th>
+                    <th style={{ ...TH_STYLE, padding: '12px 12px', textAlign: 'center', width: 50 }}></th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {viewMode === 'child'
+                    ? filtered.map(p => renderChildRow(p))
+                    : parentGroups.map(g => renderParentRow(g))
+                  }
+                  {(viewMode === 'child' ? filtered.length : parentGroups.length) === 0 && (
+                    <tr><td colSpan={8} style={{ padding: 40, textAlign: 'center', color: COLORS.sub, fontSize: 13 }}>No products found</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      ) : (
+        <div style={{ ...CARD_STYLE, padding: '50px 24px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+          <div style={{
+            width: 64, height: 64, borderRadius: 16, background: `linear-gradient(135deg, ${COLORS.accentLight}, rgba(91,95,199,0.15))`,
+            display: 'flex', alignItems: 'center', justifyContent: 'center', marginBottom: 18,
+            fontSize: 28,
+          }}>
+            📦
+          </div>
+          <div style={{ fontSize: 18, fontWeight: 700, color: COLORS.text, marginBottom: 6 }}>Welcome to Your Product Catalog</div>
+          <div style={{ fontSize: 13, color: COLORS.sub, textAlign: 'center', maxWidth: 420, marginBottom: 24, lineHeight: 1.7 }}>
+            Start by adding your Amazon ASINs. Product details like title, image, price and rating will be automatically fetched.
+          </div>
+
+          <div style={{ display: 'flex', gap: 16, marginBottom: 28, flexWrap: 'wrap', justifyContent: 'center' }}>
+            {[
+              { step: '1', icon: '✏️', title: 'Add ASINs', desc: 'Paste your product ASINs' },
+              { step: '2', icon: '⚡', title: 'Auto-Fetch', desc: 'Data pulled automatically' },
+              { step: '3', icon: '📊', title: 'Track', desc: 'Monitor performance' },
+            ].map(s => (
+              <div key={s.step} style={{
+                textAlign: 'center', padding: '16px 18px', borderRadius: 12,
+                background: '#FAFBFC', border: `1px solid ${COLORS.border}`, minWidth: 130,
+              }}>
+                <div style={{ fontSize: 22, marginBottom: 6 }}>{s.icon}</div>
+                <div style={{ fontSize: 12, fontWeight: 700, color: COLORS.text, marginBottom: 2 }}>{s.title}</div>
+                <div style={{ fontSize: 11, color: COLORS.sub }}>{s.desc}</div>
+              </div>
+            ))}
+          </div>
+
+          <Link href="/products/add" style={{ textDecoration: 'none' }}>
+            <button style={{
+              padding: '12px 28px', fontSize: 14, fontWeight: 600, borderRadius: 10,
+              background: COLORS.accent, border: 'none', color: '#fff', cursor: 'pointer',
+              boxShadow: '0 2px 8px rgba(91,95,199,0.25)', transition: 'all 0.2s',
+            }}>
+              + Add Your First Products
+            </button>
+          </Link>
         </div>
-      </div>
-    </DashboardShell>
+      )}
+    </>
   )
 }

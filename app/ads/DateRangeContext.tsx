@@ -57,7 +57,7 @@ export function DateRangeProvider({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     const fetchRange = async () => {
-      // brand_id filtresi olmadan dene, daha güvenilir
+      // Fetch without brand_id filter for reliability
       const [minRes, maxRes] = await Promise.all([
         supabase.from('amazon_ads').select('date').order('date', { ascending: true }).limit(1),
         supabase.from('amazon_ads').select('date').order('date', { ascending: false }).limit(1),
