@@ -6,7 +6,7 @@ import Sidebar from "./Sidebar";
 import { COLORS } from "@/lib/design-tokens";
 import { LanguageProvider } from "@/lib/i18n";
 
-const NO_LAYOUT_ROUTES = ["/login"];
+const NO_LAYOUT_ROUTES = ["/login", "/site"];
 
 export default function MainLayout({ children }: { children: ReactNode }) {
   const pathname = usePathname();
