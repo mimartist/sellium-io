@@ -513,7 +513,7 @@ export default function COGSPage() {
       { label: `${t('cogs.ads')} (${t('common.vatIncluded')})`, value: -sel.adSpend, color: COLORS.costBars[6] },
       { label: t('cogs.netProfit'), value: sel.profitPerUnit, color: COLORS.profitBar },
     ]
-  }, [sel])
+  }, [sel, t])
   const maxBarVal = useMemo(() => costBarsData.length > 0 ? Math.max(...costBarsData.map(b => Math.abs(b.value))) : 1, [costBarsData])
 
   // ========== Discount simulator ==========
