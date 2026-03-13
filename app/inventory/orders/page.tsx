@@ -71,6 +71,8 @@ export default function OrderPlanningPage() {
         const currentAvailable = (r.current_stock || 0) + (r.inbound_total || 0)
         const orderQty = Math.max(0, Math.ceil(targetStock - currentAvailable))
         const estimatedCost = orderQty * (r.price || 0) * 0.23
+        const estimatedCostVat = estimatedCost * 0.19
+        const estimatedCostWithVat = estimatedCost + estimatedCostVat
         const estimatedRevenue = orderQty * (r.price || 0)
         const daysLeft = r.days_of_stock || 0
         const deadlineDate = new Date()
@@ -93,8 +95,10 @@ export default function OrderPlanningPage() {
   const summaryRows = selectedRows.length > 0 ? selectedRows : orderRows
   const totalOrderQty = summaryRows.reduce((s, r) => s + r.orderQty, 0)
   const totalCost = summaryRows.reduce((s, r) => s + r.estimatedCost, 0)
+  const totalCostVat = totalCost * 0.19
+  const totalCostWithVat = totalCost + totalCostVat
   const totalRevenue = summaryRows.reduce((s, r) => s + r.estimatedRevenue, 0)
-  const roi = totalCost > 0 ? ((totalRevenue - totalCost) / totalCost) * 100 : 0
+  const roi = totalCostWithVat > 0 ? ((totalRevenue - totalCostWithVat) / totalCostWithVat) * 100 : 0
 
   const groupDistribution = useMemo(() => {
     const groups: Record<string, { name: string; qty: number; cost: number }> = {}
@@ -172,7 +176,7 @@ export default function OrderPlanningPage() {
           icon={KpiIcons.stock} bars={[50, 55, 60, 58, 62, 65, 68]} color={COLORS.accent} light="#C7D2FE" iconBg={COLORS.accentLight} />
         <KpiCard label={t("inventoryOrders.totalOrderQty")} value={fmtNum(totalOrderQty) + ' units'} change={`${orderRows.length} products`} up={true}
           icon={KpiIcons.orders} bars={[40, 45, 50, 55, 60, 65, 70]} color="#a78bfa" light="#E8DEFF" iconBg="#F3EEFF" />
-        <KpiCard label={t("inventoryOrders.estimatedCost")} value={fmtCur(totalCost)} change={t("inventoryOrders.productionCost")} up={false}
+        <KpiCard label={t("inventoryOrders.estimatedCost") + ` (${t("common.vatIncluded")})`} value={fmtCur(totalCostWithVat)} change={`${t("common.cost")} ${fmtCur(totalCost)} + ${t("common.vat")} ${fmtCur(totalCostVat)}`} up={false}
           icon={KpiIcons.spend} bars={[60, 62, 65, 63, 60, 58, 55]} color={COLORS.orange} light={COLORS.orangeLighter} iconBg={COLORS.orangeLight} />
         <KpiCard label={t("inventoryOrders.expectedRevenue")} value={fmtCur(totalRevenue)} change={`${t("inventoryOrders.roi")}: %${fmtDec(roi, 0)}`} up={true}
           icon={KpiIcons.revenue} bars={[30, 35, 42, 50, 58, 65, 72]} color={COLORS.green} light={COLORS.greenLighter} iconBg={COLORS.greenLight} />
@@ -220,13 +224,14 @@ export default function OrderPlanningPage() {
         {/* Investment / Revenue / ROI — inline inside Parameters */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, borderTop: `1px solid ${COLORS.border}`, paddingTop: 16 }}>
           {[
-            { label: t("inventoryOrders.investment"), value: fmtCur(totalCost), color: '#f59e0b' },
-            { label: t("inventoryOrders.expectedRevenue"), value: fmtCur(totalRevenue), color: '#22c55e' },
-            { label: t("inventoryOrders.estimatedRoi"), value: `%${fmtDec(roi, 0)}`, color: roi > 100 ? '#22c55e' : '#f59e0b' },
+            { label: t("inventoryOrders.investment") + ` (${t("common.vatIncluded")})`, value: fmtCur(totalCostWithVat), sub: `${t("common.cost")} ${fmtCur(totalCost)} + ${t("common.vat")} ${fmtCur(totalCostVat)}`, color: '#f59e0b' },
+            { label: t("inventoryOrders.expectedRevenue"), value: fmtCur(totalRevenue), sub: '', color: '#22c55e' },
+            { label: t("inventoryOrders.estimatedRoi"), value: `%${fmtDec(roi, 0)}`, sub: '', color: roi > 100 ? '#22c55e' : '#f59e0b' },
           ].map((item, i) => (
             <div key={i} style={{ textAlign: 'center', padding: '12px 8px', background: '#F8FAFC', borderRadius: 10 }}>
               <div style={{ fontSize: 10, fontWeight: 700, color: COLORS.sub, letterSpacing: '0.05em', textTransform: 'uppercase', marginBottom: 4 }}>{item.label}</div>
               <div style={{ fontSize: 20, fontWeight: 700, color: item.color }}>{item.value}</div>
+              {item.sub && <div style={{ fontSize: 10, color: COLORS.sub, marginTop: 2 }}>{item.sub}</div>}
             </div>
           ))}
         </div>

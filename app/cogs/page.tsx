@@ -159,6 +159,7 @@ export default function COGSPage() {
   const [editOtherCost, setEditOtherCost] = useState('')
   const [costTab, setCostTab] = useState<string>('combined')
   const [isMobile, setIsMobile] = useState(false)
+  const [profitFilter, setProfitFilter] = useState<'all' | 'profit' | 'loss'>('all')
 
   // ========== FETCH ==========
   const fetchData = useCallback(async () => {
@@ -318,12 +319,12 @@ export default function COGSPage() {
           digitalPerUnit = fallbackDigitalPerUnit
         }
 
-        // COGS
+        // COGS + %19 KDV
         const cogsData = cogsMap[skuGroup] || { packCost: 0, otherCost: 0 }
-        const cogsPerUnit = cogsData.packCost + cogsData.otherCost
+        const cogsPerUnit = (cogsData.packCost + cogsData.otherCost) * 1.19
 
-        // Ad spend
-        const adPerUnit = (adMap[sku] || 0) / data.units
+        // Ad spend + %19 KDV
+        const adPerUnit = ((adMap[sku] || 0) / data.units) * 1.19
 
         // Totals
         const totalCost = cogsPerUnit + commPerUnit + fbaPerUnit + storagePerUnit + returnPerUnit + digitalPerUnit + adPerUnit
@@ -459,6 +460,12 @@ export default function COGSPage() {
     return sorted
   }, [skuRows, sortKey, sortDir])
 
+  const filteredParentGroups = useMemo(() => {
+    if (profitFilter === 'all') return parentGroups
+    if (profitFilter === 'profit') return parentGroups.filter(pg => pg.margin >= 0)
+    return parentGroups.filter(pg => pg.margin < 0)
+  }, [parentGroups, profitFilter])
+
   // ========== KPIs ==========
   const avgMargin = useMemo(() => {
     if (skuRows.length === 0) return 0
@@ -498,12 +505,12 @@ export default function COGSPage() {
     if (!sel) return []
     return [
       { label: t('cogs.sellingPrice'), value: sel.avgPrice, color: COLORS.costBars[0] },
-      { label: t('cogs.cogs'), value: -sel.cogs, color: COLORS.costBars[1] },
+      { label: `${t('cogs.cogs')} (${t('common.vatIncluded')})`, value: -sel.cogs, color: COLORS.costBars[1] },
       { label: t('cogs.commission'), value: -sel.commission, color: COLORS.costBars[2] },
       { label: t('cogs.fbaShipping'), value: -sel.fba, color: COLORS.costBars[3] },
       { label: t('cogs.storage'), value: -sel.storage, color: COLORS.costBars[4] },
       { label: t('cogs.returnsDigital'), value: -(sel.returnMgmt + sel.digital), color: COLORS.costBars[5] },
-      { label: t('cogs.ads'), value: -sel.adSpend, color: COLORS.costBars[6] },
+      { label: `${t('cogs.ads')} (${t('common.vatIncluded')})`, value: -sel.adSpend, color: COLORS.costBars[6] },
       { label: t('cogs.netProfit'), value: sel.profitPerUnit, color: COLORS.profitBar },
     ]
   }, [sel])
@@ -564,10 +571,12 @@ export default function COGSPage() {
     const sorted = [...skuRows].filter(r => r.adSpend > 0).sort((a, b) => (b.adSpend / b.avgPrice) - (a.adSpend / a.avgPrice))
     const worstAd = sorted[0]
     if (worstAd && worstAd.margin < 5) {
+      const pct = ((worstAd.adSpend / worstAd.avgPrice) * 100).toFixed(0)
+      const profitLabel = worstAd.margin < 0 ? t('cogs.aiLoss') : t('cogs.aiProfit')
       insights.push({
-        type: 'PROFITABILITY',
-        title: `${worstAd.skuGroup} ${worstAd.margin < 0 ? 'is losing money' : 'has low margin'} — high ad cost`,
-        desc: `Ad spend per unit ${fmtEur(worstAd.adSpend)} consumes ${((worstAd.adSpend / worstAd.avgPrice) * 100).toFixed(0)}% of the selling price in ${worstAd.skuGroup} group. ${fmtEur(worstAd.profitPerUnit)} ${worstAd.margin < 0 ? 'loss' : 'profit'} per unit. Reduce ad budget and focus on organic sales.`,
+        type: t('cogs.aiProfitability'),
+        title: `${worstAd.skuGroup} ${worstAd.margin < 0 ? t('cogs.aiLosingMoney') : t('cogs.aiLowMargin')}`,
+        desc: t('cogs.aiAdSpendDesc').replace('{adSpend}', fmtEur(worstAd.adSpend)).replace('{pct}', pct).replace('{skuGroup}', worstAd.skuGroup).replace('{profit}', fmtEur(worstAd.profitPerUnit)).replace('{profitLabel}', profitLabel),
         color: COLORS.red,
       })
     }
@@ -576,9 +585,9 @@ export default function COGSPage() {
     const bestMarginLowVol = [...skuRows].filter(r => r.margin > 30).sort((a, b) => a.units - b.units)[0]
     if (bestMarginLowVol) {
       insights.push({
-        type: 'EFFICIENCY',
-        title: `${bestMarginLowVol.skuGroup} is a star — increase traffic`,
-        desc: `Efficient with ${bestMarginLowVol.margin.toFixed(1)}% margin but only ${bestMarginLowVol.units} units sold. Increase SP campaign bids to drive more traffic.`,
+        type: t('cogs.aiEfficiency'),
+        title: `${bestMarginLowVol.skuGroup} ${t('cogs.aiStarTitle')}`,
+        desc: t('cogs.aiStarDesc').replace('{margin}', bestMarginLowVol.margin.toFixed(1)).replace('{units}', String(bestMarginLowVol.units)),
         color: COLORS.accent,
       })
     }
@@ -588,24 +597,27 @@ export default function COGSPage() {
     if (nearThreshold.length > 0) {
       const groups = [...new Set(nearThreshold.map(r => r.skuGroup))]
       insights.push({
-        type: 'COST',
-        title: `Commission threshold opportunity — ${groups.length} product groups near 20€`,
-        desc: `${groups.join(', ')} products are at the 20€ commission threshold. Pricing at 19.99€ reduces commission from 15% to 10% — ~1€ savings per unit.`,
+        type: t('cogs.aiCost'),
+        title: t('cogs.aiCommissionTitle').replace('{count}', String(groups.length)),
+        desc: t('cogs.aiCommissionDesc').replace('{groups}', groups.join(', ')),
         color: COLORS.green,
       })
     }
 
     if (insights.length === 0) {
+      const lossText = lossMakingSkus.length > 0
+        ? t('cogs.aiOverviewLoss').replace('{count}', String(lossMakingSkus.length))
+        : t('cogs.aiOverviewProfit')
       insights.push({
-        type: 'INFO',
-        title: `Overview — ${lossMakingSkus.length} loss-making SKUs`,
-        desc: `Average margin ${avgMargin.toFixed(1)}%. ${lossMakingSkus.length > 0 ? `${lossMakingSkus.length} SKUs are losing money — review their ad and cost structure.` : 'All products are profitable.'}`,
+        type: t('cogs.aiInfo'),
+        title: t('cogs.aiOverviewTitle').replace('{count}', String(lossMakingSkus.length)),
+        desc: t('cogs.aiOverviewDesc').replace('{margin}', avgMargin.toFixed(1)).replace('{lossText}', lossText),
         color: COLORS.accent,
       })
     }
 
     return insights
-  }, [skuRows, avgMargin, lossMakingSkus])
+  }, [skuRows, avgMargin, lossMakingSkus, t])
 
   // ========== Save COGS ==========
   const saveCost = async (skuPrefix: string) => {
@@ -707,9 +719,28 @@ export default function COGSPage() {
 
       {/* 3-Level Product Table */}
       <div style={{ ...CARD_STYLE, padding: 0, marginBottom: 20, overflow: 'hidden' }}>
-        <div style={{ padding: '16px 24px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text }}>{t('cogs.productProfitTable')}</div>
-          <div style={{ fontSize: 12, color: COLORS.sub }}>{parentGroups.length} {t('cogs.productGroups')} · {skuRows.length} SKU</div>
+        <div style={{ padding: '16px 24px', borderBottom: `1px solid ${COLORS.border}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ fontSize: 16, fontWeight: 700, color: COLORS.text }}>{t('cogs.productProfitTable')}</div>
+            <div style={{ display: 'flex', gap: 4 }}>
+              {([
+                { key: 'all' as const, label: t('cogs.filterAll') },
+                { key: 'profit' as const, label: t('cogs.filterProfitable') },
+                { key: 'loss' as const, label: t('cogs.filterLossMaking') },
+              ]).map(f => (
+                <button key={f.key} onClick={() => setProfitFilter(f.key)}
+                  style={{ padding: '4px 12px', borderRadius: 20, fontSize: 12, fontWeight: 600, border: 'none', cursor: 'pointer', transition: 'all .15s',
+                    background: profitFilter === f.key ? (f.key === 'loss' ? COLORS.red : f.key === 'profit' ? COLORS.green : COLORS.accent) : `${COLORS.border}`,
+                    color: profitFilter === f.key ? '#fff' : COLORS.sub,
+                  }}>
+                  {f.label}
+                  {f.key === 'loss' && ` (${parentGroups.filter(pg => pg.margin < 0).length})`}
+                  {f.key === 'profit' && ` (${parentGroups.filter(pg => pg.margin >= 0).length})`}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div style={{ fontSize: 12, color: COLORS.sub }}>{filteredParentGroups.length} {t('cogs.productGroups')} · {skuRows.length} SKU</div>
         </div>
         <div className="modern-scroll" style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
@@ -729,7 +760,7 @@ export default function COGSPage() {
               </tr>
             </thead>
             <tbody>
-              {parentGroups.map(pg => {
+              {filteredParentGroups.map(pg => {
                 const isParentExpanded = expandedParents.has(pg.parentAsin)
                 const skuCount = pg.colorGroups.reduce((s, cg) => s + cg.rows.length, 0)
                 const parentSkuPrefix = pg.colorGroups[0]?.skuGroup?.substring(0, 7) || ''
@@ -860,7 +891,7 @@ export default function COGSPage() {
                   </React.Fragment>
                 )
               })}
-              {parentGroups.length === 0 && (
+              {filteredParentGroups.length === 0 && (
                 <tr><td colSpan={12} style={{ padding: 30, textAlign: 'center', color: COLORS.sub }}>{t('cogs.noData')}</td></tr>
               )}
             </tbody>
@@ -971,8 +1002,8 @@ export default function COGSPage() {
                   ) : (
                     <div style={{ flex: 1 }}>
                       {[
-                        { l: t('cogs.cogsUnit'), v: sel.cogs }, { l: t('cogs.commissionUnit'), v: sel.commission }, { l: t('cogs.fbaShippingUnit'), v: sel.fba },
-                        { l: t('cogs.storageUnit'), v: sel.storage }, { l: t('cogs.returnsDigitalUnit'), v: sel.returnMgmt + sel.digital }, { l: t('cogs.adsUnit'), v: sel.adSpend },
+                        { l: `${t('cogs.cogsUnit')} (${t('common.vatIncluded')})`, v: sel.cogs }, { l: t('cogs.commissionUnit'), v: sel.commission }, { l: t('cogs.fbaShippingUnit'), v: sel.fba },
+                        { l: t('cogs.storageUnit'), v: sel.storage }, { l: t('cogs.returnsDigitalUnit'), v: sel.returnMgmt + sel.digital }, { l: `${t('cogs.adsUnit')} (${t('common.vatIncluded')})`, v: sel.adSpend },
                       ].map((r, i) => (
                         <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: `1px solid #F8FAFC` }}>
                           <span style={{ fontSize: 13, color: '#64748B' }}>{r.l}</span>
@@ -1047,8 +1078,8 @@ export default function COGSPage() {
                 ) : (
                   <>
                     {[
-                      { l: t('cogs.cogsUnit'), v: sel.cogs }, { l: t('cogs.commissionUnit'), v: sel.commission }, { l: t('cogs.fbaShippingUnit'), v: sel.fba },
-                      { l: t('cogs.storageUnit'), v: sel.storage }, { l: t('cogs.returnsDigitalUnit'), v: sel.returnMgmt + sel.digital }, { l: t('cogs.adsUnit'), v: sel.adSpend },
+                      { l: `${t('cogs.cogsUnit')} (${t('common.vatIncluded')})`, v: sel.cogs }, { l: t('cogs.commissionUnit'), v: sel.commission }, { l: t('cogs.fbaShippingUnit'), v: sel.fba },
+                      { l: t('cogs.storageUnit'), v: sel.storage }, { l: t('cogs.returnsDigitalUnit'), v: sel.returnMgmt + sel.digital }, { l: `${t('cogs.adsUnit')} (${t('common.vatIncluded')})`, v: sel.adSpend },
                     ].map((r, i) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '9px 0', borderBottom: '1px solid #F8FAFC' }}>
                         <span style={{ fontSize: 13, color: '#64748B' }}>{r.l}</span>
