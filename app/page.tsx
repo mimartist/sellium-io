@@ -634,20 +634,16 @@ export default function DashboardPage() {
         returnMap[skuGroup].qty += r.qty
         returnMap[skuGroup].reasons[r.reason] = (returnMap[skuGroup].reasons[r.reason] || 0) + r.qty
       })
-      const returnEntries = Object.entries(returnMap).sort((a, b) => b[1].qty - a[1].qty).slice(0, 5)
-      setTopRefundProducts(
-        returnEntries.map(([skuGroup, d]) => {
-          // Find a matching SKU in skuSales to get avg price
-          const matchingSku = Object.keys(skuSales).find(s => s.startsWith(skuGroup))
-          const salesData = matchingSku ? skuSales[matchingSku] : null
-          const avgPrice = salesData && salesData.units > 0 ? salesData.sales / salesData.units : (skuStock[skuGroup + 'M']?.price || skuStock[skuGroup + 'L']?.price || 20)
-          const topReason = Object.entries(d.reasons).sort((a, b) => b[1] - a[1])[0]?.[0] || ''
-          // Sum all shipped units for this SKU group
-          const groupShipped = Object.entries(skuSales).filter(([s]) => s.startsWith(skuGroup)).reduce((sum, [, v]) => sum + v.units, 0)
-          const totalQty = groupShipped + d.qty
-          return { title: skuGroup, sku: skuGroup, refunds: d.qty * avgPrice, refundCount: d.qty, refundRate: totalQty > 0 ? (d.qty / totalQty) * 100 : 0, topReason }
-        })
-      )
+      const returnAll = Object.entries(returnMap).map(([skuGroup, d]) => {
+        const matchingSku = Object.keys(skuSales).find(s => s.startsWith(skuGroup))
+        const salesData = matchingSku ? skuSales[matchingSku] : null
+        const avgPrice = salesData && salesData.units > 0 ? salesData.sales / salesData.units : (skuStock[skuGroup + 'M']?.price || skuStock[skuGroup + 'L']?.price || 20)
+        const topReason = Object.entries(d.reasons).sort((a, b) => b[1] - a[1])[0]?.[0] || ''
+        const groupShipped = Object.entries(skuSales).filter(([s]) => s.startsWith(skuGroup)).reduce((sum, [, v]) => sum + v.units, 0)
+        const totalQty = groupShipped + d.qty
+        return { title: skuGroup, sku: skuGroup, refunds: d.qty * avgPrice, refundCount: d.qty, refundRate: totalQty > 0 ? (d.qty / totalQty) * 100 : 0, topReason }
+      })
+      setTopRefundProducts(returnAll.sort((a, b) => b.refunds - a.refunds).slice(0, 5))
 
       // Fetch champion's last 2 months performance
       const champSku = allSkus.sort((a, b) => b[1].sales - a[1].sales)[0]?.[0]
