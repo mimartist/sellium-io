@@ -245,7 +245,7 @@ const FBA_RETURNS: { date: string; sku: string; qty: number; reason: string }[] 
 // Change badge component
 const ChangeBadge = ({ text, up }: { text: string; up: boolean }) => (
   <span
-    className="rounded-[20px] whitespace-nowrap"
+    className="rounded-[20px] whitespace-nowrap change-badge"
     style={{
       fontSize: 11, fontWeight: 600, padding: '2px 8px',
       background: up ? COLORS.greenLight : COLORS.redLight,
@@ -997,7 +997,7 @@ export default function DashboardPage() {
 
         {/* Top 5 Ürünler */}
         <div style={{ ...CARD_STYLE, padding: '18px 20px' }}>
-          <div className="flex items-center gap-2 mb-[14px]">
+          <div className="flex items-center gap-2 mb-[14px] top5-header">
             <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#FEF3C7', color: COLORS.orange }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" stroke="currentColor" strokeWidth="2" /></svg>
             </div>
@@ -1010,25 +1010,26 @@ export default function DashboardPage() {
               const pct = maxSales > 0 ? (p.sales / maxSales) * 100 : 0
               const imgInfo = getImgBySku(p.sku)
               const imgUrl = imgInfo?.image_url
+              const pAsin = asinFromSku(p.sku)
               return (
-                <div key={i} style={{ marginBottom: i < 4 ? 6 : 0, borderRadius: 8, overflow: 'hidden', position: 'relative' }}>
+                <a key={i} href={pAsin ? `/products/${pAsin}` : '#'} className="top5-row" style={{ marginBottom: i < 4 ? 6 : 0, borderRadius: 8, overflow: 'hidden', position: 'relative', display: 'block', textDecoration: 'none', color: 'inherit' }}>
                   <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: `${pct}%`, background: `${barColors[i]}15`, borderRadius: 8, transition: 'width 0.5s ease' }} />
                   <div className="flex items-center justify-between" style={{ position: 'relative', padding: '8px 12px' }}>
-                    <div className="flex items-center gap-[10px]">
-                      <span className="flex items-center justify-center shrink-0 text-[11px] mc-sub font-bold" style={{ width: 22, height: 22, borderRadius: '50%', background: barColors[i], color: '#fff' }}>{i + 1}</span>
+                    <div className="flex items-center top5-left">
+                      <span className="top5-rank flex items-center justify-center shrink-0 font-bold" style={{ width: 22, height: 22, borderRadius: '50%', background: barColors[i], color: '#fff', fontSize: 11 }}>{i + 1}</span>
                       {imgUrl ? (
-                        <img src={imgUrl} alt={p.sku} style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover' }} />
+                        <img src={imgUrl} alt={p.sku} className="top5-img" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover' }} />
                       ) : (
                         <ImgPlaceholder size={28} />
                       )}
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span className="text-[13px] mc-body font-semibold" style={{ color: COLORS.text }}>{p.sku}</span>
-                        <span className="text-[10px]" style={{ color: COLORS.sub }}>{p.units} {t("dashboard.unitsSold")} · %{((p.sales / (topProducts.reduce((s, x) => s + x.sales, 0) || 1)) * 100).toFixed(1)}</span>
+                        <span className="top5-sku font-semibold" style={{ fontSize: 13, color: COLORS.text }}>{p.sku}</span>
+                        <span className="top5-desc" style={{ fontSize: 10, color: COLORS.sub }}>{p.units} {t("dashboard.unitsSold")} · %{((p.sales / (topProducts.reduce((s, x) => s + x.sales, 0) || 1)) * 100).toFixed(1)}</span>
                       </div>
                     </div>
-                    <span className="text-[13px] mc-body font-bold" style={{ color: barColors[i] }}>{fmtNum(p.sales)}</span>
+                    <span className="top5-amount font-bold" style={{ fontSize: 13, color: barColors[i] }}>{fmtNum(p.sales)}</span>
                   </div>
-                </div>
+                </a>
               )
             })
           })() : (
@@ -1038,7 +1039,7 @@ export default function DashboardPage() {
 
         {/* Top 5 İade */}
         <div style={{ ...CARD_STYLE, padding: '18px 20px' }}>
-          <div className="flex items-center gap-2 mb-[14px]">
+          <div className="flex items-center gap-2 mb-[14px] top5-header">
             <div className="w-8 h-8 rounded-full flex items-center justify-center" style={{ background: '#FEE2E2', color: COLORS.red }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none"><path d="M9 14l-4-4 4-4" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/><path d="M5 10h11a4 4 0 010 8h-1" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
             </div>
@@ -1051,25 +1052,26 @@ export default function DashboardPage() {
               const pct = maxRefund > 0 ? (p.refunds / maxRefund) * 100 : 0
               const imgInfo = getImgBySku(p.sku)
               const imgUrl = imgInfo?.image_url
+              const pAsin = asinFromSku(p.sku)
               return (
-                <div key={i} style={{ marginBottom: i < 4 ? 6 : 0, borderRadius: 8, overflow: 'hidden', position: 'relative' }}>
+                <a key={i} href={pAsin ? `/products/${pAsin}` : '#'} className="top5-row" style={{ marginBottom: i < 4 ? 6 : 0, borderRadius: 8, overflow: 'hidden', position: 'relative', display: 'block', textDecoration: 'none', color: 'inherit' }}>
                   <div style={{ position: 'absolute', top: 0, left: 0, height: '100%', width: `${pct}%`, background: `${barColors[i]}15`, borderRadius: 8, transition: 'width 0.5s ease' }} />
                   <div className="flex items-center justify-between" style={{ position: 'relative', padding: '8px 12px' }}>
-                    <div className="flex items-center gap-[10px]">
-                      <span className="flex items-center justify-center shrink-0 text-[11px] mc-sub font-bold" style={{ width: 22, height: 22, borderRadius: '50%', background: barColors[i], color: '#fff' }}>{i + 1}</span>
+                    <div className="flex items-center top5-left">
+                      <span className="top5-rank flex items-center justify-center shrink-0 font-bold" style={{ width: 22, height: 22, borderRadius: '50%', background: barColors[i], color: '#fff', fontSize: 11 }}>{i + 1}</span>
                       {imgUrl ? (
-                        <img src={imgUrl} alt={p.sku} style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover' }} />
+                        <img src={imgUrl} alt={p.sku} className="top5-img" style={{ width: 28, height: 28, borderRadius: 6, objectFit: 'cover' }} />
                       ) : (
                         <ImgPlaceholder size={28} />
                       )}
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
-                        <span className="text-[13px] mc-body font-semibold" style={{ color: COLORS.text }}>{p.sku}</span>
-                        <span className="text-[10px]" style={{ color: COLORS.sub }}>{p.refundCount} {t("dashboard.unitsCancelled")} · %{p.refundRate.toFixed(1)}</span>
+                        <span className="top5-sku font-semibold" style={{ fontSize: 13, color: COLORS.text }}>{p.sku}</span>
+                        <span className="top5-desc" style={{ fontSize: 10, color: COLORS.sub }}>{p.refundCount} {t("dashboard.unitsCancelled")} · %{p.refundRate.toFixed(1)}</span>
                       </div>
                     </div>
-                    <span className="text-[13px] mc-body font-bold" style={{ color: barColors[i] }}>{fmtNum(p.refunds)}</span>
+                    <span className="top5-amount font-bold" style={{ fontSize: 13, color: barColors[i] }}>{fmtNum(p.refunds)}</span>
                   </div>
-                </div>
+                </a>
               )
             })
           })() : (

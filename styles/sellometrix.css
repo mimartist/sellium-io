@@ -23,7 +23,21 @@
   .grid-4 .mc-val-sm { font-size: 13px !important; }
   .grid-4 .mc-body { font-size: 11px !important; }
   .grid-4 .mc-sub { font-size: 9px !important; }
+  /* Top 5 cards: compact mobile */
+  .top5-header { min-height: 40px; display: flex; align-items: center; }
+  .top5-desc { display: none !important; }
+  .top5-sku { display: none !important; }
+  .top5-left { gap: 6px !important; }
+  .top5-rank { width: 18px !important; height: 18px !important; font-size: 9px !important; }
+  .top5-img { width: 26px !important; height: 26px !important; }
+  .top5-amount { font-size: 11px !important; white-space: nowrap; }
+  .top5-row { margin-bottom: 3px !important; }
+  /* Previous month card: smaller change badges */
+  .change-badge { font-size: 8px !important; padding: 1px 4px !important; }
 }
+
+/* ═══ TOP 5 CARDS ═══ */
+.top5-left { gap: 10px; }
 
 /* ═══ TABLE ═══ */
 .table-row-hover:hover { background: #F8FAFC; }

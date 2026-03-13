@@ -94,7 +94,7 @@ export default {
     profit: "Kâr",
     item: "Kalem",
     topProducts: "Top 5 Ürün",
-    topRefunds: "En Çok İade Edilen 5 Ürün",
+    topRefunds: "Top 5 İade",
     refundRate: "İade Oranı",
     noRefunds: "Bu dönemde iade/iptal yok",
     unitsCancelled: "adet iptal",
